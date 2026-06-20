@@ -1,0 +1,11 @@
+# Mac
+.DS_Store
+
+# 元の22MBバンドル（バックアップ。デプロイには不要）
+DRESS CODE TOKYO.html
+
+# 受け取った元画像の保管フォルダ（assets/images に取り込み済み）
+画像/
+
+# Vercel
+.vercel

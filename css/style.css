@@ -1,0 +1,54 @@
+/* =========================================================
+   DRESS CODE TOKYO — グローバルスタイル
+   フォントや基本の色など、サイト全体の土台になる部分。
+   ※ 各セクションの細かい見た目は index.html 内の style="" にあります。
+   ========================================================= */
+
+* { box-sizing: border-box; }
+
+html { scroll-behavior: smooth; }
+
+body {
+  margin: 0;
+  background: #ffffff;
+  color: #16150f;
+  font-family: 'Zen Kaku Gothic New', 'Jost', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+::selection { background: #16150f; color: #fff; }
+
+a { color: inherit; }
+
+/* 画像の共通設定（差し替えた写真がきれいに収まるように） */
+img { max-width: 100%; }
+
+/* マーキー（流れる文字）用アニメーション。今は未使用だが残しておく */
+@keyframes dctMarquee {
+  0%   { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+
+.dct-rise { opacity: 1; }
+
+/* --- レスポンシブ：スマホ表示の切り替え --- */
+@media (max-width: 860px) {
+  .dct-desknav  { display: none !important; }   /* PC用ナビを隠す */
+  .dct-menubtn  { display: inline-flex !important; } /* ハンバーガーを出す */
+  .dct-headcta  { display: none !important; }   /* ヘッダーのボタンを隠す */
+}
+
+@media (min-width: 861px) {
+  .dct-mobilemenu { display: none !important; } /* PCではモバイルメニューを隠す */
+}
+
+/* 画像を入れる枠（プレースホルダー）に写真を流し込んだときの共通スタイル */
+.dct-media-img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}

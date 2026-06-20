@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>DRESS CODE TOKYO — Tokyo Fashion Market &amp; Culture</title>
+  <meta name="description" content="ファッションをきっかけに、人とカルチャーが出会う場所。DRESS CODE TOKYO。">
+
+  <!-- ===== Google Fonts（元の埋め込み864個ぶんをこの1行に置き換え。見た目は同じ） ===== -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;1,300;1,400&family=Jost:wght@300;400;500;600&family=Zen+Kaku+Gothic+New:wght@400;500;700&family=Zen+Old+Mincho:wght@400;500;600;700&display=swap">
+
+  <!-- ===== このサイトのスタイル ===== -->
+  <link rel="stylesheet" href="css/style.css">
+</head>
+
+<body>
+<div style="width:100%;overflow-x:hidden;background:#ffffff">
+
+  <!-- ============ HEADER ============ -->
+  <header style="position:sticky;top:0;z-index:60;background:rgba(255,255,255,0.86);backdrop-filter:blur(12px);border-bottom:1px solid #e7e4dd">
+    <div style="max-width:1320px;margin:0 auto;padding:0 clamp(20px,4vw,48px);height:72px;display:flex;align-items:center;justify-content:space-between;gap:24px">
+      <a href="#top" style="display:flex;align-items:center;gap:12px;text-decoration:none;flex:none">
+        <img src="assets/images/logo.png" alt="DRESS CODE TOKYO" style="height:38px;width:auto;display:block">
+      </a>
+      <!-- PC用ナビ（中身は data.js の nav） -->
+      <nav id="nav-desktop" class="dct-desknav" style="display:flex;align-items:center;gap:clamp(14px,2vw,30px)"></nav>
+      <a href="#event" class="dct-headcta" style="flex:none;display:inline-flex;align-items:center;gap:9px;padding:11px 22px;background:#16150f;color:#fff;font-family:'Jost',sans-serif;font-size:11.5px;font-weight:500;letter-spacing:0.18em;text-transform:uppercase;text-decoration:none;border:1px solid #16150f;transition:all .35s ease" data-hover="background:#fff;color:#16150f">来場予約 <span style="font-size:14px">→</span></a>
+      <button id="menu-btn" class="dct-menubtn" style="display:none;flex:none;width:42px;height:42px;align-items:center;justify-content:center;background:none;border:1px solid #d9d6cf;cursor:pointer;color:#16150f;font-family:'Jost',sans-serif;font-size:11px;letter-spacing:0.12em">MENU</button>
+    </div>
+    <!-- モバイルメニュー（ハンバーガーで開閉） -->
+    <div id="mobile-menu" class="dct-mobilemenu" style="display:none;border-top:1px solid #e7e4dd;padding:14px clamp(20px,4vw,48px) 24px;flex-direction:column;gap:2px;background:#fff">
+      <div id="nav-mobile" style="display:flex;flex-direction:column;gap:2px"></div>
+      <a href="#event" data-close style="margin-top:14px;text-align:center;padding:15px;background:#16150f;color:#fff;font-family:'Jost',sans-serif;font-size:12px;letter-spacing:0.18em;text-transform:uppercase;text-decoration:none">来場予約する</a>
+    </div>
+  </header>
+
+  <!-- ============ HERO / TOP ============ -->
+  <section id="top" style="scroll-margin-top:80px;max-width:1320px;margin:0 auto;padding:clamp(36px,5vw,72px) clamp(20px,4vw,48px) clamp(36px,5vw,64px)">
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:16px;padding-bottom:22px;border-bottom:1px solid #e7e4dd">
+      <span style="font-family:'Jost',sans-serif;font-size:11px;font-weight:500;letter-spacing:0.28em;text-transform:uppercase;color:#16150f">Tokyo Fashion Market &amp; Culture</span>
+      <span style="font-family:'Jost',sans-serif;font-size:11px;letter-spacing:0.18em;text-transform:uppercase;color:#9a978d">Issue 01 — 2026</span>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:clamp(36px,5vw,64px);align-items:end;margin-top:clamp(40px,6vw,72px)">
+      <div class="dct-rise" style="min-width:0">
+        <h1 style="margin:0;font-family:'Zen Old Mincho',serif;font-weight:600;font-size:clamp(34px,5.4vw,66px);line-height:1.34;letter-spacing:0.01em;color:#16150f">東京のファッションと、<br>カルチャーが交差する。</h1>
+        <p style="margin:30px 0 0;font-family:'Cormorant Garamond',serif;font-style:italic;font-size:clamp(20px,2.4vw,28px);color:#56544c">An event brand from Tokyo.</p>
+        <p style="margin:24px 0 0;max-width:420px;font-size:14.5px;line-height:2.05;color:#46443c">服、人、音、写真、会話。それぞれのスタイルが集まる場所として、DRESS CODE TOKYO は東京のファッションシーンを記録し、つなげていきます。</p>
+        <div style="display:flex;align-items:center;flex-wrap:wrap;gap:24px;margin-top:38px">
+          <a href="#event" style="display:inline-flex;align-items:center;gap:11px;padding:16px 30px;background:#16150f;color:#fff;font-family:'Jost',sans-serif;font-size:12px;font-weight:500;letter-spacing:0.18em;text-transform:uppercase;text-decoration:none;border:1px solid #16150f;transition:all .35s ease" data-hover="background:#fff;color:#16150f">来場予約する <span style="font-size:14px">→</span></a>
+          <a href="#community" style="font-family:'Jost',sans-serif;font-size:12px;letter-spacing:0.14em;text-transform:uppercase;text-decoration:none;color:#16150f;border-bottom:1px solid #16150f;padding-bottom:3px;transition:opacity .3s ease" data-hover="opacity:0.55">出店募集について</a>
+        </div>
+      </div>
+      <div class="dct-rise" style="position:relative;min-width:0">
+        <!-- メインビジュアル：本番のイベント写真ができたら、下の <div> の中に
+             <img src="assets/images/(写真).jpg" class="dct-media-img"> を1行入れればOK。
+             今は写真が無いので、上品なプレースホルダー枠を表示しています。 -->
+        <div style="position:relative;aspect-ratio:4/5;background:#f3f1ec;overflow:hidden">
+          <span style="position:absolute;left:16px;top:14px;font-family:'Jost',sans-serif;font-size:10px;letter-spacing:0.2em;text-transform:uppercase;color:#a8a59b">Cover — DRESS CODE MARKET</span>
+          <span style="position:absolute;left:16px;bottom:14px;font-family:'Jost',sans-serif;font-size:10px;letter-spacing:0.18em;text-transform:uppercase;color:#a8a59b">Tokyo / 4:5</span>
+        </div>
+        <img src="assets/images/mark.png" alt="" style="position:absolute;right:-4px;bottom:-26px;width:min(62%,280px);height:auto;opacity:0.92;pointer-events:none">
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ SPINE BAR ============ -->
+  <div style="border-top:1px solid #e7e4dd;border-bottom:1px solid #e7e4dd">
+    <div style="max-width:1320px;margin:0 auto;padding:15px clamp(20px,4vw,48px);display:flex;align-items:center;flex-wrap:wrap;gap:10px 22px;font-family:'Jost',sans-serif;font-size:11px;letter-spacing:0.18em;text-transform:uppercase;color:#56544c">
+      <span style="color:#16150f">Next — DRESS CODE MARKET Vol.1</span>
+      <span style="color:#d9d6cf">/</span>
+      <span>2026.03.21 – 22</span>
+      <span style="color:#d9d6cf">/</span>
+      <span>Tokyo</span>
+      <span style="color:#d9d6cf">/</span>
+      <span style="color:#16150f">Now Booking</span>
+    </div>
+  </div>
+
+  <!-- ============ ABOUT ============ -->
+  <section id="about" style="scroll-margin-top:80px;max-width:1320px;margin:0 auto;padding:clamp(72px,10vw,140px) clamp(20px,4vw,48px)">
+    <span style="font-family:'Jost',sans-serif;font-size:12px;font-weight:500;letter-spacing:0.32em;text-transform:uppercase;color:#9a978d">About</span>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:clamp(36px,6vw,96px);margin-top:26px;align-items:start">
+      <div>
+        <h2 style="margin:0;font-family:'Zen Old Mincho',serif;font-weight:600;font-size:clamp(26px,3.4vw,42px);line-height:1.5;color:#16150f">ファッションをきっかけに、<br>人とカルチャーが出会う場所。</h2>
+      </div>
+      <div style="max-width:520px">
+        <p style="margin:0;font-size:15px;line-height:2.15;color:#36342d">DRESS CODE TOKYO は、ファッションをきっかけに人とカルチャーが出会う場所です。マーケットイベント、スナップ、インタビュー、レポートを通して、東京にある多様なスタイルを発信します。</p>
+        <div id="about-activities" style="margin-top:44px;border-top:1px solid #16150f"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ EVENT（サイトの主役セクション） ============ -->
+  <section id="event" style="scroll-margin-top:64px;background:#16150f;color:#f7f5f0">
+    <div style="max-width:1320px;margin:0 auto;padding:clamp(60px,8vw,120px) clamp(20px,4vw,48px)">
+      <div style="display:flex;align-items:flex-end;justify-content:space-between;flex-wrap:wrap;gap:20px">
+        <div>
+          <span style="font-family:'Jost',sans-serif;font-size:11.5px;font-weight:500;letter-spacing:0.3em;text-transform:uppercase;color:#9d9a8f">The Main Event</span>
+          <h2 style="margin:16px 0 0;font-family:'Cormorant Garamond',serif;font-weight:400;font-size:clamp(46px,9vw,128px);line-height:0.9;letter-spacing:-0.01em">DRESS CODE<br><em style="font-style:italic;font-weight:300">MARKET</em></h2>
+        </div>
+        <p style="max-width:330px;margin:0;font-size:14px;line-height:2;color:#c9c6bc">来場者・出店者・クリエイター・ブランドが集まる、東京のファッションマーケット。買うためではなく、出会うための一日。</p>
+      </div>
+
+      <!-- 注目イベントカード -->
+      <div style="margin-top:clamp(40px,5vw,72px);display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:1px;background:#312f27;border:1px solid #312f27">
+        <div style="background:#16150f;padding:clamp(28px,3vw,44px);display:flex;flex-direction:column;justify-content:space-between;min-height:340px">
+          <div>
+            <div style="display:flex;align-items:center;gap:12px">
+              <span style="font-family:'Jost',sans-serif;font-size:11px;letter-spacing:0.22em;text-transform:uppercase;color:#16150f;background:#f7f5f0;padding:5px 11px">Vol.1</span>
+              <span style="font-family:'Jost',sans-serif;font-size:11px;letter-spacing:0.2em;text-transform:uppercase;color:#9d9a8f">Now booking</span>
+            </div>
+            <h3 style="margin:26px 0 0;font-family:'Cormorant Garamond',serif;font-style:italic;font-weight:400;font-size:clamp(28px,3vw,40px);line-height:1.1;color:#f7f5f0">Wear your story.</h3>
+          </div>
+          <!-- 開催情報（中身は data.js の eventInfo） -->
+          <div id="event-info" style="margin-top:28px;display:flex;flex-direction:column;gap:1px"></div>
+        </div>
+        <div style="position:relative;background:#1c1b15;min-height:340px;display:flex;align-items:center;justify-content:center;overflow:hidden">
+          <div style="text-align:center">
+            <div style="font-family:'Jost',sans-serif;font-size:11px;letter-spacing:0.26em;text-transform:uppercase;color:#76736a">Key Visual</div>
+            <div style="margin-top:8px;font-family:'Jost',sans-serif;font-size:10px;letter-spacing:0.18em;color:#56544c">差し替え可</div>
+          </div>
+          <img src="assets/images/mark.png" alt="" style="position:absolute;left:50%;bottom:24px;transform:translateX(-50%);width:min(78%,360px);opacity:0.5">
+        </div>
+      </div>
+
+      <!-- イベント用ボタン（中身は data.js の eventCtas） -->
+      <div id="event-ctas" style="margin-top:1px;display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:1px;background:#312f27;border:1px solid #312f27;border-top:none"></div>
+
+      <!-- How to enjoy（中身は data.js の enjoy） -->
+      <div style="margin-top:clamp(48px,6vw,90px)">
+        <span style="font-family:'Jost',sans-serif;font-size:11px;letter-spacing:0.28em;text-transform:uppercase;color:#9d9a8f">How to enjoy</span>
+        <div id="enjoy" style="margin-top:24px;display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:clamp(20px,3vw,44px)"></div>
+      </div>
+    </div>
+
+    <!-- 動画エンベッド（data.js の videoEmbed にiframeを入れると再生エリアになる） -->
+    <div style="max-width:1320px;margin:0 auto;padding:0 clamp(20px,4vw,48px) clamp(40px,5vw,80px)">
+      <div id="event-video" style="position:relative;aspect-ratio:16/9;background:#1c1b15;border:1px solid #2c2a23;display:flex;align-items:center;justify-content:center">
+        <div style="text-align:center">
+          <div style="width:74px;height:74px;margin:0 auto 18px;border:1px solid #f7f5f0;border-radius:50%;display:flex;align-items:center;justify-content:center;transition:transform .4s ease">
+            <span style="display:block;width:0;height:0;margin-left:5px;border-top:11px solid transparent;border-bottom:11px solid transparent;border-left:17px solid #f7f5f0"></span>
+          </div>
+          <div style="font-family:'Jost',sans-serif;font-size:11px;letter-spacing:0.26em;text-transform:uppercase;color:#86837a">YouTube / Vimeo Embed</div>
+          <div style="margin-top:8px;font-family:'Jost',sans-serif;font-size:10px;letter-spacing:0.16em;color:#56544c">data.js の videoEmbed に iframe を入れてください</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- GALLERY（中身は data.js の gallery） -->
+    <div style="max-width:1320px;margin:0 auto;padding:0 clamp(20px,4vw,48px) clamp(60px,8vw,110px)">
+      <div style="display:flex;align-items:baseline;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:28px">
+        <h3 style="margin:0;font-family:'Cormorant Garamond',serif;font-style:italic;font-weight:400;font-size:clamp(28px,4vw,46px);color:#f7f5f0">Photo Gallery</h3>
+        <a href="#magazine" style="font-family:'Jost',sans-serif;font-size:11.5px;letter-spacing:0.18em;text-transform:uppercase;text-decoration:none;color:#c9c6bc;border-bottom:1px solid #54524a;padding-bottom:3px;transition:color .3s ease" data-hover="color:#fff">過去イベントを見る →</a>
+      </div>
+      <div id="gallery" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px"></div>
+    </div>
+  </section>
+
+  <!-- ============ MAGAZINE ============ -->
+  <section id="magazine" style="scroll-margin-top:80px;max-width:1320px;margin:0 auto;padding:clamp(64px,9vw,128px) clamp(20px,4vw,48px)">
+    <div style="display:flex;align-items:flex-end;justify-content:space-between;flex-wrap:wrap;gap:20px;margin-bottom:14px">
+      <div>
+        <span style="font-family:'Jost',sans-serif;font-size:11.5px;font-weight:500;letter-spacing:0.3em;text-transform:uppercase;color:#9a978d">Magazine</span>
+        <h2 style="margin:16px 0 0;font-family:'Cormorant Garamond',serif;font-weight:400;font-size:clamp(40px,6vw,76px);line-height:0.98;color:#16150f">Stories from<br>the floor.</h2>
+      </div>
+      <!-- カテゴリタグ（中身は data.js の categories） -->
+      <div id="categories" style="display:flex;flex-wrap:wrap;gap:8px;max-width:360px"></div>
+    </div>
+
+    <!-- 記事一覧（中身は data.js の articles ★ここを増やすと記事が増える） -->
+    <div id="articles" style="margin-top:44px;display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:clamp(20px,2.4vw,40px)"></div>
+  </section>
+
+  <!-- ============ COMMUNITY ============ -->
+  <section id="community" style="scroll-margin-top:80px;background:#f6f5f1;border-top:1px solid #e7e4dd;border-bottom:1px solid #e7e4dd">
+    <div style="max-width:1320px;margin:0 auto;padding:clamp(64px,9vw,128px) clamp(20px,4vw,48px)">
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:clamp(36px,6vw,80px);align-items:end;margin-bottom:48px">
+        <div>
+          <span style="font-family:'Jost',sans-serif;font-size:11.5px;font-weight:500;letter-spacing:0.3em;text-transform:uppercase;color:#9a978d">Community</span>
+          <h2 style="margin:16px 0 0;font-family:'Cormorant Garamond',serif;font-weight:400;font-size:clamp(40px,6vw,76px);line-height:0.98;color:#16150f">Join the<br><em style="font-style:italic">circle.</em></h2>
+        </div>
+        <p style="max-width:440px;margin:0;font-size:15px;line-height:2.05;color:#56544c">来場者、出店者、クリエイター、ブランド——イベントで出会った人たちが、その後もつながり続ける場所。先行案内、出店情報、撮影・動画・SNS・広告での関わり方まで、ここから受け取れます。</p>
+      </div>
+      <!-- 募集カード（中身は data.js の community） -->
+      <div id="community-cards" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:clamp(16px,2vw,28px)"></div>
+    </div>
+  </section>
+
+  <!-- ============ CONTACT ============ -->
+  <section id="contact" style="scroll-margin-top:80px;max-width:1320px;margin:0 auto;padding:clamp(64px,9vw,128px) clamp(20px,4vw,48px)">
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:clamp(36px,6vw,80px)">
+      <div>
+        <span style="font-family:'Jost',sans-serif;font-size:11.5px;font-weight:500;letter-spacing:0.3em;text-transform:uppercase;color:#9a978d">Contact</span>
+        <h2 style="margin:16px 0 0;font-family:'Cormorant Garamond',serif;font-weight:400;font-size:clamp(40px,6vw,76px);line-height:0.98;color:#16150f">Say hello.</h2>
+        <p style="margin:24px 0 0;max-width:420px;font-size:14.5px;line-height:2.05;color:#56544c">掲載・出店・コラボ・広告掲載など、お気軽にご連絡ください。下記フォームよりお問い合わせいただけます。</p>
+        <!-- お問い合わせ理由（中身は data.js の contactReasons） -->
+        <div id="contact-reasons" style="margin-top:34px;display:flex;flex-direction:column"></div>
+        <div style="margin-top:36px">
+          <div style="font-family:'Jost',sans-serif;font-size:10.5px;letter-spacing:0.22em;text-transform:uppercase;color:#9a978d;margin-bottom:14px">Follow</div>
+          <!-- SNS（中身は data.js の socials） -->
+          <div id="contact-socials" style="display:flex;flex-wrap:wrap;gap:10px"></div>
+        </div>
+      </div>
+
+      <!-- お問い合わせフォーム（data.js の contactFormEmbed に Google フォームの iframe を入れる） -->
+      <div>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+          <span style="font-family:'Jost',sans-serif;font-size:10.5px;letter-spacing:0.22em;text-transform:uppercase;color:#9a978d">Inquiry Form</span>
+          <span style="font-family:'Jost',sans-serif;font-size:10.5px;letter-spacing:0.14em;text-transform:uppercase;color:#b5b2a8">Google Form</span>
+        </div>
+        <div id="contact-form" style="position:relative;min-height:560px;background:#f6f5f1;border:1px solid #e7e4dd;display:flex;align-items:center;justify-content:center;padding:40px">
+          <div style="text-align:center;max-width:300px">
+            <div style="width:54px;height:54px;margin:0 auto 20px;border:1px solid #16150f;display:flex;align-items:center;justify-content:center;font-family:'Jost',sans-serif;font-size:18px;color:#16150f">↵</div>
+            <div style="font-family:'Jost',sans-serif;font-size:12px;letter-spacing:0.18em;text-transform:uppercase;color:#16150f">Embed your form</div>
+            <p style="margin:14px 0 0;font-size:12.5px;line-height:1.9;color:#6c6a61">data.js の <code style="font-family:'Jost',sans-serif;background:#ece9e2;padding:2px 6px">contactFormEmbed</code> に Google フォームの <code style="font-family:'Jost',sans-serif;background:#ece9e2;padding:2px 6px">&lt;iframe&gt;</code> を入れてください。</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ FOOTER ============ -->
+  <footer style="background:#16150f;color:#c9c6bc">
+    <div style="max-width:1320px;margin:0 auto;padding:clamp(48px,6vw,80px) clamp(20px,4vw,48px)">
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:40px;align-items:start">
+        <div>
+          <div style="font-family:'Cormorant Garamond',serif;font-size:30px;letter-spacing:0.04em;color:#f7f5f0">DRESS CODE</div>
+          <div style="font-family:'Jost',sans-serif;font-size:12px;letter-spacing:0.5em;color:#8b887e;margin-top:4px">TOKYO</div>
+          <p style="margin:22px 0 0;max-width:280px;font-size:13px;line-height:1.95;color:#8b887e">Tokyo Fashion Market &amp; Culture Community. ファッションをきっかけに、人とカルチャーが出会う場所。</p>
+        </div>
+        <div>
+          <div style="font-family:'Jost',sans-serif;font-size:10.5px;letter-spacing:0.22em;text-transform:uppercase;color:#615f57;margin-bottom:16px">Sitemap</div>
+          <div id="footer-sitemap" style="display:flex;flex-direction:column;gap:11px"></div>
+        </div>
+        <div>
+          <div style="font-family:'Jost',sans-serif;font-size:10.5px;letter-spacing:0.22em;text-transform:uppercase;color:#615f57;margin-bottom:16px">Get involved</div>
+          <div style="display:flex;flex-direction:column;gap:11px">
+            <a href="#event" style="font-size:13.5px;text-decoration:none;color:#c9c6bc;transition:color .3s ease" data-hover="color:#fff">来場予約する</a>
+            <a href="#event" style="font-size:13.5px;text-decoration:none;color:#c9c6bc;transition:color .3s ease" data-hover="color:#fff">出店応募する</a>
+            <a href="#community" style="font-size:13.5px;text-decoration:none;color:#c9c6bc;transition:color .3s ease" data-hover="color:#fff">コミュニティに参加する</a>
+            <a href="#contact" style="font-size:13.5px;text-decoration:none;color:#c9c6bc;transition:color .3s ease" data-hover="color:#fff">お問い合わせ</a>
+          </div>
+        </div>
+        <div>
+          <div style="font-family:'Jost',sans-serif;font-size:10.5px;letter-spacing:0.22em;text-transform:uppercase;color:#615f57;margin-bottom:16px">Follow</div>
+          <div id="footer-socials" style="display:flex;flex-direction:column;gap:11px"></div>
+        </div>
+      </div>
+      <div style="margin-top:56px;padding-top:24px;border-top:1px solid #2c2a23;display:flex;flex-wrap:wrap;gap:12px;justify-content:space-between;align-items:center">
+        <span style="font-family:'Jost',sans-serif;font-size:11px;letter-spacing:0.12em;color:#615f57">© 2026 DRESS CODE TOKYO</span>
+        <span style="font-family:'Jost',sans-serif;font-size:11px;letter-spacing:0.12em;color:#615f57">Wear your story. Meet the culture.</span>
+      </div>
+    </div>
+  </footer>
+
+</div>
+
+<!-- ===== コンテンツ読み込み → 描画（順番が大事：data.js が先） ===== -->
+<script src="js/data.js"></script>
+<script src="js/render.js"></script>
+</body>
+</html>
