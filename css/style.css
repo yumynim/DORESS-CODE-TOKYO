@@ -502,6 +502,30 @@ p { margin: 0; }
 .footer__bar span { font-family: var(--f-sans); font-size: 11px; letter-spacing: 0.12em; color: #615f57; }
 
 /* =========================================================
+   記事ページ（article.html）
+   ========================================================= */
+.article { max-width: 1100px; margin: 0 auto; padding: clamp(40px, 6vw, 80px) var(--pad) clamp(64px, 9vw, 120px); }
+.article__back { font-family: var(--f-sans); font-size: 11px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--muted); transition: color .3s; }
+.article__back:hover { color: var(--ink); }
+.article__head { max-width: 800px; margin: clamp(28px, 4vw, 44px) auto 0; text-align: center; }
+.article__cat { font-family: var(--f-sans); font-size: 11px; letter-spacing: 0.2em; text-transform: uppercase; color: var(--muted); }
+.article__title { margin: 18px 0 0; font-family: var(--f-jp-serif); font-weight: 600; font-size: clamp(26px, 3.6vw, 46px); line-height: 1.5; }
+.article__date { margin-top: 16px; font-family: var(--f-sans); font-size: 11px; letter-spacing: 0.14em; color: var(--muted); }
+.article__cover { margin: clamp(32px, 5vw, 56px) 0 0; aspect-ratio: 16/9; overflow: hidden; background: var(--bg-soft); }
+.article__cover img { width: 100%; height: 100%; object-fit: cover; }
+.article__body { max-width: 720px; margin: clamp(36px, 5vw, 60px) auto 0; }
+.article__body p { font-size: 16px; line-height: 2.1; color: var(--ink-2); margin: 0 0 26px; }
+.article__body h2 { font-family: var(--f-jp-serif); font-weight: 600; font-size: clamp(20px, 2.4vw, 27px); line-height: 1.6; margin: 44px 0 18px; }
+.article__body figure { margin: 36px 0; }
+.article__body figure img { width: 100%; height: auto; display: block; background: var(--bg-soft); }
+.article__body figcaption { margin-top: 10px; font-family: var(--f-sans); font-size: 11px; letter-spacing: 0.06em; color: var(--muted); text-align: center; }
+.article__body blockquote {
+  margin: 40px 0; padding: 0 0 0 24px; border-left: 2px solid var(--ink);
+  font-family: var(--f-serif); font-style: italic; font-size: clamp(20px, 2.4vw, 27px); line-height: 1.6; color: var(--ink);
+}
+.article__nav { max-width: 720px; margin: clamp(48px, 6vw, 72px) auto 0; padding-top: 28px; border-top: 1px solid var(--line); display: flex; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+
+/* =========================================================
    レスポンシブ
    ========================================================= */
 @media (max-width: 1024px) {

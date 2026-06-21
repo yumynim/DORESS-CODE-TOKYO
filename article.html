@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Magazine — DRESS CODE TOKYO</title>
+  <link rel="icon" href="assets/images/logo-square.jpg">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;1,300;1,400&family=Jost:wght@300;400;500;600&family=Zen+Kaku+Gothic+New:wght@400;500;700&family=Zen+Old+Mincho:wght@400;500;600;700&display=swap">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+  <!-- アナウンスバー -->
+  <div class="announce">
+    <div class="announce__inner">
+      <span><strong>NEXT — DRESS CODE MARKET VOL.1</strong></span>
+      <span class="announce__sep">/</span>
+      <span>2026.03.21 – 22</span>
+      <span class="announce__sep">/</span>
+      <span>Tokyo</span>
+      <span class="announce__sep">/</span>
+      <span><strong>Now Booking</strong></span>
+    </div>
+  </div>
+
+  <!-- ヘッダー -->
+  <header class="header">
+    <div class="header__inner">
+      <a href="index.html" class="logo"><img src="assets/images/logo.png" alt="DRESS CODE TOKYO"></a>
+      <nav id="nav-desktop" class="nav"></nav>
+      <a href="index.html#event" class="btn btn--solid header__cta">来場予約 <span class="arrow">→</span></a>
+      <button id="menu-btn" class="menu-btn">MENU</button>
+    </div>
+    <div id="mobile-menu" class="mobile-menu">
+      <div id="nav-mobile"></div>
+      <a href="index.html#event" class="btn btn--solid" data-close>来場予約する</a>
+    </div>
+  </header>
+
+  <!-- 記事本体（article.html?id=スラッグ で表示） -->
+  <main class="article">
+    <a class="article__back" href="index.html#magazine">← Back to Magazine</a>
+    <div class="article__head">
+      <span class="article__cat" id="a-cat"></span>
+      <h1 class="article__title" id="a-title"></h1>
+      <div class="article__date" id="a-date"></div>
+    </div>
+    <div class="article__cover" id="a-cover"></div>
+    <div class="article__body" id="a-body"></div>
+    <div class="article__nav">
+      <a class="btn-link" href="index.html#magazine">← Magazine 一覧へ</a>
+      <a class="btn-link" href="index.html#contact">お問い合わせ →</a>
+    </div>
+  </main>
+
+  <!-- フッター -->
+  <footer class="footer">
+    <div class="footer__inner">
+      <div class="footer__grid">
+        <div>
+          <div class="brand-serif">DRESS CODE</div>
+          <div class="brand-sub">TOKYO</div>
+          <p class="blurb">Tokyo Fashion Market &amp; Culture Community. ファッションをきっかけに、人とカルチャーが出会う場所。</p>
+        </div>
+        <div class="footer__col">
+          <h4>Sitemap</h4>
+          <div id="footer-sitemap" class="links"></div>
+        </div>
+        <div class="footer__col">
+          <h4>Get involved</h4>
+          <div class="links">
+            <a href="index.html#event">来場予約する</a>
+            <a href="index.html#event">出店応募する</a>
+            <a href="index.html#community">コミュニティに参加する</a>
+            <a href="index.html#contact">お問い合わせ</a>
+          </div>
+        </div>
+        <div class="footer__col">
+          <h4>Follow</h4>
+          <div id="footer-socials" class="links"></div>
+        </div>
+      </div>
+      <div class="footer__bar">
+        <span>© 2026 DRESS CODE TOKYO</span>
+        <span>Wear your story. Meet the culture.</span>
+      </div>
+    </div>
+  </footer>
+
+  <script src="js/data.js"></script>
+  <script src="js/render.js"></script>
+  <script>
+    // ?id=スラッグ から記事を特定して描画
+    (function () {
+      const S = window.SITE || {};
+      const id = new URLSearchParams(location.search).get('id');
+      const a = (S.articles || []).find(x => x.slug === id) || (S.articles || [])[0];
+      if (!a) { document.getElementById('a-title').textContent = '記事が見つかりませんでした'; return; }
+
+      document.title = a.title + ' — DRESS CODE TOKYO';
+      document.getElementById('a-cat').textContent = a.cat || '';
+      document.getElementById('a-title').textContent = a.title || '';
+      document.getElementById('a-date').textContent = a.date || '';
+      if (a.img) document.getElementById('a-cover').innerHTML = `<img src="${a.img}" alt="">`;
+
+      const esc = s => String(s == null ? '' : s).replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
+      const blocks = (a.body || []).map(function (b) {
+        if (b.h) return `<h2>${esc(b.h)}</h2>`;
+        if (b.quote) return `<blockquote>${esc(b.quote)}</blockquote>`;
+        if (b.img) return `<figure><img src="${b.img}" alt="" loading="lazy">${b.cap ? `<figcaption>${esc(b.cap)}</figcaption>` : ''}</figure>`;
+        if (b.p) return `<p>${esc(b.p)}</p>`;
+        return '';
+      }).join('');
+      document.getElementById('a-body').innerHTML = blocks || `<p>${esc(a.excerpt || '')}</p>`;
+      window.scrollTo(0, 0);
+    })();
+  </script>
+</body>
+</html>

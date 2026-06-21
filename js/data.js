@@ -12,7 +12,7 @@ window.SITE = {
      パスを入れると全面写真＋中央テキスト（白文字）に切り替わります。
      空 '' のままなら、上品なオフホワイト背景＋虹色モチーフで表示。
      例: heroImage: 'assets/images/hero.jpg', */
-  heroImage: '',
+  heroImage: 'assets/images/team-cheers.jpg',
 
   /* ▼ ヘッダー / フッターのメニュー（リンク先は #セクションID） */
   nav: [
@@ -28,10 +28,10 @@ window.SITE = {
      img に画像パスを入れるとタイルに写真が表示されます（空ならプレースホルダー）。
      href はタイルのリンク先。 */
   activities: [
-    { jp: 'マーケットイベント',   en: 'Market Events', img: '', href: '#event' },
-    { jp: 'スナップ',             en: 'Street Snap',   img: '', href: '#magazine' },
-    { jp: 'インタビュー',         en: 'Interview',     img: '', href: '#magazine' },
-    { jp: 'イベントレポート',     en: 'Report',        img: '', href: '#magazine' },
+    { jp: 'マーケットイベント',   en: 'Market Events', img: 'assets/images/group-5.jpg',      href: '#event' },
+    { jp: 'スナップ',             en: 'Street Snap',   img: 'assets/images/fitting-selfie.jpg', href: '#magazine' },
+    { jp: 'インタビュー',         en: 'Interview',     img: 'assets/images/boutique-talk.jpg',  href: '#magazine' },
+    { jp: 'イベントレポート',     en: 'Report',        img: 'assets/images/street-night.jpg',   href: '#magazine' },
   ],
 
   /* ▼ Event：開催情報（左 = 項目名 / 右 = 内容） */
@@ -69,14 +69,14 @@ window.SITE = {
      img を空にすると色付きのプレースホルダーになります。
      ratio は枠の縦横比（'3/4' は縦長、'1/1' は正方形）。 */
   gallery: [
-    { label: 'Snap 01',   ratio: '3/4', img: '' },
-    { label: 'Booth 02',  ratio: '1/1', img: '' },
-    { label: 'Crowd 03',  ratio: '3/4', img: '' },
-    { label: 'Detail 04', ratio: '1/1', img: '' },
-    { label: 'Stage 05',  ratio: '3/4', img: '' },
-    { label: 'Snap 06',   ratio: '1/1', img: '' },
-    { label: 'Street 07', ratio: '3/4', img: '' },
-    { label: 'Night 08',  ratio: '1/1', img: '' },
+    { label: 'Snap 01',   ratio: '3/4', img: 'assets/images/fitting-selfie.jpg' },
+    { label: 'Detail 02', ratio: '1/1', img: 'assets/images/icecream.jpg' },
+    { label: 'Crowd 03',  ratio: '3/4', img: 'assets/images/group-5.jpg' },
+    { label: 'Shop 04',   ratio: '1/1', img: 'assets/images/snap-polka.jpg' },
+    { label: 'Street 05', ratio: '3/4', img: 'assets/images/street-candid.jpg' },
+    { label: 'Floor 06',  ratio: '1/1', img: 'assets/images/snap-lumine.jpg' },
+    { label: 'Night 07',  ratio: '3/4', img: 'assets/images/street-night.jpg' },
+    { label: 'Back 08',   ratio: '1/1', img: 'assets/images/backstage-chair.jpg' },
   ],
 
   /* ▼ Magazine：カテゴリのタグ（見た目だけ。記事の cat とそろえると分かりやすい） */
@@ -90,12 +90,79 @@ window.SITE = {
      - href    : クリック先（記事ページを作ったら 'articles/xxx.html' などに）
      - img     : カバー画像パス（空ならプレースホルダー） */
   articles: [
-    { cat: 'Event Report', date: '2025.11.18', title: 'DRESS CODE MARKET Vol.0 開催レポート',          excerpt: '初開催の熱気と、集まった多様なスタイル。一日のすべてを振り返る。', href: '#contact', img: '' },
-    { cat: 'Brand Story',  date: '2025.11.02', title: '出店ブランドインタビュー：東京の作り手たち',    excerpt: 'マーケットに並ぶ服の、その向こうにある物語を聞いた。',           href: '#contact', img: '' },
-    { cat: 'Street Snap',  date: '2025.10.27', title: '来場者スナップ：今日のドレスコード',            excerpt: '会場で出会った、忘れられない着こなしを切り取って。',             href: '#contact', img: '' },
-    { cat: 'Culture',      date: '2025.10.10', title: 'イベントの裏側：マーケットができるまで',        excerpt: '一つのイベントが立ち上がるまでの、舞台裏のドキュメント。',       href: '#contact', img: '' },
-    { cat: 'Fashion',      date: '2025.09.30', title: '次回イベントの見どころ',                        excerpt: 'Vol.1で出会えるブランド、カルチャー、そして人。',               href: '#contact', img: '' },
-    { cat: 'Interview',    date: '2025.09.12', title: 'クリエイター対談：東京で作るということ',        excerpt: '写真家、スタイリスト、デザイナー。街を作る三者が語る。',         href: '#contact', img: '' },
+    {
+      cat: 'Event Report', date: '2025.11.18', slug: 'market-vol0',
+      title: 'DRESS CODE MARKET Vol.0 開催レポート',
+      excerpt: '初開催の熱気と、集まった多様なスタイル。一日のすべてを振り返る。',
+      img: 'assets/images/team-cheers.jpg',
+      body: [
+        { p: '11月の週末、DRESS CODE MARKET の記念すべき Vol.0 が開催されました。「買うためではなく、出会うための一日」をコンセプトに、ブランド・クリエイター・来場者が同じ場所に集まった一日を振り返ります。' },
+        { h: '街に散らばっていたスタイルが、一つの場所に' },
+        { p: '会場に足を踏み入れてまず驚いたのは、来場者一人ひとりの「ドレスコード」のバラバラさでした。古着で固めた人、ハイブランドを一点だけ効かせた人、自作の服を着てきた人。正解のない着こなしが、そのまま街の多様さを映していました。' },
+        { img: 'assets/images/group-5.jpg', cap: '出店者と来場者の距離が近いのも、マーケットならでは。' },
+        { p: 'ブースを回るうちに自然と会話が生まれ、気づけば作り手とお客さんが一緒に写真を撮っている。そんな光景が会場のあちこちで見られました。' },
+        { quote: '服を入り口に、人とカルチャーが交差する。最初の一歩を、たしかに踏み出せた一日でした。' },
+        { p: '夜まで続いた熱気は、そのまま次回 Vol.1 への期待につながっています。次は、あなたのスタイルで参加してください。' },
+        { img: 'assets/images/street-night.jpg', cap: 'イベント後も、街に余韻が残っていた。' },
+      ],
+    },
+    {
+      cat: 'Brand Story', date: '2025.11.02', slug: 'brand-interview',
+      title: '出店ブランドインタビュー：東京の作り手たち',
+      excerpt: 'マーケットに並ぶ服の、その向こうにある物語を聞いた。',
+      img: 'assets/images/boutique-talk.jpg',
+      body: [
+        { p: 'マーケットに並ぶ一着には、必ず作り手の物語があります。今回は、出店ブランドの方々に「東京で服を作るということ」について話を聞きました。' },
+        { h: '「誰かの普通」を、少しだけ更新したい' },
+        { p: '「派手なものを作りたいわけじゃなくて、毎日の延長線上にある服を、ちょっとだけ良くしたいんです」。あるブランドの言葉が印象的でした。流行を追うのではなく、長く着られるものを。その姿勢は、来場者にもまっすぐ伝わっていました。' },
+        { img: 'assets/images/fitting-selfie.jpg', cap: '試着して、鏡の前で笑う。その瞬間が一番うれしいと作り手は言う。' },
+        { p: '対面で売ることの意味を、みんな口を揃えて語っていました。「反応がその場でわかる」「次に活かせる」。マーケットは、作り手にとっても学びの場になっているようです。' },
+      ],
+    },
+    {
+      cat: 'Street Snap', date: '2025.10.27', slug: 'snap-today',
+      title: '来場者スナップ：今日のドレスコード',
+      excerpt: '会場で出会った、忘れられない着こなしを切り取って。',
+      img: 'assets/images/snap-polka.jpg',
+      body: [
+        { p: '「今日のドレスコードは?」——会場で出会った人たちに声をかけ、その日のスタイルを記録しました。' },
+        { img: 'assets/images/snap-lumine.jpg', cap: 'お気に入りのショップ前で一枚。' },
+        { p: '正解はありません。気分で選んだ一着も、こだわり抜いたコーディネートも、全部がその人のドレスコード。街で見かけたら、ぜひ声をかけてください。' },
+      ],
+    },
+    {
+      cat: 'Culture', date: '2025.10.10', slug: 'behind-the-scenes',
+      title: 'イベントの裏側：マーケットができるまで',
+      excerpt: '一つのイベントが立ち上がるまでの、舞台裏のドキュメント。',
+      img: 'assets/images/backstage-chair.jpg',
+      body: [
+        { p: '華やかな一日の裏側には、地味で泥臭い準備の積み重ねがあります。会場探し、出店者への声かけ、当日の動線づくり。すべてが手探りでした。' },
+        { img: 'assets/images/team-cheers.jpg', cap: '深夜の作戦会議。ここから全部が始まった。' },
+        { p: '何度もぶつかって、笑って、アイスを片手にまた話し合って。完璧じゃないけど、自分たちの手で作ったという実感だけは確かにありました。' },
+        { img: 'assets/images/icecream.jpg', cap: '差し入れのアイスで小休止。' },
+      ],
+    },
+    {
+      cat: 'Fashion', date: '2025.09.30', slug: 'next-highlights',
+      title: '次回イベントの見どころ',
+      excerpt: 'Vol.1で出会えるブランド、カルチャー、そして人。',
+      img: 'assets/images/snap-lumine.jpg',
+      body: [
+        { p: 'Vol.1 では、出店ブランドも来場者参加の企画もさらにパワーアップ予定。ここでしか出会えないスタイルが、もっと増えます。' },
+        { p: '詳細は順次このマガジンとコミュニティで発信していきます。お楽しみに。' },
+      ],
+    },
+    {
+      cat: 'Interview', date: '2025.09.12', slug: 'creator-talk',
+      title: 'クリエイター対談：東京で作るということ',
+      excerpt: '写真家、スタイリスト、デザイナー。街を作る三者が語る。',
+      img: 'assets/images/group-5.jpg',
+      body: [
+        { p: '写真家、スタイリスト、デザイナー。立場の違う三人に、東京でものを作る面白さと難しさを語ってもらいました。' },
+        { quote: '東京は、誰かの「好き」が必ず誰かに刺さる街。だから挑戦しがいがある。' },
+        { p: '異なるジャンルが交差することで、新しい表現が生まれる。DRESS CODE は、その交差点でありたいと思っています。' },
+      ],
+    },
   ],
 
   /* ▼ Community：3つの募集カード（accent は左上のライン色） */

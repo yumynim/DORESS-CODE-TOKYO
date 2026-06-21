@@ -70,7 +70,8 @@
     const media = a.img
       ? `<span class="card__cat">${a.cat}</span><img src="${a.img}" alt="" loading="lazy" decoding="async">`
       : `<span class="card__cat">${a.cat}</span><span class="card__ph">Photo — 差し替え可</span>`;
-    return `<a href="${a.href}" class="card reveal">
+    const link = a.slug ? `article.html?id=${a.slug}` : (a.href || '#');
+    return `<a href="${link}" class="card reveal">
       <div class="card__media">${media}<div class="card__view"><span>Read →</span></div></div>
       <div class="card__body">
         <div class="card__date">${a.date}</div>
