@@ -84,7 +84,6 @@
   /* ---------- Community ---------- */
   fill('community-cards', (S.community || []).map(c =>
     `<div class="ccard reveal">
-      <span class="bar" style="background:${c.accent}"></span>
       <div class="en">${c.en}</div>
       <h3>${c.jp}</h3>
       <p>${c.body}</p>
@@ -130,9 +129,16 @@
   /* ---------- スクロールでヘッダーを少し引き締める ---------- */
   const header = document.querySelector('.header');
   if (header) {
-    const onScroll = () => header.classList.toggle('scrolled', window.scrollY > 24);
-    window.addEventListener('scroll', onScroll, { passive: true });
-    onScroll();
+    let scrolled = null, ticking = false;
+    const update = () => {
+      const s = window.scrollY > 24;
+      if (s !== scrolled) { scrolled = s; header.classList.toggle('scrolled', s); }
+      ticking = false;
+    };
+    window.addEventListener('scroll', () => {
+      if (!ticking) { ticking = true; requestAnimationFrame(update); }
+    }, { passive: true });
+    update();
   }
 
   /* ---------- スクロールで下からふわっと表示（同じ行はずらして演出） ---------- */
