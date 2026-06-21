@@ -102,6 +102,12 @@
   fill('contact-socials', socialsHtml);
   fill('footer-socials', socialsHtml);
 
+  /* ---------- Event キービジュアル写真 ---------- */
+  if (S.eventVisual) {
+    const ev = document.getElementById('event-visual');
+    if (ev) ev.innerHTML = `<img src="${S.eventVisual}" alt="" class="event-visual-img" loading="lazy" decoding="async">`;
+  }
+
   /* ---------- 動画エンベッド ---------- */
   if (S.videoEmbed) { const v = document.getElementById('event-video'); if (v) v.innerHTML = S.videoEmbed; }
 
@@ -172,6 +178,22 @@
       if (!ticking) { ticking = true; requestAnimationFrame(update); }
     }, { passive: true });
     update();
+  }
+
+  /* ---------- ナビのスクロール連動（今見ているセクションに下線） ---------- */
+  const navLinks = document.querySelectorAll('#nav-desktop a');
+  if (navLinks.length && 'IntersectionObserver' in window) {
+    const spy = new IntersectionObserver(function (entries) {
+      entries.forEach(function (e) {
+        if (e.isIntersecting) {
+          const href = '#' + e.target.id;
+          navLinks.forEach(l => l.classList.toggle('active', l.getAttribute('href') === href));
+        }
+      });
+    }, { rootMargin: '-45% 0px -50% 0px', threshold: 0 });
+    ['top', 'about', 'event', 'magazine', 'community', 'contact'].forEach(function (id) {
+      const el = document.getElementById(id); if (el) spy.observe(el);
+    });
   }
 
   /* ---------- スクロールで下からふわっと表示（同じ行はずらして演出） ---------- */

@@ -56,6 +56,12 @@ a { color: inherit; text-decoration: none; }
 h1, h2, h3, h4 { margin: 0; font-weight: 600; }
 p { margin: 0; }
 
+/* キーボード操作時のフォーカス表示（アクセシビリティ） */
+a:focus-visible, button:focus-visible, input:focus-visible,
+select:focus-visible, textarea:focus-visible {
+  outline: 2px solid var(--ink); outline-offset: 3px;
+}
+
 /* ---------- 共通パーツ ---------- */
 .container { max-width: var(--maxw); margin: 0 auto; padding-left: var(--pad); padding-right: var(--pad); }
 .section   { padding-top: var(--section-y); padding-bottom: var(--section-y); }
@@ -165,6 +171,8 @@ p { margin: 0; }
 }
 .nav a:hover { opacity: 1; }
 .nav a:hover::after { width: 100%; }
+.nav a.active { opacity: 1; }
+.nav a.active::after { width: 100%; }
 .header__cta { flex: none; }
 .menu-btn {
   display: none; flex: none; width: 44px; height: 44px; align-items: center; justify-content: center;
@@ -204,6 +212,13 @@ p { margin: 0; }
 }
 .hero.has-img .hero__motif { display: none; }
 .hero__inner { position: relative; z-index: 2; max-width: 980px; padding: 64px var(--pad); }
+/* 読み込み時に下からふわっと（順番にずらして） */
+@keyframes heroUp { from { opacity: 0; transform: translateY(18px); } to { opacity: 1; transform: none; } }
+.hero__inner > * { animation: heroUp .85s var(--ease) both; }
+.hero__inner > *:nth-child(2) { animation-delay: .09s; }
+.hero__inner > *:nth-child(3) { animation-delay: .18s; }
+.hero__inner > *:nth-child(4) { animation-delay: .27s; }
+@media (prefers-reduced-motion: reduce) { .hero__inner > * { animation: none; } }
 .hero__eyebrow { display: block; margin-bottom: 26px; }
 .hero__title {
   font-family: var(--f-jp-serif); font-weight: 600;
@@ -307,6 +322,7 @@ p { margin: 0; }
 .event__visual .cap .t { font-family: var(--f-sans); font-size: 11px; letter-spacing: 0.26em; text-transform: uppercase; color: var(--muted); }
 .event__visual .cap .s { margin-top: 8px; font-family: var(--f-sans); font-size: 10px; letter-spacing: 0.18em; color: var(--line-2); }
 .event__visual .mark { position: absolute; left: 50%; bottom: 24px; transform: translateX(-50%); width: min(78%, 360px); opacity: 0.5; }
+.event-visual-img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
 
 /* イベントCTA（横並びの細いボタン群） */
 .ctarow { margin-top: clamp(20px, 2.4vw, 40px); display: grid; grid-template-columns: repeat(4, 1fr); gap: 1px; background: var(--line); border: 1px solid var(--line); }

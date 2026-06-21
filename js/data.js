@@ -58,6 +58,9 @@ window.SITE = {
     { no: '03', title: 'Wear your story',  body: 'スナップ撮影やコミュニティを通して、あなたのスタイルを街へ。' },
   ],
 
+  /* ▼ Event：キービジュアル（中央の大きな写真枠）。空ならプレースホルダー表示 */
+  eventVisual: 'assets/images/fitting-selfie.jpg',
+
   /* ▼ Event：動画エンベッド
      YouTube/Vimeo の埋め込みコード(<iframe ...>)をそのまま貼り付けると動画になります。
      '' （空）のままなら再生ボタン風のプレースホルダーが表示されます。
