@@ -62,7 +62,7 @@ window.SITE = {
      YouTube/Vimeo の埋め込みコード(<iframe ...>)をそのまま貼り付けると動画になります。
      '' （空）のままなら再生ボタン風のプレースホルダーが表示されます。
      例: videoEmbed: '<iframe src="https://www.youtube.com/embed/XXXX" allowfullscreen></iframe>', */
-  videoEmbed: '',
+  videoEmbed: '<iframe width="560" height="315" src="https://www.youtube.com/embed/6T9vhaBwwYc?si=NhB53-W4oXu8NF_3" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>',
 
   /* ▼ Event：フォトギャラリー
      img に画像パスを入れると写真が表示されます（例: 'assets/images/snap01.jpg'）。
