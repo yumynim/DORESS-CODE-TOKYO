@@ -12,7 +12,7 @@ window.SITE = {
      パスを入れると全面写真＋中央テキスト（白文字）に切り替わります。
      空 '' のままなら、上品なオフホワイト背景＋虹色モチーフで表示。
      例: heroImage: 'assets/images/hero.jpg', */
-  heroImage: 'assets/images/team-cheers.jpg',
+  heroImage: '',
 
   /* ▼ ヘッダー / フッターのメニュー（リンク先は #セクションID） */
   nav: [
