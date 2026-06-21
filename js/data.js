@@ -197,34 +197,32 @@ window.SITE = {
      - gallery: 個別ページで流れる写真（何枚でも） */
   members: [
     {
-      slug: 'ran', name: 'RAN', role: 'Founder / Director',
+      slug: 'minami', name: 'MINAMI', role: '',
       photo: 'assets/images/snap-lumine.jpg',
-      intro: '東京のファッションとカルチャーをつなぐ場をつくりたくて DRESS CODE TOKYO を立ち上げ。マーケットの企画から全体のディレクションまでを担当しています。',
-      bio: [
-        'DRESS CODE TOKYO のファウンダー兼ディレクター。学生時代から古着とストリートカルチャーにのめり込み、「服をきっかけに人がつながる場所」を東京につくることを目標にしています。',
-        'マーケットイベントの企画・出店者とのやりとり・当日のディレクションまで、イベント全体の舵取りを担当。「買うためではなく、出会うための一日」を合言葉に活動中。',
-      ],
-      gallery: ['assets/images/snap-lumine.jpg', 'assets/images/snap-polka.jpg', 'assets/images/fitting-selfie.jpg', 'assets/images/boutique-talk.jpg'],
+      intro: '（ここに一言紹介を入れてください）',
+      bio: ['（ここにプロフィール文を入れてください）'],
+      gallery: ['assets/images/snap-lumine.jpg', 'assets/images/snap-polka.jpg'],
     },
     {
-      slug: 'kei', name: 'KEI', role: 'Photographer / Snap',
+      slug: 'tubasa', name: 'TUBASA', role: '',
       photo: 'assets/images/street-candid.jpg',
-      intro: '会場の空気や来場者のスタイルを切り取る、スナップ＆記録担当。マガジンの写真の多くを撮っています。',
-      bio: [
-        'イベントの記録とスナップを担当するフォトグラファー。会場の熱気、来場者の何気ない着こなし、出店者の表情——その場でしか撮れない一瞬を残すことを大切にしています。',
-        'マガジンの「Street Snap」「Event Report」の写真の多くを担当。撮影だけでなく、動画やSNS用のコンテンツづくりにも関わっています。',
-      ],
-      gallery: ['assets/images/street-candid.jpg', 'assets/images/street-night.jpg', 'assets/images/group-5.jpg', 'assets/images/team-cheers.jpg'],
+      intro: '（ここに一言紹介を入れてください）',
+      bio: ['（ここにプロフィール文を入れてください）'],
+      gallery: ['assets/images/street-candid.jpg', 'assets/images/street-night.jpg'],
     },
     {
-      slug: 'misaki', name: 'MISAKI', role: 'Community / Creative',
+      slug: 'haruki', name: 'HARUKI', role: '',
+      photo: 'assets/images/boutique-talk.jpg',
+      intro: '（ここに一言紹介を入れてください）',
+      bio: ['（ここにプロフィール文を入れてください）'],
+      gallery: ['assets/images/boutique-talk.jpg', 'assets/images/fitting-selfie.jpg'],
+    },
+    {
+      slug: 'yui', name: 'YUI', role: '',
       photo: 'assets/images/group-5.jpg',
-      intro: 'コミュニティ運営とクリエイティブ担当。出店者・来場者・クリエイターをつなぐ役回りです。',
-      bio: [
-        'コミュニティの運営とクリエイティブまわりを担当。先行案内やメンバー募集の窓口として、イベントに関わりたい人たちをつなげる役割を担っています。',
-        'SNS の発信、ビジュアルづくり、当日の運営サポートまで幅広く担当。「関わる人みんなが主役になれるイベント」を目指しています。',
-      ],
-      gallery: ['assets/images/group-5.jpg', 'assets/images/icecream.jpg', 'assets/images/backstage-chair.jpg', 'assets/images/team-cheers.jpg'],
+      intro: '（ここに一言紹介を入れてください）',
+      bio: ['（ここにプロフィール文を入れてください）'],
+      gallery: ['assets/images/group-5.jpg', 'assets/images/team-cheers.jpg'],
     },
   ],
 

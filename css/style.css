@@ -569,6 +569,8 @@ select:focus-visible, textarea:focus-visible {
 .footer__col .links { display: flex; flex-direction: column; gap: 11px; }
 .footer__col .links a { font-family: var(--f-sans); font-size: 12.5px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--on-ink-2); transition: color .3s; }
 .footer__col .links a:hover { color: #fff; }
+.footer .sns-btn { color: var(--on-ink-2); }
+.footer .sns-btn:hover { color: #fff; opacity: 1; }
 .footer__bar { margin-top: 56px; padding-top: 24px; border-top: 1px solid #2c2a23; display: flex; flex-wrap: wrap; gap: 12px; justify-content: space-between; align-items: center; }
 .footer__bar span { font-family: var(--f-sans); font-size: 11px; letter-spacing: 0.12em; color: #615f57; }
 
