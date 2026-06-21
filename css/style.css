@@ -509,15 +509,14 @@ select:focus-visible, textarea:focus-visible {
 .reasons__row .no { font-family: var(--f-serif); font-style: italic; font-size: 18px; color: var(--line-2); width: 28px; }
 .reasons__row .jp { font-size: 14.5px; }
 .reasons__row .en { margin-left: auto; font-family: var(--f-sans); font-size: 10.5px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted); }
-.socials { display: flex; flex-wrap: wrap; gap: 10px; }
-.socials a {
-  display: inline-flex; flex-direction: column; gap: 2px; border: 1px solid var(--line-2);
-  padding: 11px 18px; font-family: var(--f-sans); font-size: 11.5px; letter-spacing: 0.14em;
-  text-transform: uppercase; transition: all .3s;
+.sns-icons { display: flex; flex-wrap: wrap; gap: 20px; align-items: flex-start; }
+.sns-btn {
+  display: flex; flex-direction: column; align-items: center; gap: 5px;
+  color: var(--ink); text-decoration: none; transition: opacity .25s;
 }
-.socials a:hover { background: var(--ink); color: #fff; border-color: var(--ink); }
-.socials .sns-label { font-size: 11.5px; letter-spacing: 0.14em; }
-.socials .sns-sub { font-size: 10px; letter-spacing: 0.08em; opacity: 0.55; text-transform: none; }
+.sns-btn svg { width: 30px; height: 30px; display: block; }
+.sns-btn:hover { opacity: 0.5; }
+.sns-nick { font-family: var(--f-sans); font-size: 9px; letter-spacing: 0.06em; text-transform: none; opacity: 0.55; }
 .formbox {
   position: relative; min-height: 580px; background: var(--bg-soft); border: 1px solid var(--line);
   display: flex; align-items: center; justify-content: center; padding: 40px;

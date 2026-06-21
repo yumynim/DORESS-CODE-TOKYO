@@ -238,13 +238,13 @@ window.SITE = {
   ],
 
   /* ▼ Contact / Footer：SNSリンク
-     LINE と Facebook の href は実際の URL に差し替えてください。 */
+     nick = アイコン下に出る短いラベル（同じプラットフォームが複数あるときに使用）。 */
   socials: [
-    { label: 'Instagram', sub: '@dress.code_tokyo',       href: 'https://www.instagram.com/dress.code_tokyo/' },
-    { label: 'Instagram', sub: '@dresscode.tokyo_media',  href: 'https://www.instagram.com/dresscode.tokyo_media/' },
-    { label: 'TikTok',    sub: '@dress.code_tokyo',       href: 'https://www.tiktok.com/@dress.code_tokyo' },
-    { label: 'Facebook',  sub: 'Dress Code Tokyo',        href: '#' },
-    { label: 'LINE',      sub: 'DRESS CODE TOKYO',        href: '#' },
+    { label: 'Instagram', sub: '@dress.code_tokyo',      nick: 'フリマ',  href: 'https://www.instagram.com/dress.code_tokyo/' },
+    { label: 'Instagram', sub: '@dresscode.tokyo_media', nick: 'media',   href: 'https://www.instagram.com/dresscode.tokyo_media/' },
+    { label: 'TikTok',    sub: '@dress.code_tokyo',                       href: 'https://www.tiktok.com/@dress.code_tokyo' },
+    { label: 'Facebook',  sub: 'Dress Code Tokyo',                        href: 'https://www.facebook.com/share/1CwA4cQzvy/?mibextid=wwXIfr' },
+    { label: 'LINE',      sub: 'DRESS CODE TOKYO',                        href: 'https://line.me/R/ti/p/@799fggke' },
   ],
 
   /* ▼ Contact：お問い合わせフォームの送信先（Google フォーム連携）
