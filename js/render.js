@@ -95,15 +95,45 @@
     </a>`;
   }).join(''));
 
-  /* ---------- Community ---------- */
-  fill('community-cards', (S.community || []).map(c =>
-    `<div class="ccard reveal">
+  /* ---------- Community（カードごとに別ページへ） ---------- */
+  fill('community-cards', (S.community || []).map(c => {
+    const href = c.href || '#contact';
+    const ext = /^https?:/.test(href);
+    const attr = ext ? ' target="_blank" rel="noopener"' : '';
+    return `<a class="ccard reveal" href="${href}"${attr}>
       <div class="en">${c.en}</div>
       <h3>${c.jp}</h3>
       <p>${c.body}</p>
-      <a href="#contact" class="more">${c.cta} →</a>
+      <span class="more">${c.cta} →</span>
+    </a>`;
+  }).join(''));
+
+  /* ---------- 運用メンバー（トグル開閉） ---------- */
+  fill('members-list', (S.members || []).map(m =>
+    `<div class="member reveal">
+      <button class="member__toggle" type="button" aria-expanded="false">
+        <span class="member__head">
+          <span class="member__name">${m.name}</span>
+          <span class="member__role">${m.role}</span>
+        </span>
+        <span class="member__icon" aria-hidden="true">＋</span>
+      </button>
+      <div class="member__panel"><div class="member__panel-in">
+        <div class="member__photo"><img src="${m.photo}" alt="${m.name}" loading="lazy" decoding="async"></div>
+        <div class="member__intro">
+          <p>${m.intro}</p>
+          <a class="btn-link" href="member.html?id=${m.slug}">詳細を見る →</a>
+        </div>
+      </div></div>
     </div>`
   ).join(''));
+  document.querySelectorAll('.member__toggle').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      const m = btn.closest('.member');
+      const open = m.classList.toggle('open');
+      btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+    });
+  });
 
   /* ---------- Contact: 理由 ---------- */
   fill('contact-reasons', (S.contactReasons || []).map(r =>
@@ -204,7 +234,7 @@
         }
       });
     }, { rootMargin: '-45% 0px -50% 0px', threshold: 0 });
-    ['top', 'about', 'event', 'magazine', 'community', 'contact'].forEach(function (id) {
+    ['top', 'about', 'event', 'magazine', 'community', 'members', 'contact'].forEach(function (id) {
       const el = document.getElementById(id); if (el) spy.observe(el);
     });
   }

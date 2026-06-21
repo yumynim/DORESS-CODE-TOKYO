@@ -21,6 +21,7 @@ window.SITE = {
     { label: 'Event',     href: '#event' },
     { label: 'Magazine',  href: '#magazine' },
     { label: 'Community', href: '#community' },
+    { label: 'Members',   href: '#members' },
     { label: 'Contact',   href: '#contact' },
   ],
 
@@ -179,11 +180,52 @@ window.SITE = {
     },
   ],
 
-  /* ▼ Community：3つの募集カード（accent は左上のライン色） */
+  /* ▼ Community：3つの募集カード
+     href = カードのリンク先。外部URLでもOK（外部は自動で別タブで開きます）。 */
   community: [
-    { accent: '#3a4fd6', en: 'For Everyone',   jp: 'メンバー募集',           body: 'イベントの先行案内や限定情報を受け取れる、DRESS CODE のコアコミュニティ。', cta: 'コミュニティに参加する' },
-    { accent: '#e8533a', en: 'For Exhibitors', jp: '出店者向け先行案内',     body: '次回マーケットの出店枠を、一般公開より先にご案内します。',                 cta: '先行案内を受け取る' },
-    { accent: '#9cc23f', en: 'For Creators',   jp: 'クリエイター募集',       body: '撮影・動画・SNS・広告など、イベントづくりに関わりたい人を募集中。',         cta: 'メンバー募集を見る' },
+    { en: 'For Everyone',   jp: 'メンバー募集',         body: 'イベントの先行案内や限定情報を受け取れる、DRESS CODE のコアコミュニティ。', cta: 'コミュニティに参加する', href: 'https://celestial-finalhomelink.vercel.app/' },
+    { en: 'For Exhibitors', jp: '出店者向け先行案内',   body: '次回マーケットの出店枠を、一般公開より先にご案内します。',                 cta: '先行案内を受け取る',     href: 'community-exhibitor.html' },
+    { en: 'For Creators',   jp: 'クリエイター募集',     body: '撮影・動画・SNS・広告など、イベントづくりに関わりたい人を募集中。',         cta: 'メンバー募集を見る',     href: 'community-creator.html' },
+  ],
+
+  /* ▼ 運用メンバー（Members）
+     トグルを開くと写真＋軽い紹介が出て、「詳細を見る」で member.html?id=slug の個別ページへ。
+     ※名前・肩書き・紹介文はサンプルです。実際の内容に書き換えてください。
+     - photo  : トグルを開いたときに出る写真
+     - intro  : トグル内の軽い紹介文
+     - bio    : 個別ページの紹介文（段落の配列）
+     - gallery: 個別ページで流れる写真（何枚でも） */
+  members: [
+    {
+      slug: 'ran', name: 'RAN', role: 'Founder / Director',
+      photo: 'assets/images/snap-lumine.jpg',
+      intro: '東京のファッションとカルチャーをつなぐ場をつくりたくて DRESS CODE TOKYO を立ち上げ。マーケットの企画から全体のディレクションまでを担当しています。',
+      bio: [
+        'DRESS CODE TOKYO のファウンダー兼ディレクター。学生時代から古着とストリートカルチャーにのめり込み、「服をきっかけに人がつながる場所」を東京につくることを目標にしています。',
+        'マーケットイベントの企画・出店者とのやりとり・当日のディレクションまで、イベント全体の舵取りを担当。「買うためではなく、出会うための一日」を合言葉に活動中。',
+      ],
+      gallery: ['assets/images/snap-lumine.jpg', 'assets/images/snap-polka.jpg', 'assets/images/fitting-selfie.jpg', 'assets/images/boutique-talk.jpg'],
+    },
+    {
+      slug: 'kei', name: 'KEI', role: 'Photographer / Snap',
+      photo: 'assets/images/street-candid.jpg',
+      intro: '会場の空気や来場者のスタイルを切り取る、スナップ＆記録担当。マガジンの写真の多くを撮っています。',
+      bio: [
+        'イベントの記録とスナップを担当するフォトグラファー。会場の熱気、来場者の何気ない着こなし、出店者の表情——その場でしか撮れない一瞬を残すことを大切にしています。',
+        'マガジンの「Street Snap」「Event Report」の写真の多くを担当。撮影だけでなく、動画やSNS用のコンテンツづくりにも関わっています。',
+      ],
+      gallery: ['assets/images/street-candid.jpg', 'assets/images/street-night.jpg', 'assets/images/group-5.jpg', 'assets/images/team-cheers.jpg'],
+    },
+    {
+      slug: 'misaki', name: 'MISAKI', role: 'Community / Creative',
+      photo: 'assets/images/group-5.jpg',
+      intro: 'コミュニティ運営とクリエイティブ担当。出店者・来場者・クリエイターをつなぐ役回りです。',
+      bio: [
+        'コミュニティの運営とクリエイティブまわりを担当。先行案内やメンバー募集の窓口として、イベントに関わりたい人たちをつなげる役割を担っています。',
+        'SNS の発信、ビジュアルづくり、当日の運営サポートまで幅広く担当。「関わる人みんなが主役になれるイベント」を目指しています。',
+      ],
+      gallery: ['assets/images/group-5.jpg', 'assets/images/icecream.jpg', 'assets/images/backstage-chair.jpg', 'assets/images/team-cheers.jpg'],
+    },
   ],
 
   /* ▼ Contact：お問い合わせ理由の一覧 */
