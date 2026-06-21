@@ -121,8 +121,19 @@ window.SITE = {
     { label: 'Note',        href: '#' },
   ],
 
-  /* ▼ Contact：お問い合わせフォーム
-     Google フォームの「埋め込み」コード(<iframe ...>)を貼ると、そのままフォームが出ます。
-     '' のままなら案内プレースホルダーが表示されます。 */
-  contactFormEmbed: '',
+  /* ▼ Contact：お問い合わせフォームの送信先（Google フォーム連携）
+     ここが空のあいだは「デモ動作（送信すると御礼が出るだけ）」です。
+     --------------------------------------------------------------
+     【設定方法】Google フォームを作成 → ⋮メニュー →「事前入力したリンクを取得」
+     → 各項目に適当な値を入れて送信 → 出てきた URL を私（Claude）に渡せば、
+     下の action と entry 番号を私が埋めます。それだけで本番送信が有効になります。 */
+  contactForm: {
+    action: '',          // 例: https://docs.google.com/forms/d/e/XXXX/formResponse
+    entries: {
+      name:    '',       // 例: entry.1111111
+      email:   '',       // 例: entry.2222222
+      type:    '',       // 例: entry.3333333
+      message: '',       // 例: entry.4444444
+    },
+  },
 };

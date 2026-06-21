@@ -198,15 +198,36 @@
         </div>
         <div>
           <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
-            <span class="kicker">Inquiry Form</span>
-            <span class="kicker" style="color:var(--line-2)">Google Form</span>
+            <span class="kicker">Application &amp; Inquiry</span>
+            <span class="kicker" style="color:var(--line-2)">Tap to open</span>
           </div>
-          <div id="contact-form" class="formbox">
-            <div class="inner">
-              <div class="ico">↵</div>
-              <div class="t">Embed your form</div>
-              <p>data.js の <code>contactFormEmbed</code> に Google フォームの <code>&lt;iframe&gt;</code> を入れてください。</p>
-            </div>
+          <!-- タップで開くフォーム。送信先は data.js の contactForm（未設定なら御礼表示のデモ動作） -->
+          <div id="contact-form" class="formwrap">
+            <button type="button" class="form-toggle" id="form-toggle" aria-expanded="false">
+              <span>
+                <span class="en">Application / Inquiry</span>
+                <span class="jp">応募・お問い合わせフォームを開く</span>
+              </span>
+              <span class="form-toggle__icon" aria-hidden="true">＋</span>
+            </button>
+            <form class="dcform" id="dcform">
+              <div class="dcform__in">
+                <label>お名前
+                  <input name="name" type="text" autocomplete="name" required>
+                </label>
+                <label>メールアドレス
+                  <input name="email" type="email" autocomplete="email" required>
+                </label>
+                <label>ご用件
+                  <select name="type" id="form-type"></select>
+                </label>
+                <label>内容
+                  <textarea name="message" rows="5" required></textarea>
+                </label>
+                <button type="submit" class="btn btn--solid">送信する <span class="arrow">→</span></button>
+                <p class="dcform__note">送信内容は主催者に届きます（回答は Google フォームに記録されます）。</p>
+              </div>
+            </form>
           </div>
         </div>
       </div>

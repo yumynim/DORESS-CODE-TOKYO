@@ -47,8 +47,8 @@ DORESS CODE TOKYO/
    - カテゴリタイル（トップの4枚）→ `activities:` の各行の `img`
    - ギャラリー → `gallery:` の各行の `img`
    - 記事カバー → `articles:` の各行の `img`
-   - メインビジュアル → `index.html` のヒーロー `<div class="frame">` の中に
-     `<img class="cover" src="assets/images/xxx.jpg" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover">` を入れる
+   - メインビジュアル（ヒーロー全面）→ `data.js` の `heroImage: 'assets/images/hero.jpg'`
+     （写真を入れると全面写真＋白文字に自動で切り替わります）
 
 ### 見た目（色・余白・フォント）を変える
 `css/style.css` の先頭 `:root { ... }` にまとまっています。色や余白の数値を変えるとサイト全体に反映されます。
@@ -61,8 +61,21 @@ DORESS CODE TOKYO/
 videoEmbed: '<iframe src="https://www.youtube.com/embed/動画ID" allowfullscreen></iframe>',
 ```
 
-### お問い合わせフォーム
-`data.js` の `contactFormEmbed:` に Google フォームの埋め込み `<iframe>` を貼り付け。
+### お問い合わせフォーム（インライン展開＋Google フォーム連携）
+Contact セクションの「応募・お問い合わせフォームを開く」をタップすると、サイトに合わせた
+入力フォームが開きます。送信内容は **Google フォーム経由でスプレッドシートに記録**されます。
+
+設定は `data.js` の `contactForm` に、Google フォームの送信先URLと各項目の `entry.xxxx` 番号を入れるだけ：
+
+```js
+contactForm: {
+  action: 'https://docs.google.com/forms/d/e/XXXX/formResponse',
+  entries: { name: 'entry.111', email: 'entry.222', type: 'entry.333', message: 'entry.444' },
+},
+```
+
+番号は、Google フォーム → ⋮ →「事前入力したリンクを取得」で出る URL から拾えます
+（未設定のあいだは送信すると御礼が出るデモ動作）。
 
 ### メニュー・SNSリンク・開催情報など
 すべて `data.js` の各リスト（`nav` / `socials` / `eventInfo` …）を直すだけで反映されます。

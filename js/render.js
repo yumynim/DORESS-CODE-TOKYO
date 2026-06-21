@@ -104,8 +104,40 @@
   /* ---------- 動画エンベッド ---------- */
   if (S.videoEmbed) { const v = document.getElementById('event-video'); if (v) v.innerHTML = S.videoEmbed; }
 
-  /* ---------- お問い合わせフォーム ---------- */
-  if (S.contactFormEmbed) { const f = document.getElementById('contact-form'); if (f) f.innerHTML = S.contactFormEmbed; }
+  /* ---------- お問い合わせフォーム（インライン展開＋Google フォーム送信） ---------- */
+  // ご用件の選択肢は contactReasons から自動生成（リストと自動で揃う）
+  const typeSel = document.getElementById('form-type');
+  if (typeSel) {
+    typeSel.innerHTML = (S.contactReasons || []).map(r => `<option value="${r.jp}">${r.jp}</option>`).join('');
+  }
+  // タップで開閉
+  const fwrap = document.getElementById('contact-form');
+  const ftoggle = document.getElementById('form-toggle');
+  if (fwrap && ftoggle) {
+    ftoggle.addEventListener('click', function () {
+      const open = fwrap.classList.toggle('open');
+      ftoggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+    });
+  }
+  // 送信（設定済みなら Google フォームへ。未設定ならデモで御礼表示）
+  const dcform = document.getElementById('dcform');
+  if (dcform) {
+    dcform.addEventListener('submit', function (e) {
+      e.preventDefault();
+      const cfg = S.contactForm || {};
+      const ent = cfg.entries || {};
+      if (cfg.action && ent.name) {
+        const el = dcform.elements;
+        const body = new URLSearchParams();
+        body.append(ent.name,    el['name'].value);
+        body.append(ent.email,   el['email'].value);
+        body.append(ent.type,    el['type'].value);
+        body.append(ent.message, el['message'].value);
+        fetch(cfg.action, { method: 'POST', mode: 'no-cors', body: body }).catch(function () {});
+      }
+      dcform.innerHTML = '<div class="dcform__done"><div class="t">Thank you.</div><p>お問い合わせを受け付けました。<br>担当より追ってご連絡いたします。</p></div>';
+    });
+  }
 
   /* ---------- ハンバーガーメニュー ---------- */
   const menuBtn = document.getElementById('menu-btn');

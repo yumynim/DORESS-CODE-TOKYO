@@ -457,6 +457,34 @@ p { margin: 0; }
 .formbox p { margin-top: 14px; font-size: 12.5px; line-height: 1.9; color: var(--ink-3); }
 .formbox code { font-family: var(--f-sans); background: #ece9e2; padding: 2px 6px; }
 
+/* --- インライン展開フォーム（タップで開く・サイト統一デザイン） --- */
+.formwrap { border: 1px solid var(--line); background: #fff; }
+.form-toggle {
+  width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 16px;
+  background: #fff; border: 0; cursor: pointer; text-align: left;
+  padding: clamp(22px, 3vw, 30px) clamp(22px, 3vw, 32px); transition: background .3s var(--ease);
+}
+.form-toggle:hover { background: var(--bg-band); }
+.form-toggle .en { display: block; font-family: var(--f-sans); font-size: 10.5px; letter-spacing: 0.22em; text-transform: uppercase; color: var(--muted); }
+.form-toggle .jp { display: block; margin-top: 6px; font-size: 16px; color: var(--ink); }
+.form-toggle__icon { flex: none; font-family: var(--f-sans); font-size: 24px; line-height: 1; color: var(--ink); transition: transform .4s var(--ease); }
+.formwrap.open .form-toggle__icon { transform: rotate(45deg); }
+.dcform { max-height: 0; overflow: hidden; opacity: 0; transition: max-height .55s var(--ease), opacity .4s var(--ease); }
+.formwrap.open .dcform { max-height: 1400px; opacity: 1; }
+.dcform__in { padding: 2px clamp(22px, 3vw, 32px) clamp(26px, 3vw, 34px); display: flex; flex-direction: column; gap: 16px; border-top: 1px solid var(--line); }
+.dcform label { display: flex; flex-direction: column; gap: 8px; font-family: var(--f-sans); font-size: 10.5px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--muted); }
+.dcform input, .dcform select, .dcform textarea {
+  font-family: var(--f-jp); font-size: 14px; color: var(--ink); background: #fff;
+  border: 1px solid var(--line-2); padding: 13px 14px; letter-spacing: normal; text-transform: none;
+}
+.dcform input:focus, .dcform select:focus, .dcform textarea:focus { outline: none; border-color: var(--ink); }
+.dcform textarea { resize: vertical; min-height: 120px; }
+.dcform .btn { align-self: flex-start; margin-top: 6px; }
+.dcform__note { font-family: var(--f-jp); font-size: 12px; letter-spacing: normal; text-transform: none; color: var(--muted); }
+.dcform__done { padding: clamp(32px, 5vw, 56px); text-align: center; border-top: 1px solid var(--line); }
+.dcform__done .t { font-family: var(--f-serif); font-style: italic; font-size: 28px; color: var(--ink); }
+.dcform__done p { margin-top: 12px; font-size: 13.5px; line-height: 1.9; color: var(--ink-3); }
+
 /* =========================================================
    フッター
    ========================================================= */
