@@ -237,11 +237,14 @@ window.SITE = {
     { no: '05', jp: 'その他お問い合わせ', en: 'Other' },
   ],
 
-  /* ▼ Contact / Footer：SNSリンク（href を実際のURLに変えてください） */
+  /* ▼ Contact / Footer：SNSリンク
+     LINE と Facebook の href は実際の URL に差し替えてください。 */
   socials: [
-    { label: 'Instagram',   href: '#' },
-    { label: 'X / Twitter', href: '#' },
-    { label: 'Note',        href: '#' },
+    { label: 'Instagram', sub: '@dress.code_tokyo',       href: 'https://www.instagram.com/dress.code_tokyo/' },
+    { label: 'Instagram', sub: '@dresscode.tokyo_media',  href: 'https://www.instagram.com/dresscode.tokyo_media/' },
+    { label: 'TikTok',    sub: '@dress.code_tokyo',       href: 'https://www.tiktok.com/@dress.code_tokyo' },
+    { label: 'Facebook',  sub: 'Dress Code Tokyo',        href: '#' },
+    { label: 'LINE',      sub: 'DRESS CODE TOKYO',        href: '#' },
   ],
 
   /* ▼ Contact：お問い合わせフォームの送信先（Google フォーム連携）

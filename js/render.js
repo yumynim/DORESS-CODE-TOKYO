@@ -141,7 +141,9 @@
   ).join(''));
 
   /* ---------- SNS ---------- */
-  const socialsHtml = (S.socials || []).map(s => `<a href="${s.href}">${s.label}</a>`).join('');
+  const socialsHtml = (S.socials || []).map(s =>
+    `<a href="${s.href}"${s.href === '#' ? '' : ' target="_blank" rel="noopener"'}><span class="sns-label">${s.label}</span>${s.sub ? `<span class="sns-sub">${s.sub}</span>` : ''}</a>`
+  ).join('');
   fill('contact-socials', socialsHtml);
   fill('footer-socials', socialsHtml);
 
