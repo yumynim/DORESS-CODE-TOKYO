@@ -85,6 +85,17 @@ window.SITE = {
   /* ▼ Magazine：カテゴリのタグ（見た目だけ。記事の cat とそろえると分かりやすい） */
   categories: ['Event Report', 'Street Snap', 'Interview', 'Brand Story', 'Fashion', 'Culture'],
 
+  /* ▼ カテゴリごとの色（記事カードの丸ドット・記事ページの見出し色に使用）
+     新カテゴリを増やすときは、ここに「'カテゴリ名': '#色'」を足してください。 */
+  catColors: {
+    'Event Report': '#e8533a',
+    'Brand Story':  '#8b46c9',
+    'Street Snap':  '#d4459a',
+    'Culture':      '#3a4fd6',
+    'Fashion':      '#9cc23f',
+    'Interview':    '#3fb6a8',
+  },
+
   /* ▼ Magazine：記事一覧 ★ここに { } を足すと記事カードが増えます★
      - cat     : カテゴリ名
      - date    : 日付（表示用の文字列）

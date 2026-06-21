@@ -100,9 +100,16 @@
       if (!a) { document.getElementById('a-title').textContent = '記事が見つかりませんでした'; return; }
 
       document.title = a.title + ' — DRESS CODE TOKYO';
-      document.getElementById('a-cat').textContent = a.cat || '';
+      const colors = S.catColors || {};
+      const catEl = document.getElementById('a-cat');
+      catEl.textContent = a.cat || '';
+      if (colors[a.cat]) catEl.style.color = colors[a.cat];
       document.getElementById('a-title').textContent = a.title || '';
-      document.getElementById('a-date').textContent = a.date || '';
+      // 読了目安（本文＋抜粋の文字数 ÷ 約400字/分）
+      let chars = (a.excerpt || '').length;
+      (a.body || []).forEach(b => { chars += (b.p || b.h || b.quote || b.cap || '').length; });
+      const min = Math.max(1, Math.round(chars / 400));
+      document.getElementById('a-date').textContent = (a.date || '') + ' ・ 約' + min + '分で読めます';
       if (a.img) document.getElementById('a-cover').innerHTML = `<img src="${a.img}" alt="">`;
 
       const esc = s => String(s == null ? '' : s).replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));

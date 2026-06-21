@@ -58,23 +58,36 @@
 
   /* ---------- Gallery ---------- */
   fill('gallery', (S.gallery || []).map(g => {
-    const img = g.img ? `<img src="${g.img}" alt="${g.label}" loading="lazy" decoding="async">` : '';
-    return `<div class="gallery__item reveal${g.img ? ' has-img' : ''}" style="aspect-ratio:${g.ratio}">${img}<span class="label">${g.label}</span></div>`;
+    // masonry（縦に流れる）レイアウト。写真は自然な高さで並ぶので動きが出る。
+    // 写真が無い項目だけ ratio で高さを確保（プレースホルダー用）。
+    const img = g.img
+      ? `<img src="${g.img}" alt="${g.label}" loading="lazy" decoding="async">`
+      : `<div class="gallery__ph" style="aspect-ratio:${g.ratio}"></div>`;
+    return `<div class="gallery__item reveal${g.img ? ' has-img' : ''}">${img}<span class="label">${g.label}</span></div>`;
   }).join(''));
 
   /* ---------- Magazine: カテゴリタグ ---------- */
   fill('categories', (S.categories || []).map(c => `<span>${c}</span>`).join(''));
 
   /* ---------- Magazine: 記事 ---------- */
+  const catColors = S.catColors || {};
+  // 本文＋抜粋の文字数からおおよその読了時間（約400字/分）を算出
+  function readMin(a) {
+    let c = (a.excerpt || '').length;
+    (a.body || []).forEach(b => { c += (b.p || b.h || b.quote || b.cap || '').length; });
+    return Math.max(1, Math.round(c / 400));
+  }
   fill('articles', (S.articles || []).map(a => {
+    const color = catColors[a.cat] || 'var(--ink)';
+    const cat = `<span class="card__cat"><span class="card__dot" style="background:${color}"></span>${a.cat}</span>`;
     const media = a.img
-      ? `<span class="card__cat">${a.cat}</span><img src="${a.img}" alt="" loading="lazy" decoding="async">`
-      : `<span class="card__cat">${a.cat}</span><span class="card__ph">Photo — 差し替え可</span>`;
+      ? `${cat}<img src="${a.img}" alt="" loading="lazy" decoding="async">`
+      : `${cat}<span class="card__ph">Photo — 差し替え可</span>`;
     const link = a.slug ? `article.html?id=${a.slug}` : (a.href || '#');
     return `<a href="${link}" class="card reveal">
       <div class="card__media">${media}<div class="card__view"><span>Read →</span></div></div>
       <div class="card__body">
-        <div class="card__date">${a.date}</div>
+        <div class="card__date">${a.date} <span class="card__read">· 約${readMin(a)}分で読めます</span></div>
         <h3 class="card__title">${a.title}</h3>
         <p class="card__excerpt">${a.excerpt}</p>
         <span class="card__more">Read →</span>
