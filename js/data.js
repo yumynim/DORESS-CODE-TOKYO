@@ -8,6 +8,12 @@
 
 window.SITE = {
 
+  /* ▼ ヒーロー（トップ最上部）のメイン写真
+     パスを入れると全面写真＋中央テキスト（白文字）に切り替わります。
+     空 '' のままなら、上品なオフホワイト背景＋虹色モチーフで表示。
+     例: heroImage: 'assets/images/hero.jpg', */
+  heroImage: '',
+
   /* ▼ ヘッダー / フッターのメニュー（リンク先は #セクションID） */
   nav: [
     { label: 'Top',       href: '#top' },
@@ -18,12 +24,14 @@ window.SITE = {
     { label: 'Contact',   href: '#contact' },
   ],
 
-  /* ▼ About：活動内容の一覧（日本語 / 英語） */
+  /* ▼ 活動内容（カテゴリタイル＋About一覧で共用）
+     img に画像パスを入れるとタイルに写真が表示されます（空ならプレースホルダー）。
+     href はタイルのリンク先。 */
   activities: [
-    { jp: 'マーケットイベント',   en: 'Market Events' },
-    { jp: 'スナップ',             en: 'Street Snap' },
-    { jp: 'インタビュー',         en: 'Interview' },
-    { jp: 'イベントレポート',     en: 'Report' },
+    { jp: 'マーケットイベント',   en: 'Market Events', img: '', href: '#event' },
+    { jp: 'スナップ',             en: 'Street Snap',   img: '', href: '#magazine' },
+    { jp: 'インタビュー',         en: 'Interview',     img: '', href: '#magazine' },
+    { jp: 'イベントレポート',     en: 'Report',        img: '', href: '#magazine' },
   ],
 
   /* ▼ Event：開催情報（左 = 項目名 / 右 = 内容） */

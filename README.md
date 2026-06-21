@@ -44,9 +44,15 @@ DORESS CODE TOKYO/
 ### 画像を入れる
 1. 写真を `assets/images/` に入れる（例: `snap01.jpg`）。
 2. `data.js` の該当箇所に `img: 'assets/images/snap01.jpg'` と書く。
+   - カテゴリタイル（トップの4枚）→ `activities:` の各行の `img`
    - ギャラリー → `gallery:` の各行の `img`
    - 記事カバー → `articles:` の各行の `img`
-   - メインビジュアル → `index.html` の `assets/images/photo-sample.jpg` を差し替え
+   - メインビジュアル → `index.html` のヒーロー `<div class="frame">` の中に
+     `<img class="cover" src="assets/images/xxx.jpg" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover">` を入れる
+
+### 見た目（色・余白・フォント）を変える
+`css/style.css` の先頭 `:root { ... }` にまとまっています。色や余白の数値を変えるとサイト全体に反映されます。
+個別パーツの見た目も同ファイル内のクラス（`.card` `.tile` `.hero` など）で調整できます。
 
 ### 動画を入れる
 `data.js` の `videoEmbed:` に YouTube/Vimeo の埋め込み `<iframe>` を貼り付け。
