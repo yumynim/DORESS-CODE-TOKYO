@@ -464,7 +464,8 @@ select:focus-visible, textarea:focus-visible {
 .member__photo { aspect-ratio: 3/4; overflow: hidden; background: var(--bg-soft); }
 .member__photo img { width: 100%; height: 100%; object-fit: cover; }
 .member__intro p { font-size: 14.5px; line-height: 2.1; color: var(--ink-2); }
-.member__intro .btn-link { margin-top: 24px; }
+/* 詳細を見る — 一旦非表示（復活させるときはこの行を削除） */
+.member__intro .btn-link { display: none; }
 
 /* =========================================================
    下層ページ共通（メンバー個別 / コミュニティ詳細）
@@ -477,7 +478,8 @@ select:focus-visible, textarea:focus-visible {
 .mpage__bio { max-width: 700px; margin-top: clamp(24px, 3vw, 44px); }
 .mpage__bio p { font-size: 15px; line-height: 2.15; color: var(--ink-2); margin-bottom: 1.3em; }
 .mpage__cta { margin-top: clamp(28px, 4vw, 44px); }
-.mpage__gallery { margin-top: clamp(44px, 6vw, 88px); columns: 2; column-gap: clamp(10px, 1.4vw, 18px); }
+/* フォトギャラリー — 一旦非表示（復活させるときはdisplay:noneを削除） */
+.mpage__gallery { display: none; margin-top: clamp(44px, 6vw, 88px); columns: 2; column-gap: clamp(10px, 1.4vw, 18px); }
 .mpage__gallery img { width: 100%; margin: 0 0 clamp(10px, 1.4vw, 18px); break-inside: avoid; display: block; }
 @media (max-width: 700px) {
   .member__panel-in { grid-template-columns: 1fr; }

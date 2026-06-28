@@ -183,9 +183,10 @@ window.SITE = {
   /* ▼ Community：3つの募集カード
      href = カードのリンク先。外部URLでもOK（外部は自動で別タブで開きます）。 */
   community: [
-    { en: 'For Everyone',   jp: 'メンバー募集',         body: 'イベントの先行案内や限定情報を受け取れる、DRESS CODE のコアコミュニティ。', cta: 'コミュニティに参加する', href: 'https://celestial-finalhomelink.vercel.app/' },
-    { en: 'For Exhibitors', jp: '出店者向け先行案内',   body: '次回マーケットの出店枠を、一般公開より先にご案内します。',                 cta: '先行案内を受け取る',     href: 'community-exhibitor.html' },
-    { en: 'For Creators',   jp: 'クリエイター募集',     body: '撮影・動画・SNS・広告など、イベントづくりに関わりたい人を募集中。',         cta: 'メンバー募集を見る',     href: 'community-creator.html' },
+    { en: 'For Everyone',   jp: 'メンバー募集',       body: 'イベントの先行案内や限定情報を受け取れる、DRESS CODE のコアコミュニティ。', cta: 'コミュニティに参加する', href: 'https://celestial-finalhomelink.vercel.app/' },
+    { en: 'For Exhibitors', jp: '出店者向け先行案内', body: '次回マーケットの出店枠を、一般公開より先にご案内します。',                 cta: '先行案内を受け取る',     href: 'community-exhibitor.html' },
+    // クリエイター募集は一旦非表示 → 復活させるときは下の行のコメントを外す
+    // { en: 'For Creators', jp: 'クリエイター募集', body: '撮影・動画・SNS・広告など、イベントづくりに関わりたい人を募集中。', cta: 'メンバー募集を見る', href: 'community-creator.html' },
   ],
 
   /* ▼ 運用メンバー（Members）
@@ -198,31 +199,31 @@ window.SITE = {
   members: [
     {
       slug: 'minami', name: 'MINAMI', role: '',
-      photo: 'assets/images/snap-lumine.jpg',
+      photo: 'assets/images/member-minami.jpg',
       intro: '（ここに一言紹介を入れてください）',
       bio: ['（ここにプロフィール文を入れてください）'],
-      gallery: ['assets/images/snap-lumine.jpg', 'assets/images/snap-polka.jpg'],
+      gallery: ['assets/images/member-minami.jpg'],
     },
     {
       slug: 'tubasa', name: 'TUBASA', role: '',
-      photo: 'assets/images/street-candid.jpg',
+      photo: 'assets/images/street-candid.jpg',  // 写真が届いたら member-tubasa.jpg に差し替え
       intro: '（ここに一言紹介を入れてください）',
       bio: ['（ここにプロフィール文を入れてください）'],
-      gallery: ['assets/images/street-candid.jpg', 'assets/images/street-night.jpg'],
+      gallery: [],
     },
     {
       slug: 'haruki', name: 'HARUKI', role: '',
-      photo: 'assets/images/boutique-talk.jpg',
+      photo: 'assets/images/member-haruki.jpg',
       intro: '（ここに一言紹介を入れてください）',
       bio: ['（ここにプロフィール文を入れてください）'],
-      gallery: ['assets/images/boutique-talk.jpg', 'assets/images/fitting-selfie.jpg'],
+      gallery: ['assets/images/member-haruki.jpg'],
     },
     {
       slug: 'yui', name: 'YUI', role: '',
-      photo: 'assets/images/group-5.jpg',
+      photo: 'assets/images/member-yui.jpg',
       intro: '（ここに一言紹介を入れてください）',
       bio: ['（ここにプロフィール文を入れてください）'],
-      gallery: ['assets/images/group-5.jpg', 'assets/images/team-cheers.jpg'],
+      gallery: ['assets/images/member-yui.jpg'],
     },
   ],
 
