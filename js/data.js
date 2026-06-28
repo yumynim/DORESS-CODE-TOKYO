@@ -59,17 +59,14 @@ window.SITE = {
   /* ▼ Event：動画（いずれ追加予定 — iframe を貼ると表示される）
   videoEmbed: '<iframe width="560" height="315" src="https://www.youtube.com/embed/..." allowfullscreen></iframe>', */
 
-  /* ▼ Magazine：カテゴリのタグ（見た目だけ。記事の cat とそろえると分かりやすい） */
-  categories: ['Event Report', 'Magazine', 'Brand Story', 'Fashion', 'Culture'],
+  /* ▼ Magazine：カテゴリのタグ（記事の cat とそろえてください） */
+  categories: ['マーケットイベント', 'マガジン', 'イベントレポート'],
 
-  /* ▼ カテゴリごとの色（記事カードの丸ドット・記事ページの見出し色に使用）
-     新カテゴリを増やすときは、ここに「'カテゴリ名': '#色'」を足してください。 */
+  /* ▼ カテゴリごとの色（記事カードの丸ドット・記事ページの見出し色に使用） */
   catColors: {
-    'Event Report': '#e8533a',
-    'Magazine':     '#d4459a',
-    'Brand Story':  '#8b46c9',
-    'Fashion':      '#9cc23f',
-    'Culture':      '#3a4fd6',
+    'マーケットイベント': '#e8533a',
+    'マガジン':           '#d4459a',
+    'イベントレポート':   '#8b46c9',
   },
 
   /* ▼ Magazine：記事一覧 ★ここに { } を足すと記事カードが増えます★
