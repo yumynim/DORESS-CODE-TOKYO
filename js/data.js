@@ -29,27 +29,21 @@ window.SITE = {
      img に画像パスを入れるとタイルに写真が表示されます（空ならプレースホルダー）。
      href はタイルのリンク先。 */
   activities: [
-    { jp: 'マーケットイベント',   en: 'Market Events', img: 'assets/images/group-5.jpg',      href: '#event' },
-    { jp: 'スナップ',             en: 'Street Snap',   img: 'assets/images/fitting-selfie.jpg', href: '#magazine' },
-    { jp: 'インタビュー',         en: 'Interview',     img: 'assets/images/boutique-talk.jpg',  href: '#magazine' },
-    { jp: 'イベントレポート',     en: 'Report',        img: 'assets/images/street-night.jpg',   href: '#magazine' },
+    { jp: 'マーケットイベント', en: 'Market Events', img: 'assets/images/tile-market.jpg',   href: '#event' },
+    { jp: 'マガジン',           en: 'Magazine',      img: 'assets/images/tile-magazine.jpg', href: '#magazine' },
+    { jp: 'イベントレポート',   en: 'Report',        img: 'assets/images/tile-report.jpg',   href: '#magazine' },
   ],
 
-  /* ▼ Event：開催情報（左 = 項目名 / 右 = 内容） */
+  /* ▼ Event：開催情報（詳細が決まり次第追加） */
   eventInfo: [
-    { k: 'Date',     v: '2026.03.21 SAT – 22 SUN' },
-    { k: 'Open',     v: '11:00 – 20:00' },
-    { k: 'Location', v: 'TOKYO（会場は近日発表）' },
-    { k: 'Entry',    v: '¥1,000 / 前売' },
+    { k: 'Location', v: 'TOKYO' },
     { k: 'Concept',  v: 'Wear your story.' },
   ],
 
-  /* ▼ Event：4つのボタン */
+  /* ▼ Event：ボタン */
   eventCtas: [
-    { en: 'Visitor Entry',          jp: '来場予約する',          href: '#contact' },
-    { en: 'Exhibitor Application',  jp: '出店応募する',          href: '#contact' },
-    { en: 'Event Detail',           jp: 'イベント詳細を見る',    href: '#event' },
-    { en: 'Past Events',            jp: '過去イベントを見る',    href: '#magazine' },
+    { en: 'Get Notified',  jp: '開催情報を受け取る',  href: '#contact' },
+    { en: 'For Exhibitors', jp: '出店について問い合わせる', href: '#contact' },
   ],
 
   /* ▼ Event：How to enjoy（3つの楽しみ方） */
@@ -62,39 +56,20 @@ window.SITE = {
   /* ▼ Event：キービジュアル（中央の大きな写真枠）。空ならプレースホルダー表示 */
   eventVisual: 'assets/images/fitting-selfie.jpg',
 
-  /* ▼ Event：動画エンベッド
-     YouTube/Vimeo の埋め込みコード(<iframe ...>)をそのまま貼り付けると動画になります。
-     '' （空）のままなら再生ボタン風のプレースホルダーが表示されます。
-     例: videoEmbed: '<iframe src="https://www.youtube.com/embed/XXXX" allowfullscreen></iframe>', */
-  videoEmbed: '<iframe width="560" height="315" src="https://www.youtube.com/embed/6T9vhaBwwYc?si=NhB53-W4oXu8NF_3" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>',
-
-  /* ▼ Event：フォトギャラリー
-     img に画像パスを入れると写真が表示されます（例: 'assets/images/snap01.jpg'）。
-     img を空にすると色付きのプレースホルダーになります。
-     ratio は枠の縦横比（'3/4' は縦長、'1/1' は正方形）。 */
-  gallery: [
-    { label: 'Snap 01',   ratio: '3/4', img: 'assets/images/fitting-selfie.jpg' },
-    { label: 'Detail 02', ratio: '1/1', img: 'assets/images/icecream.jpg' },
-    { label: 'Crowd 03',  ratio: '3/4', img: 'assets/images/group-5.jpg' },
-    { label: 'Shop 04',   ratio: '1/1', img: 'assets/images/snap-polka.jpg' },
-    { label: 'Street 05', ratio: '3/4', img: 'assets/images/street-candid.jpg' },
-    { label: 'Floor 06',  ratio: '1/1', img: 'assets/images/snap-lumine.jpg' },
-    { label: 'Night 07',  ratio: '3/4', img: 'assets/images/street-night.jpg' },
-    { label: 'Back 08',   ratio: '1/1', img: 'assets/images/backstage-chair.jpg' },
-  ],
+  /* ▼ Event：動画（いずれ追加予定 — iframe を貼ると表示される）
+  videoEmbed: '<iframe width="560" height="315" src="https://www.youtube.com/embed/..." allowfullscreen></iframe>', */
 
   /* ▼ Magazine：カテゴリのタグ（見た目だけ。記事の cat とそろえると分かりやすい） */
-  categories: ['Event Report', 'Street Snap', 'Interview', 'Brand Story', 'Fashion', 'Culture'],
+  categories: ['Event Report', 'Magazine', 'Brand Story', 'Fashion', 'Culture'],
 
   /* ▼ カテゴリごとの色（記事カードの丸ドット・記事ページの見出し色に使用）
      新カテゴリを増やすときは、ここに「'カテゴリ名': '#色'」を足してください。 */
   catColors: {
     'Event Report': '#e8533a',
+    'Magazine':     '#d4459a',
     'Brand Story':  '#8b46c9',
-    'Street Snap':  '#d4459a',
-    'Culture':      '#3a4fd6',
     'Fashion':      '#9cc23f',
-    'Interview':    '#3fb6a8',
+    'Culture':      '#3a4fd6',
   },
 
   /* ▼ Magazine：記事一覧 ★ここに { } を足すと記事カードが増えます★
@@ -104,81 +79,9 @@ window.SITE = {
      - excerpt : 一覧に出る短い説明
      - href    : クリック先（記事ページを作ったら 'articles/xxx.html' などに）
      - img     : カバー画像パス（空ならプレースホルダー） */
-  articles: [
-    {
-      cat: 'Event Report', date: '2025.11.18', slug: 'market-vol0',
-      title: 'DRESS CODE MARKET Vol.0 開催レポート',
-      excerpt: '初開催の熱気と、集まった多様なスタイル。一日のすべてを振り返る。',
-      img: 'assets/images/team-cheers.jpg',
-      body: [
-        { p: '11月の週末、DRESS CODE MARKET の記念すべき Vol.0 が開催されました。「買うためではなく、出会うための一日」をコンセプトに、ブランド・クリエイター・来場者が同じ場所に集まった一日を振り返ります。' },
-        { h: '街に散らばっていたスタイルが、一つの場所に' },
-        { p: '会場に足を踏み入れてまず驚いたのは、来場者一人ひとりの「ドレスコード」のバラバラさでした。古着で固めた人、ハイブランドを一点だけ効かせた人、自作の服を着てきた人。正解のない着こなしが、そのまま街の多様さを映していました。' },
-        { img: 'assets/images/group-5.jpg', cap: '出店者と来場者の距離が近いのも、マーケットならでは。' },
-        { p: 'ブースを回るうちに自然と会話が生まれ、気づけば作り手とお客さんが一緒に写真を撮っている。そんな光景が会場のあちこちで見られました。' },
-        { quote: '服を入り口に、人とカルチャーが交差する。最初の一歩を、たしかに踏み出せた一日でした。' },
-        { p: '夜まで続いた熱気は、そのまま次回 Vol.1 への期待につながっています。次は、あなたのスタイルで参加してください。' },
-        { img: 'assets/images/street-night.jpg', cap: 'イベント後も、街に余韻が残っていた。' },
-      ],
-    },
-    {
-      cat: 'Brand Story', date: '2025.11.02', slug: 'brand-interview',
-      title: '出店ブランドインタビュー：東京の作り手たち',
-      excerpt: 'マーケットに並ぶ服の、その向こうにある物語を聞いた。',
-      img: 'assets/images/boutique-talk.jpg',
-      body: [
-        { p: 'マーケットに並ぶ一着には、必ず作り手の物語があります。今回は、出店ブランドの方々に「東京で服を作るということ」について話を聞きました。' },
-        { h: '「誰かの普通」を、少しだけ更新したい' },
-        { p: '「派手なものを作りたいわけじゃなくて、毎日の延長線上にある服を、ちょっとだけ良くしたいんです」。あるブランドの言葉が印象的でした。流行を追うのではなく、長く着られるものを。その姿勢は、来場者にもまっすぐ伝わっていました。' },
-        { img: 'assets/images/fitting-selfie.jpg', cap: '試着して、鏡の前で笑う。その瞬間が一番うれしいと作り手は言う。' },
-        { p: '対面で売ることの意味を、みんな口を揃えて語っていました。「反応がその場でわかる」「次に活かせる」。マーケットは、作り手にとっても学びの場になっているようです。' },
-      ],
-    },
-    {
-      cat: 'Street Snap', date: '2025.10.27', slug: 'snap-today',
-      title: '来場者スナップ：今日のドレスコード',
-      excerpt: '会場で出会った、忘れられない着こなしを切り取って。',
-      img: 'assets/images/snap-polka.jpg',
-      body: [
-        { p: '「今日のドレスコードは?」——会場で出会った人たちに声をかけ、その日のスタイルを記録しました。' },
-        { img: 'assets/images/snap-lumine.jpg', cap: 'お気に入りのショップ前で一枚。' },
-        { p: '正解はありません。気分で選んだ一着も、こだわり抜いたコーディネートも、全部がその人のドレスコード。街で見かけたら、ぜひ声をかけてください。' },
-      ],
-    },
-    {
-      cat: 'Culture', date: '2025.10.10', slug: 'behind-the-scenes',
-      title: 'イベントの裏側：マーケットができるまで',
-      excerpt: '一つのイベントが立ち上がるまでの、舞台裏のドキュメント。',
-      img: 'assets/images/backstage-chair.jpg',
-      body: [
-        { p: '華やかな一日の裏側には、地味で泥臭い準備の積み重ねがあります。会場探し、出店者への声かけ、当日の動線づくり。すべてが手探りでした。' },
-        { img: 'assets/images/team-cheers.jpg', cap: '深夜の作戦会議。ここから全部が始まった。' },
-        { p: '何度もぶつかって、笑って、アイスを片手にまた話し合って。完璧じゃないけど、自分たちの手で作ったという実感だけは確かにありました。' },
-        { img: 'assets/images/icecream.jpg', cap: '差し入れのアイスで小休止。' },
-      ],
-    },
-    {
-      cat: 'Fashion', date: '2025.09.30', slug: 'next-highlights',
-      title: '次回イベントの見どころ',
-      excerpt: 'Vol.1で出会えるブランド、カルチャー、そして人。',
-      img: 'assets/images/snap-lumine.jpg',
-      body: [
-        { p: 'Vol.1 では、出店ブランドも来場者参加の企画もさらにパワーアップ予定。ここでしか出会えないスタイルが、もっと増えます。' },
-        { p: '詳細は順次このマガジンとコミュニティで発信していきます。お楽しみに。' },
-      ],
-    },
-    {
-      cat: 'Interview', date: '2025.09.12', slug: 'creator-talk',
-      title: 'クリエイター対談：東京で作るということ',
-      excerpt: '写真家、スタイリスト、デザイナー。街を作る三者が語る。',
-      img: 'assets/images/group-5.jpg',
-      body: [
-        { p: '写真家、スタイリスト、デザイナー。立場の違う三人に、東京でものを作る面白さと難しさを語ってもらいました。' },
-        { quote: '東京は、誰かの「好き」が必ず誰かに刺さる街。だから挑戦しがいがある。' },
-        { p: '異なるジャンルが交差することで、新しい表現が生まれる。DRESS CODE は、その交差点でありたいと思っています。' },
-      ],
-    },
-  ],
+  /* ▼ Magazine：記事一覧 ★ここに { } を足すと記事カードが増えます★
+     記事を追加するときはこの下に { cat, date, slug, title, excerpt, img, body } を追加してください。 */
+  articles: [],
 
   /* ▼ Community：3つの募集カード
      href = カードのリンク先。外部URLでもOK（外部は自動で別タブで開きます）。 */
