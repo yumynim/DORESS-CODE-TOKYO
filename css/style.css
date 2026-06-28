@@ -128,11 +128,7 @@ select:focus-visible, textarea:focus-visible {
 /* =========================================================
    アナウンスバー（Yosterの最上部バー）
    ========================================================= */
-.announce {
-  background: var(--bg-ink); color: var(--on-ink);
-  font-family: var(--f-sans); font-size: 11px;
-  letter-spacing: 0.2em; text-transform: uppercase;
-}
+.announce { display: none; }
 .announce__inner {
   max-width: var(--maxw); margin: 0 auto; padding: 11px var(--pad);
   display: flex; align-items: center; justify-content: center; gap: 18px;
@@ -176,8 +172,13 @@ select:focus-visible, textarea:focus-visible {
 .header__cta { flex: none; }
 .menu-btn {
   display: none; flex: none; width: 44px; height: 44px; align-items: center; justify-content: center;
-  background: none; border: 1px solid var(--line-2); cursor: pointer; color: var(--ink);
-  font-family: var(--f-sans); font-size: 11px; letter-spacing: 0.12em;
+  background: none; border: none; cursor: pointer; color: var(--ink); font-size: 0;
+}
+.menu-btn::before {
+  content: ''; display: block;
+  width: 22px; height: 1.5px;
+  background: currentColor;
+  box-shadow: 0 7px 0 currentColor, 0 14px 0 currentColor;
 }
 .mobile-menu {
   display: none; border-top: 1px solid var(--line);

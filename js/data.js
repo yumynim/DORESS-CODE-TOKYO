@@ -109,7 +109,7 @@ window.SITE = {
     },
     {
       slug: 'tubasa', name: 'TUBASA', role: '',
-      photo: 'assets/images/street-candid.jpg',  // 写真が届いたら member-tubasa.jpg に差し替え
+      photo: 'assets/images/member-tubasa.jpg',
       intro: '（ここに一言紹介を入れてください）',
       bio: ['（ここにプロフィール文を入れてください）'],
       gallery: [],
