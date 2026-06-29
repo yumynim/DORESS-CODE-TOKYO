@@ -77,9 +77,10 @@
     (a.body || []).forEach(b => { c += (b.p || b.h || b.quote || b.cap || '').length; });
     return Math.max(1, Math.round(c / 400));
   }
-  fill('articles', (S.articles || []).map(a => {
+  // 記事・イベントレポート共通のカード（同じ見た目で使い回し）
+  function articleCard(a) {
     const color = catColors[a.cat] || 'var(--ink)';
-    const cat = `<span class="card__cat"><span class="card__dot" style="background:${color}"></span>${a.cat}</span>`;
+    const cat = a.cat ? `<span class="card__cat"><span class="card__dot" style="background:${color}"></span>${a.cat}</span>` : '';
     const media = a.img
       ? `${cat}<img src="${a.img}" alt="" loading="lazy" decoding="async">`
       : `${cat}<span class="card__ph">Photo — 差し替え可</span>`;
@@ -93,7 +94,17 @@
         <span class="card__more">Read →</span>
       </div>
     </a>`;
-  }).join(''));
+  }
+  // カードを流し込む。中身が空のときは「近日公開」の控えめな表示にする。
+  function fillCards(id, list) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.innerHTML = (list && list.length)
+      ? list.map(articleCard).join('')
+      : '<p class="cards-empty">近日公開 — Coming soon.</p>';
+  }
+  fillCards('articles', S.articles);
+  fillCards('reports', S.reports);
 
   /* ---------- Community（カードごとに別ページへ） ---------- */
   fill('community-cards', (S.community || []).map(c => {
@@ -250,8 +261,9 @@
         }
       });
     }, { rootMargin: '-45% 0px -50% 0px', threshold: 0 });
-    ['top', 'about', 'event', 'magazine', 'community', 'members', 'contact'].forEach(function (id) {
-      const el = document.getElementById(id); if (el) spy.observe(el);
+    // 監視するセクションは nav のリンク先から自動で揃える（#report などを足しても自動対応）
+    (S.nav || []).map(i => i.href).filter(h => h && h.charAt(0) === '#').forEach(function (h) {
+      const el = document.getElementById(h.slice(1)); if (el) spy.observe(el);
     });
   }
 

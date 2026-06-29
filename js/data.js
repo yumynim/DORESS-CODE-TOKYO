@@ -14,15 +14,19 @@ window.SITE = {
      例: heroImage: 'assets/images/hero.jpg', */
   heroImage: '',
 
-  /* ▼ ヘッダー / フッターのメニュー（リンク先は #セクションID） */
+  /* ▼ ヘッダー / フッターのメニュー（リンク先は #セクションID）
+     ★ 今後イベントを増やすとき（DRESS CODE SNAP / TALK / NIGHT 等）:
+        1) 下に { label: 'DRESS CODE SNAP', href: '#snap' } のように1行足す
+        2) index.html に <section id="snap"> を追加（#event のMARKET枠を複製して中身を差し替え） */
   nav: [
-    { label: 'Top',       href: '#top' },
-    { label: 'About',     href: '#about' },
-    { label: 'Event',     href: '#event' },
-    { label: 'Magazine',  href: '#magazine' },
-    { label: 'Community', href: '#community' },
-    { label: 'Members',   href: '#members' },
-    { label: 'Contact',   href: '#contact' },
+    { label: 'Top',                href: '#top' },
+    { label: 'About',              href: '#about' },
+    { label: 'DRESS CODE MARKET',  href: '#event' },
+    { label: 'Magazine',           href: '#magazine' },
+    { label: 'イベントレポート',    href: '#report' },
+    { label: 'Community',          href: '#community' },
+    { label: 'Members',            href: '#members' },
+    { label: 'Contact',            href: '#contact' },
   ],
 
   /* ▼ 活動内容（カテゴリタイル＋About一覧で共用）
@@ -31,7 +35,7 @@ window.SITE = {
   activities: [
     { jp: 'マーケットイベント', en: 'Market Events', img: 'assets/images/tile-market.jpg',   href: '#event' },
     { jp: 'マガジン',           en: 'Magazine',      img: 'assets/images/tile-magazine.jpg', href: '#magazine' },
-    { jp: 'イベントレポート',   en: 'Report',        img: 'assets/images/tile-report.jpg',   href: '#magazine' },
+    { jp: 'イベントレポート',   en: 'Report',        img: 'assets/images/tile-report.jpg',   href: '#report' },
   ],
 
   /* ▼ Event：開催情報（詳細が決まり次第追加） */
@@ -79,6 +83,11 @@ window.SITE = {
   /* ▼ Magazine：記事一覧 ★ここに { } を足すと記事カードが増えます★
      記事を追加するときはこの下に { cat, date, slug, title, excerpt, img, body } を追加してください。 */
   articles: [],
+
+  /* ▼ イベントレポート：開催したイベントの記録（記事と同じ形式のカード）
+     イベントを開催したらこの下に { cat, date, slug, title, excerpt, img } を追加。
+     cat には開催したイベント名（例 'DRESS CODE MARKET'）を入れると分かりやすいです。 */
+  reports: [],
 
   /* ▼ Community：3つの募集カード
      href = カードのリンク先。外部URLでもOK（外部は自動で別タブで開きます）。 */
