@@ -98,38 +98,57 @@ window.SITE = {
     // { en: 'For Creators', jp: 'クリエイター募集', body: '撮影・動画・SNS・広告など、イベントづくりに関わりたい人を募集中。', cta: 'メンバー募集を見る', href: 'community-creator.html' },
   ],
 
-  /* ▼ 運用メンバー（Members）
-     トグルを開くと写真＋軽い紹介が出て、「詳細を見る」で member.html?id=slug の個別ページへ。
-     ※名前・肩書き・紹介文はサンプルです。実際の内容に書き換えてください。
-     - photo  : トグルを開いたときに出る写真
-     - intro  : トグル内の軽い紹介文
-     - bio    : 個別ページの紹介文（段落の配列）
-     - gallery: 個別ページで流れる写真（何枚でも） */
+  /* ▼ 運用メンバー（Members）— 写真カード（右下にSNSアイコン）＋キャッチコピー＋氏名/役職/所属
+     ※テキストはサンプルです。実際の内容に書き換えてください。
+     - photo : カードの写真
+     - sns   : 右下のアイコンとリンク先。{ type:'Instagram', href:'https://...' }
+               type は Instagram / X / LinkedIn / TikTok / Facebook / LINE が使えます。
+               href が空のあいだはアイコンだけ表示（リンクなし）。インスタURLが届いたら href に貼る。
+     - catch : キャッチコピー（太字の見出し）
+     - role  : 役職（氏名の右に小さく出る。例：ディレクター）
+     - dept  : 所属（例：○○○○○○営業部○○○○○○○○○課）
+     - intro / bio / gallery : 個別ページ(member.html)用。今は未使用だが残しておく。 */
   members: [
     {
-      slug: 'minami', name: 'MINAMI', role: '',
+      slug: 'minami', name: 'MINAMI',
       photo: 'assets/images/member-minami.jpg',
+      sns: { type: 'Instagram', href: '' },
+      catch: 'キャッチコピーが入りますキャッチコピーが入ります',
+      role: '（役職）',
+      dept: '○○○○○○○○○○○○○○○○○○',
       intro: '（ここに一言紹介を入れてください）',
       bio: ['（ここにプロフィール文を入れてください）'],
       gallery: ['assets/images/member-minami.jpg'],
     },
     {
-      slug: 'tubasa', name: 'TUBASA', role: '',
+      slug: 'tubasa', name: 'TUBASA',
       photo: 'assets/images/member-tubasa.jpg',
+      sns: { type: 'Instagram', href: '' },
+      catch: 'キャッチコピーが入りますキャッチコピーが入ります',
+      role: '（役職）',
+      dept: '○○○○○○○○○○○○○○○○○○',
       intro: '（ここに一言紹介を入れてください）',
       bio: ['（ここにプロフィール文を入れてください）'],
       gallery: [],
     },
     {
-      slug: 'haruki', name: 'HARUKI', role: '',
+      slug: 'haruki', name: 'HARUKI',
       photo: 'assets/images/member-haruki.jpg',
+      sns: { type: 'Instagram', href: '' },
+      catch: 'キャッチコピーが入りますキャッチコピーが入ります',
+      role: '（役職）',
+      dept: '○○○○○○○○○○○○○○○○○○',
       intro: '（ここに一言紹介を入れてください）',
       bio: ['（ここにプロフィール文を入れてください）'],
       gallery: ['assets/images/member-haruki.jpg'],
     },
     {
-      slug: 'yui', name: 'YUI', role: '',
+      slug: 'yui', name: 'YUI',
       photo: 'assets/images/member-yui.jpg',
+      sns: { type: 'Instagram', href: '' },
+      catch: 'キャッチコピーが入りますキャッチコピーが入ります',
+      role: '（役職）',
+      dept: '○○○○○○○○○○○○○○○○○○',
       intro: '（ここに一言紹介を入れてください）',
       bio: ['（ここにプロフィール文を入れてください）'],
       gallery: ['assets/images/member-yui.jpg'],

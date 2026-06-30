@@ -447,27 +447,30 @@ select:focus-visible, textarea:focus-visible {
 /* =========================================================
    運用メンバー（トグル）
    ========================================================= */
-.members { border-top: 1px solid var(--line); }
-.member { border-bottom: 1px solid var(--line); }
-.member__toggle {
-  width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 20px;
-  background: none; border: 0; cursor: pointer; text-align: left;
-  padding: clamp(20px, 2.6vw, 30px) 4px; transition: padding-left .35s var(--ease);
+/* 運用メンバー：カードグリッド（写真＋右下にSNSバッジ＋キャッチコピー＋氏名/役職/所属） */
+.members { display: grid; grid-template-columns: repeat(3, 1fr); gap: clamp(32px, 3.4vw, 52px) clamp(20px, 2.4vw, 36px); }
+.mcard { display: block; }
+.mcard__media { position: relative; aspect-ratio: 1 / 1; overflow: hidden; background: var(--bg-soft); }
+.mcard__media img { width: 100%; height: 100%; object-fit: cover; }
+.mcard__sns {
+  position: absolute; right: 16px; bottom: 16px;
+  width: 52px; height: 52px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--bg-ink); color: #fff;
+  box-shadow: 0 8px 20px rgba(22, 21, 15, 0.22);
+  transition: transform .3s var(--ease);
 }
-.member__toggle:hover { padding-left: 8px; }
-.member__head { display: flex; align-items: baseline; gap: 18px; flex-wrap: wrap; }
-.member__name { font-family: var(--f-serif); font-weight: 500; font-size: clamp(26px, 3.4vw, 42px); line-height: 1; }
-.member__role { font-family: var(--f-sans); font-size: 11px; letter-spacing: 0.2em; text-transform: uppercase; color: var(--muted); }
-.member__icon { flex: none; font-family: var(--f-sans); font-size: 26px; line-height: 1; color: var(--ink); transition: transform .4s var(--ease); }
-.member.open .member__icon { transform: rotate(45deg); }
-.member__panel { max-height: 0; overflow: hidden; opacity: 0; transition: max-height .6s var(--ease), opacity .4s var(--ease); }
-.member.open .member__panel { max-height: 900px; opacity: 1; }
-.member__panel-in { display: grid; grid-template-columns: 300px 1fr; gap: clamp(24px, 3vw, 56px); padding: 2px 4px clamp(30px, 3.5vw, 48px); align-items: start; }
-.member__photo { aspect-ratio: 3/4; overflow: hidden; background: var(--bg-soft); }
-.member__photo img { width: 100%; height: 100%; object-fit: cover; }
-.member__intro p { font-size: 14.5px; line-height: 2.1; color: var(--ink-2); }
-/* 詳細を見る — 一旦非表示（復活させるときはこの行を削除） */
-.member__intro .btn-link { display: none; }
+a.mcard__sns:hover { transform: translateY(-3px); }
+.mcard__sns svg { width: 22px; height: 22px; display: block; }
+.mcard__body { padding-top: 20px; }
+.mcard__catch {
+  font-family: var(--f-jp); font-weight: 700; font-size: clamp(15px, 1.15vw, 17px);
+  line-height: 1.75; color: var(--ink); letter-spacing: 0.02em;
+}
+.mcard__person { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; margin-top: 20px; }
+.mcard__name { font-family: var(--f-jp); font-weight: 700; font-size: 17px; letter-spacing: 0.08em; color: var(--ink); }
+.mcard__role { font-family: var(--f-jp); font-size: 10.5px; letter-spacing: 0.12em; color: var(--muted); }
+.mcard__dept { margin-top: 7px; font-family: var(--f-jp); font-size: 12.5px; letter-spacing: 0.03em; color: var(--ink-3); line-height: 1.6; }
 
 /* =========================================================
    下層ページ共通（メンバー個別 / コミュニティ詳細）
@@ -483,9 +486,10 @@ select:focus-visible, textarea:focus-visible {
 /* フォトギャラリー — 一旦非表示（復活させるときはdisplay:noneを削除） */
 .mpage__gallery { display: none; margin-top: clamp(44px, 6vw, 88px); columns: 2; column-gap: clamp(10px, 1.4vw, 18px); }
 .mpage__gallery img { width: 100%; margin: 0 0 clamp(10px, 1.4vw, 18px); break-inside: avoid; display: block; }
+@media (max-width: 860px) {
+  .members { grid-template-columns: repeat(2, 1fr); }
+}
 @media (max-width: 700px) {
-  .member__panel-in { grid-template-columns: 1fr; }
-  .member__photo { max-width: 280px; }
   .mpage__gallery { columns: 1; }
 }
 
@@ -631,7 +635,8 @@ select:focus-visible, textarea:focus-visible {
 }
 @media (max-width: 600px) {
   /* レイアウト：1カラム中心に */
-  .tiles, .cardgrid, .community, .ctarow { grid-template-columns: 1fr; }
+  .tiles, .cardgrid, .community, .ctarow, .members { grid-template-columns: 1fr; }
+  .mcard__media { aspect-ratio: 4 / 5; }
   .newsletter__form { flex-direction: column; }
   .footer__grid { grid-template-columns: 1fr 1fr; }
   .gallery { column-count: 2; }
