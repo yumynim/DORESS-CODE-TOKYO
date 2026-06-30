@@ -246,7 +246,7 @@ select:focus-visible, textarea:focus-visible {
 /* =========================================================
    カテゴリタイル（Yosterのカテゴリギャラリー）
    ========================================================= */
-.tiles { display: grid; grid-template-columns: repeat(4, 1fr); gap: clamp(10px, 1.4vw, 18px); }
+.tiles { display: grid; grid-template-columns: repeat(3, 1fr); gap: clamp(10px, 1.4vw, 18px); }
 .tile {
   position: relative; display: block; aspect-ratio: 3/4; overflow: hidden;
   background: var(--bg-soft); border: 1px solid var(--line);
@@ -448,7 +448,7 @@ select:focus-visible, textarea:focus-visible {
    運用メンバー（トグル）
    ========================================================= */
 /* 運用メンバー：カードグリッド（写真＋右下にSNSバッジ＋キャッチコピー＋氏名/役職/所属） */
-.members { display: grid; grid-template-columns: repeat(3, 1fr); gap: clamp(32px, 3.4vw, 52px) clamp(20px, 2.4vw, 36px); }
+.members { display: grid; grid-template-columns: repeat(4, 1fr); gap: clamp(32px, 3.4vw, 52px) clamp(20px, 2.4vw, 36px); }
 .mcard { display: block; }
 .mcard__media { position: relative; aspect-ratio: 1 / 1; overflow: hidden; background: var(--bg-soft); }
 .mcard__media img { width: 100%; height: 100%; object-fit: cover; }
@@ -486,7 +486,8 @@ a.mcard__sns:hover { transform: translateY(-3px); }
 /* フォトギャラリー — 一旦非表示（復活させるときはdisplay:noneを削除） */
 .mpage__gallery { display: none; margin-top: clamp(44px, 6vw, 88px); columns: 2; column-gap: clamp(10px, 1.4vw, 18px); }
 .mpage__gallery img { width: 100%; margin: 0 0 clamp(10px, 1.4vw, 18px); break-inside: avoid; display: block; }
-@media (max-width: 860px) {
+@media (max-width: 1024px) {
+  /* メンバーは4人。3列だと1枚余って寂しいので、偶数列（4→2→1）で割り切る。 */
   .members { grid-template-columns: repeat(2, 1fr); }
 }
 @media (max-width: 700px) {
