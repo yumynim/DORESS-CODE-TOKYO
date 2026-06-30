@@ -618,9 +618,9 @@ a.mcard__sns:hover { transform: translateY(-3px); }
   .footer__grid { grid-template-columns: 1fr 1fr; gap: 32px 24px; }
   .gallery { column-count: 3; }
 }
-/* ナビの項目名が長くなった（DRESS CODE MARKET / イベントレポート 等）ため、
-   横並びで詰まる幅では早めにハンバーガーメニューへ切り替える。 */
-@media (max-width: 1240px) {
+/* ナビ項目（DRESS CODE MARKET 等）＋CTA「開催情報を受け取る」が長いため、
+   横並びで詰まる幅では早めにハンバーガーメニューへ切り替える（1280px以下）。 */
+@media (max-width: 1280px) {
   .nav, .header__cta { display: none; }
   .menu-btn { display: inline-flex; }
 }
