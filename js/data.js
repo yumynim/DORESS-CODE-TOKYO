@@ -23,7 +23,7 @@ window.SITE = {
     { label: 'About',              href: '#about' },
     { label: 'DRESS CODE MARKET',  href: '#event' },
     { label: 'Magazine',           href: '#magazine' },
-    { label: 'イベントレポート',    href: '#report' },
+    { label: 'Event Report',       href: '#report' },
     { label: 'Community',          href: '#community' },
     { label: 'Members',            href: '#members' },
     { label: 'Contact',            href: '#contact' },
@@ -54,7 +54,7 @@ window.SITE = {
   enjoy: [
     { no: '01', title: 'Discover brands',  body: '東京の作り手が集まるブースを巡り、まだ知らないブランドと出会う。' },
     { no: '02', title: 'Meet the people',  body: '出店者やクリエイターと直接話せる、マーケットならではの距離感。' },
-    { no: '03', title: 'Wear your story',  body: 'スナップ撮影やコミュニティを通して、あなたのスタイルを街へ。' },
+    { no: '03', title: 'Wear your story',  body: '撮影やコミュニティを通して、あなたのスタイルを街へ。' },
   ],
 
   /* ▼ Event：キービジュアル（中央の大きな写真枠）。空ならプレースホルダー表示 */
