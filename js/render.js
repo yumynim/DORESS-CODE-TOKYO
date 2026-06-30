@@ -217,11 +217,16 @@
   const menuBtn = document.getElementById('menu-btn');
   const mobileMenu = document.getElementById('mobile-menu');
   if (menuBtn && mobileMenu) {
+    menuBtn.setAttribute('aria-expanded', 'false');
     menuBtn.addEventListener('click', () => {
-      mobileMenu.style.display = (mobileMenu.style.display === 'flex') ? 'none' : 'flex';
+      const open = mobileMenu.classList.toggle('open');
+      menuBtn.setAttribute('aria-expanded', open ? 'true' : 'false');
     });
     mobileMenu.querySelectorAll('[data-close]').forEach(a =>
-      a.addEventListener('click', () => { mobileMenu.style.display = 'none'; })
+      a.addEventListener('click', () => {
+        mobileMenu.classList.remove('open');
+        menuBtn.setAttribute('aria-expanded', 'false');
+      })
     );
   }
 
@@ -229,7 +234,7 @@
   const nl = document.getElementById('newsletter-form');
   if (nl) nl.addEventListener('submit', function () {
     const email = nl.querySelector('input').value.trim();
-    if (email) nl.innerHTML = '<div style="padding:16px 0;font-family:var(--f-sans);letter-spacing:0.1em">ご登録ありがとうございます。先行案内をお送りします。</div>';
+    if (email) nl.innerHTML = '<div style="padding:16px 0;font-family:var(--f-sans);letter-spacing:0.1em">ご登録ありがとうございます。最新情報をお送りします。</div>';
   });
 
   /* ---------- スクロールでヘッダーを少し引き締める ---------- */

@@ -180,9 +180,18 @@ select:focus-visible, textarea:focus-visible {
   background: currentColor;
   box-shadow: 0 7px 0 currentColor, 0 14px 0 currentColor;
 }
+/* モバイルメニュー：display の即時切替ではなく、ふわっと開く（雰囲気に合わせた優しい開閉） */
 .mobile-menu {
-  display: none; border-top: 1px solid var(--line);
-  padding: 14px var(--pad) 26px; flex-direction: column; gap: 2px; background: #fff;
+  display: flex; flex-direction: column; gap: 2px; background: #fff;
+  padding: 0 var(--pad);
+  max-height: 0; overflow: hidden; opacity: 0; visibility: hidden;
+  transition: max-height .5s var(--ease), opacity .4s ease, padding .5s var(--ease), visibility 0s linear .55s;
+}
+.mobile-menu.open {
+  max-height: 85vh; opacity: 1; visibility: visible;
+  border-top: 1px solid var(--line);
+  padding: 12px var(--pad) 24px;
+  transition: max-height .55s var(--ease), opacity .45s ease .05s, padding .55s var(--ease), visibility 0s;
 }
 .mobile-menu #nav-mobile { display: flex; flex-direction: column; }
 .mobile-menu #nav-mobile a {
@@ -190,6 +199,25 @@ select:focus-visible, textarea:focus-visible {
   text-transform: uppercase; color: var(--ink); padding: 14px 0; border-bottom: 1px solid #efece5;
 }
 .mobile-menu .btn { justify-content: center; margin-top: 16px; }
+/* 中の項目を、下からひとつずつ・ふわっと立ち上げる */
+.mobile-menu #nav-mobile a, .mobile-menu .btn {
+  opacity: 0; transform: translateY(10px);
+  transition: opacity .45s var(--ease), transform .45s var(--ease), background .35s var(--ease), color .35s var(--ease);
+}
+.mobile-menu.open #nav-mobile a, .mobile-menu.open .btn { opacity: 1; transform: none; }
+.mobile-menu.open #nav-mobile a:nth-child(1) { transition-delay: .10s; }
+.mobile-menu.open #nav-mobile a:nth-child(2) { transition-delay: .14s; }
+.mobile-menu.open #nav-mobile a:nth-child(3) { transition-delay: .18s; }
+.mobile-menu.open #nav-mobile a:nth-child(4) { transition-delay: .22s; }
+.mobile-menu.open #nav-mobile a:nth-child(5) { transition-delay: .26s; }
+.mobile-menu.open #nav-mobile a:nth-child(6) { transition-delay: .30s; }
+.mobile-menu.open #nav-mobile a:nth-child(7) { transition-delay: .34s; }
+.mobile-menu.open #nav-mobile a:nth-child(8) { transition-delay: .38s; }
+.mobile-menu.open .btn { transition-delay: .42s; }
+@media (prefers-reduced-motion: reduce) {
+  .mobile-menu, .mobile-menu.open,
+  .mobile-menu #nav-mobile a, .mobile-menu .btn { transition-duration: .01s; transition-delay: 0s; }
+}
 
 /* =========================================================
    ヒーロー（全面・中央テキスト型／Yoster準拠）
@@ -618,9 +646,9 @@ a.mcard__sns:hover { transform: translateY(-3px); }
   .footer__grid { grid-template-columns: 1fr 1fr; gap: 32px 24px; }
   .gallery { column-count: 3; }
 }
-/* ナビ項目（DRESS CODE MARKET 等）＋CTA「開催情報を受け取る」が長いため、
-   横並びで詰まる幅では早めにハンバーガーメニューへ切り替える（1280px以下）。 */
-@media (max-width: 1280px) {
+/* ナビ項目「DRESS CODE MARKET」が長いため、横並びで詰まる幅では
+   早めにハンバーガーメニューへ切り替える（1240px以下）。 */
+@media (max-width: 1240px) {
   .nav, .header__cta { display: none; }
   .menu-btn { display: inline-flex; }
 }

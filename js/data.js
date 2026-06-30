@@ -92,8 +92,8 @@ window.SITE = {
   /* ▼ Community：3つの募集カード
      href = カードのリンク先。外部URLでもOK（外部は自動で別タブで開きます）。 */
   community: [
-    { en: 'For Everyone',   jp: 'メンバー募集',       body: 'イベントの先行案内や限定情報を受け取れる、DRESS CODE のコアコミュニティ。', cta: 'コミュニティに参加する', href: 'https://celestial-finalhomelink.vercel.app/' },
-    { en: 'For Exhibitors', jp: '出店者向け先行案内', body: '次回マーケットの出店枠を、一般公開より先にご案内します。',                 cta: '先行案内を受け取る',     href: 'community-exhibitor.html' },
+    { en: 'For Everyone',   jp: 'メンバー募集',     body: 'イベントの最新情報や限定コンテンツを受け取れる、DRESS CODE のコアコミュニティ。', cta: 'コミュニティに参加する', href: 'https://celestial-finalhomelink.vercel.app/' },
+    { en: 'For Exhibitors', jp: '出店者向け案内',   body: '次回マーケットの出店についてご案内します。出店をご検討の方はこちらから。',         cta: '案内を受け取る',         href: 'community-exhibitor.html' },
     // クリエイター募集は一旦非表示 → 復活させるときは下の行のコメントを外す
     // { en: 'For Creators', jp: 'クリエイター募集', body: '撮影・動画・SNS・広告など、イベントづくりに関わりたい人を募集中。', cta: 'メンバー募集を見る', href: 'community-creator.html' },
   ],
