@@ -214,9 +214,11 @@ select:focus-visible, textarea:focus-visible {
 .mobile-menu.open #nav-mobile a:nth-child(7) { transition-delay: .34s; }
 .mobile-menu.open #nav-mobile a:nth-child(8) { transition-delay: .38s; }
 .mobile-menu.open .btn { transition-delay: .42s; }
+/* 動きを減らす設定の端末では、メニューは即時表示（演出なし） */
 @media (prefers-reduced-motion: reduce) {
   .mobile-menu, .mobile-menu.open,
   .mobile-menu #nav-mobile a, .mobile-menu .btn { transition-duration: .01s; transition-delay: 0s; }
+  .mobile-menu #nav-mobile a, .mobile-menu .btn { opacity: 1; transform: none; }
 }
 
 /* =========================================================
@@ -691,6 +693,19 @@ a.mcard__sns:hover { transform: translateY(-3px); }
   /* 大きすぎる単一カラムのタイルは少し低めに */
   .tile { aspect-ratio: 4/3; }
 }
-@media (min-width: 861px) {
+/* デスクトップの横並びナビが出る幅（≥1241px）では、モバイルメニューは隠す。
+   ハンバーガーは1240px以下で表示されるので、この値と必ず揃える。 */
+@media (min-width: 1241px) {
   .mobile-menu { display: none !important; }
+}
+
+/* 動きを減らす設定の端末では、自動で動く演出（スクロール表示・スムーススクロール等）を抑える */
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  .reveal { opacity: 1 !important; transform: none !important; }
+  *, *::before, *::after {
+    animation-duration: .001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .001ms !important;
+  }
 }
