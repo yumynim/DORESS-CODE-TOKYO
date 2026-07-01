@@ -112,7 +112,7 @@ window.SITE = {
     {
       slug: 'minami', name: 'MINAMI',
       photo: 'assets/images/member-minami.jpg',
-      sns: { type: 'Instagram', href: '' },
+      sns: { type: 'Instagram', href: 'https://www.instagram.com/michan_marrine/' },
       catch: 'キャッチコピーが入りますキャッチコピーが入ります',
       role: '（役職）',
       dept: '○○○○○○○○○○○○○○○○○○',
@@ -121,7 +121,7 @@ window.SITE = {
       gallery: ['assets/images/member-minami.jpg'],
     },
     {
-      slug: 'tubasa', name: 'TUBASA',
+      slug: 'tubasa', name: 'TSUBASA',
       photo: 'assets/images/member-tubasa.jpg',
       sns: { type: 'Instagram', href: '' },
       catch: 'キャッチコピーが入りますキャッチコピーが入ります',
@@ -134,7 +134,7 @@ window.SITE = {
     {
       slug: 'haruki', name: 'HARUKI',
       photo: 'assets/images/member-haruki.jpg',
-      sns: { type: 'Instagram', href: '' },
+      sns: { type: 'Instagram', href: 'https://www.instagram.com/marzo_ll.13/' },
       catch: 'キャッチコピーが入りますキャッチコピーが入ります',
       role: '（役職）',
       dept: '○○○○○○○○○○○○○○○○○○',
@@ -145,7 +145,7 @@ window.SITE = {
     {
       slug: 'yui', name: 'YUI',
       photo: 'assets/images/member-yui.jpg',
-      sns: { type: 'Instagram', href: '' },
+      sns: { type: 'Instagram', href: 'https://www.instagram.com/yui.ishiko/' },
       catch: 'キャッチコピーが入りますキャッチコピーが入ります',
       role: '（役職）',
       dept: '○○○○○○○○○○○○○○○○○○',
