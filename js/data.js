@@ -112,7 +112,7 @@ window.SITE = {
     {
       slug: 'minami', name: 'MINAMI',
       photo: 'assets/images/member-minami.jpg',
-      sns: { type: 'Instagram', href: 'https://www.instagram.com/dress.code_tokyo/' },
+      sns: { type: 'Instagram', href: '' },
       catch: 'キャッチコピーが入りますキャッチコピーが入ります',
       role: '（役職）',
       dept: '○○○○○○○○○○○○○○○○○○',
