@@ -232,7 +232,7 @@ select:focus-visible, textarea:focus-visible {
 }
 /* ヒーローのロゴ（見出し代わり） */
 .hero__logo { margin: 0 0 4px; }
-.hero__logo img { width: min(92%, 660px); height: auto; margin: 0 auto; display: block; }
+.hero__logo img { width: min(94%, 860px); height: auto; margin: 0 auto; display: block; }
 .hero__media { position: absolute; inset: 0; z-index: 0; }
 .hero__media img { width: 100%; height: 100%; object-fit: cover; }
 /* 写真があるとき：暗いオーバーレイで白文字を読みやすく */
@@ -245,7 +245,7 @@ select:focus-visible, textarea:focus-visible {
   width: min(90%, 760px); opacity: 0.10; z-index: 0; pointer-events: none;
 }
 .hero.has-img .hero__motif { display: none; }
-.hero__inner { position: relative; z-index: 2; max-width: 980px; padding: 64px var(--pad); }
+.hero__inner { position: relative; z-index: 2; max-width: 1100px; padding: 64px var(--pad); }
 /* 読み込み時に下からふわっと（順番にずらして） */
 @keyframes heroUp { from { opacity: 0; transform: translateY(18px); } to { opacity: 1; transform: none; } }
 .hero__inner > * { animation: heroUp .85s var(--ease) both; }
