@@ -396,6 +396,9 @@ select:focus-visible, textarea:focus-visible {
    ========================================================= */
 .cardgrid { display: grid; grid-template-columns: repeat(3, 1fr); gap: clamp(20px, 2.4vw, 40px); }
 .cards-empty { grid-column: 1 / -1; font-family: var(--f-sans); font-size: 12px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--muted); padding: 30px 0; border-top: 1px solid var(--line); }
+/* 空セクションの「近日公開」画像（マガジン等） */
+.cards-comingsoon { grid-column: 1 / -1; display: flex; justify-content: center; }
+.cards-comingsoon img { width: 100%; max-width: 820px; height: auto; display: block; border: 1px solid var(--line); }
 .card { display: block; }
 .card__media {
   position: relative; aspect-ratio: 4/3; background: var(--bg-soft);

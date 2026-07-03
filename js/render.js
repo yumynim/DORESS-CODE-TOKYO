@@ -112,15 +112,16 @@
       </div>
     </a>`;
   }
-  // カードを流し込む。中身が空のときは「近日公開」の控えめな表示にする。
-  function fillCards(id, list, builder) {
+  // カードを流し込む。中身が空のときは「近日公開」表示（画像があれば画像、無ければ文字）。
+  function fillCards(id, list, builder, emptyImg) {
     const el = document.getElementById(id);
     if (!el) return;
-    el.innerHTML = (list && list.length)
-      ? list.map(builder || articleCard).join('')
+    if (list && list.length) { el.innerHTML = list.map(builder || articleCard).join(''); return; }
+    el.innerHTML = emptyImg
+      ? '<div class="cards-comingsoon"><img src="' + emptyImg + '" alt="近日公開 Coming soon" loading="lazy" decoding="async"></div>'
       : '<p class="cards-empty">近日公開 — Coming soon.</p>';
   }
-  fillCards('articles', S.articles, articleCard);
+  fillCards('articles', S.articles, articleCard, S.comingSoonImage);
   fillCards('reports', S.reports, reportCard);
 
   /* ---------- Community（カードごとに別ページへ） ---------- */

@@ -84,6 +84,9 @@ window.SITE = {
      記事を追加するときはこの下に { cat, date, slug, title, excerpt, img, body } を追加してください。 */
   articles: [],
 
+  /* ▼ Magazine：記事が空のときに表示する「近日公開」画像（空にすると文字表示に戻る） */
+  comingSoonImage: 'assets/images/coming-soon.png',
+
   /* ▼ イベントレポート：開催したイベントの記録（フライヤー／ポスター形式のカード）
      { date, title, excerpt, img, href } を追加。href に画像パスを入れると、
      タップで拡大表示（別タブでフライヤー全体が開きます）。 */
@@ -94,6 +97,14 @@ window.SITE = {
       excerpt: 'ブランド・クリエイターが集った一日限りのマーケット。会場は東京・錦糸（墨田区）。',
       img: 'assets/images/report-unlabeled.jpg',
       href: 'assets/images/report-unlabeled.jpg',
+    },
+    {
+      // ※タイトルは仮です。イベント名などがあれば書き換えてください。
+      date: '',
+      title: '会場の様子',
+      excerpt: 'イベントの舞台となった空間。',
+      img: 'assets/images/report-venue.jpg',
+      href: 'assets/images/report-venue.jpg',
     },
   ],
 
