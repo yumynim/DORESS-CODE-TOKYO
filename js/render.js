@@ -95,16 +95,33 @@
       </div>
     </a>`;
   }
+  // イベントレポート用のカード（縦型フライヤーをそのまま見せる＋タップで拡大）
+  function reportCard(r) {
+    const link = r.href || r.img || '#';
+    const ext = /^https?:|\.(jpe?g|png|webp)$/i.test(link);
+    const t = ext ? ' target="_blank" rel="noopener"' : '';
+    const media = r.img
+      ? `<img src="${r.img}" alt="${r.title || ''}" loading="lazy" decoding="async">`
+      : `<span class="card__ph">Photo</span>`;
+    return `<a href="${link}"${t} class="rcard reveal">
+      <div class="rcard__media">${media}<div class="rcard__view"><span>View →</span></div></div>
+      <div class="rcard__body">
+        ${r.date ? `<div class="rcard__date">${r.date}</div>` : ''}
+        <h3 class="rcard__title">${r.title || ''}</h3>
+        ${r.excerpt ? `<p class="rcard__excerpt">${r.excerpt}</p>` : ''}
+      </div>
+    </a>`;
+  }
   // カードを流し込む。中身が空のときは「近日公開」の控えめな表示にする。
-  function fillCards(id, list) {
+  function fillCards(id, list, builder) {
     const el = document.getElementById(id);
     if (!el) return;
     el.innerHTML = (list && list.length)
-      ? list.map(articleCard).join('')
+      ? list.map(builder || articleCard).join('')
       : '<p class="cards-empty">近日公開 — Coming soon.</p>';
   }
-  fillCards('articles', S.articles);
-  fillCards('reports', S.reports);
+  fillCards('articles', S.articles, articleCard);
+  fillCards('reports', S.reports, reportCard);
 
   /* ---------- Community（カードごとに別ページへ） ---------- */
   fill('community-cards', (S.community || []).map(c => {
@@ -143,10 +160,14 @@
     var badge = sns.href
       ? '<a class="mcard__sns" href="' + sns.href + '" target="_blank" rel="noopener" aria-label="' + (sns.type || 'SNS') + '">' + icon + '</a>'
       : '<span class="mcard__sns" aria-hidden="true">' + icon + '</span>';
+    // desc（複数段落）があれば通常文で表示、無ければ catch（太字）を表示
+    var body = (m.desc && m.desc.length)
+      ? '<div class="mcard__desc">' + m.desc.map(function (p) { return '<p>' + p + '</p>'; }).join('') + '</div>'
+      : (m.catch ? '<p class="mcard__catch">' + m.catch + '</p>' : '');
     return '<div class="mcard reveal">'
       + '<div class="mcard__media"><img src="' + m.photo + '" alt="' + m.name + '" loading="lazy" decoding="async">' + badge + '</div>'
       + '<div class="mcard__body">'
-      + (m.catch ? '<p class="mcard__catch">' + m.catch + '</p>' : '')
+      + body
       + '<div class="mcard__person"><span class="mcard__name">' + m.name + '</span>'
       + (m.role ? '<span class="mcard__role">' + m.role + '</span>' : '')
       + '</div>'

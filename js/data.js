@@ -40,8 +40,8 @@ window.SITE = {
 
   /* ▼ Event：開催情報（詳細が決まり次第追加） */
   eventInfo: [
-    { k: 'Location', v: 'TOKYO' },
-    { k: 'Concept',  v: 'Wear your story.' },
+    { k: 'Location', v: 'TOKYO KINSHICHO' },
+    { k: 'Concept',  v: 'FASHION' },
   ],
 
   /* ▼ Event：ボタン */
@@ -57,8 +57,8 @@ window.SITE = {
     { no: '03', title: 'Wear your story',  body: '撮影やコミュニティを通して、あなたのスタイルを街へ。' },
   ],
 
-  /* ▼ Event：キービジュアル（中央の大きな写真枠）。空ならプレースホルダー表示 */
-  eventVisual: 'assets/images/fitting-selfie.jpg',
+  /* ▼ Event：キービジュアル（マーケットの告知フライヤー）。空ならプレースホルダー表示 */
+  eventVisual: 'assets/images/market-flyer.jpg',
 
   /* ▼ Event：動画（いずれ追加予定 — iframe を貼ると表示される）
   videoEmbed: '<iframe width="560" height="315" src="https://www.youtube.com/embed/..." allowfullscreen></iframe>', */
@@ -84,10 +84,18 @@ window.SITE = {
      記事を追加するときはこの下に { cat, date, slug, title, excerpt, img, body } を追加してください。 */
   articles: [],
 
-  /* ▼ イベントレポート：開催したイベントの記録（記事と同じ形式のカード）
-     イベントを開催したらこの下に { cat, date, slug, title, excerpt, img } を追加。
-     cat には開催したイベント名（例 'DRESS CODE MARKET'）を入れると分かりやすいです。 */
-  reports: [],
+  /* ▼ イベントレポート：開催したイベントの記録（フライヤー／ポスター形式のカード）
+     { date, title, excerpt, img, href } を追加。href に画像パスを入れると、
+     タップで拡大表示（別タブでフライヤー全体が開きます）。 */
+  reports: [
+    {
+      date: '2025.12.22 MON',
+      title: 'UNLABELED MARKET Vol.1',
+      excerpt: 'ブランド・クリエイターが集った一日限りのマーケット。会場は東京・錦糸（墨田区）。',
+      img: 'assets/images/report-unlabeled.jpg',
+      href: 'assets/images/report-unlabeled.jpg',
+    },
+  ],
 
   /* ▼ Community：3つの募集カード
      href = カードのリンク先。外部URLでもOK（外部は自動で別タブで開きます）。 */
@@ -113,9 +121,12 @@ window.SITE = {
       slug: 'minami', name: 'MINAMI',
       photo: 'assets/images/member-minami.jpg',
       sns: { type: 'Instagram', href: '' },
-      catch: 'キャッチコピーが入りますキャッチコピーが入ります',
-      role: '（役職）',
-      dept: '○○○○○○○○○○○○○○○○○○',
+      // desc: 複数段落の紹介文（あれば catch より優先して表示。役職・所属は省略可）
+      desc: [
+        'ファッションを起点に、メディア運営・イベント企画を行っています。',
+        '「好き」が集まり、新しい出会いが生まれる場所をつくることをテーマに活動しています。',
+        'DRESS CODEではファッションメディアを中心に、ブランド運営やイベント企画を通して、カルチャーの魅力を発信しています。',
+      ],
       intro: '（ここに一言紹介を入れてください）',
       bio: ['（ここにプロフィール文を入れてください）'],
       gallery: ['assets/images/member-minami.jpg'],
