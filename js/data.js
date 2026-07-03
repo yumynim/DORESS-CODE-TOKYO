@@ -88,23 +88,17 @@ window.SITE = {
   comingSoonImage: 'assets/images/coming-soon.png',
 
   /* ▼ イベントレポート：開催したイベントの記録（フライヤー／ポスター形式のカード）
-     { date, title, excerpt, img, href } を追加。href に画像パスを入れると、
-     タップで拡大表示（別タブでフライヤー全体が開きます）。 */
+     { date, title, excerpt, images } を追加。images は配列で、2枚以上あると
+     カードに左右の矢印が出て、タップで次/前の写真に切り替えられます。 */
   reports: [
     {
       date: '2025.12.22 MON',
       title: 'UNLABELED MARKET Vol.1',
       excerpt: 'ブランド・クリエイターが集った一日限りのマーケット。会場は東京・錦糸（墨田区）。',
-      img: 'assets/images/report-unlabeled.jpg',
-      href: 'assets/images/report-unlabeled.jpg',
-    },
-    {
-      // ※タイトルは仮です。イベント名などがあれば書き換えてください。
-      date: '',
-      title: '会場の様子',
-      excerpt: 'イベントの舞台となった空間。',
-      img: 'assets/images/report-venue.jpg',
-      href: 'assets/images/report-venue.jpg',
+      images: [
+        'assets/images/report-unlabeled.jpg',
+        'assets/images/report-venue.jpg',
+      ],
     },
   ],
 

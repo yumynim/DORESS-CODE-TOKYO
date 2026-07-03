@@ -95,22 +95,43 @@
       </div>
     </a>`;
   }
-  // イベントレポート用のカード（縦型フライヤーをそのまま見せる＋タップで拡大）
+  // イベントレポート用のカード（フライヤー／写真。2枚以上あると左右矢印で切り替え）
   function reportCard(r) {
-    const link = r.href || r.img || '#';
-    const ext = /^https?:|\.(jpe?g|png|webp)$/i.test(link);
-    const t = ext ? ' target="_blank" rel="noopener"' : '';
-    const media = r.img
-      ? `<img src="${r.img}" alt="${r.title || ''}" loading="lazy" decoding="async">`
+    const imgs = (r.images && r.images.length) ? r.images : (r.img ? [r.img] : []);
+    const slides = imgs.length
+      ? imgs.map((src, i) => `<a class="rcard__slide${i === 0 ? ' is-active' : ''}" data-i="${i}" href="${src}" target="_blank" rel="noopener"><img src="${src}" alt="${r.title || ''}" loading="lazy" decoding="async"></a>`).join('')
       : `<span class="card__ph">Photo</span>`;
-    return `<a href="${link}"${t} class="rcard reveal">
-      <div class="rcard__media">${media}<div class="rcard__view"><span>View →</span></div></div>
+    const nav = imgs.length > 1
+      ? `<button type="button" class="rcard__nav rcard__nav--prev" aria-label="前の写真">‹</button>
+         <button type="button" class="rcard__nav rcard__nav--next" aria-label="次の写真">›</button>
+         <div class="rcard__dots">${imgs.map((_, i) => `<span class="${i === 0 ? 'is-active' : ''}"></span>`).join('')}</div>`
+      : '';
+    return `<div class="rcard reveal" data-count="${imgs.length}">
+      <div class="rcard__media">${slides}${nav}</div>
       <div class="rcard__body">
         ${r.date ? `<div class="rcard__date">${r.date}</div>` : ''}
         <h3 class="rcard__title">${r.title || ''}</h3>
         ${r.excerpt ? `<p class="rcard__excerpt">${r.excerpt}</p>` : ''}
       </div>
-    </a>`;
+    </div>`;
+  }
+  // レポートカードの左右矢印・ドットを配線（複数枚あるカードのみ）
+  function wireReportCarousels() {
+    document.querySelectorAll('#reports .rcard').forEach(function (card) {
+      const slides = [...card.querySelectorAll('.rcard__slide')];
+      if (slides.length < 2) return;
+      const dots = [...card.querySelectorAll('.rcard__dots span')];
+      let idx = 0;
+      function show(i) {
+        idx = (i + slides.length) % slides.length;
+        slides.forEach((s, j) => s.classList.toggle('is-active', j === idx));
+        dots.forEach((d, j) => d.classList.toggle('is-active', j === idx));
+      }
+      const prev = card.querySelector('.rcard__nav--prev');
+      const next = card.querySelector('.rcard__nav--next');
+      if (prev) prev.addEventListener('click', e => { e.preventDefault(); e.stopPropagation(); show(idx - 1); });
+      if (next) next.addEventListener('click', e => { e.preventDefault(); e.stopPropagation(); show(idx + 1); });
+    });
   }
   // カードを流し込む。中身が空のときは「近日公開」表示（画像があれば画像、無ければ文字）。
   function fillCards(id, list, builder, emptyImg) {
@@ -123,6 +144,7 @@
   }
   fillCards('articles', S.articles, articleCard, S.comingSoonImage);
   fillCards('reports', S.reports, reportCard);
+  wireReportCarousels();
 
   /* ---------- Community（カードごとに別ページへ） ---------- */
   fill('community-cards', (S.community || []).map(c => {
