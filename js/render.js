@@ -226,11 +226,11 @@
     return '<div class="mcard reveal">'
       + '<div class="mcard__media"><img src="' + m.photo + '" alt="' + m.name + '" loading="lazy" decoding="async">' + badge + '</div>'
       + '<div class="mcard__body">'
-      + body
       + '<div class="mcard__person"><span class="mcard__name">' + m.name + '</span>'
       + (m.role ? '<span class="mcard__role">' + m.role + '</span>' : '')
       + '</div>'
       + (m.dept ? '<p class="mcard__dept">' + m.dept + '</p>' : '')
+      + body
       + '</div>'
       + '</div>';
   }).join(''));
