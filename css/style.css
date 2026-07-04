@@ -437,20 +437,18 @@ select:focus-visible, textarea:focus-visible {
 }
 .card:hover .card__title { opacity: 0.7; }
 
-/* イベントレポート：フライヤー／写真カード（複数枚は左右矢印で切り替え・タップで拡大） */
+/* イベントレポート：フライヤー／写真カード（複数枚は左右矢印・スワイプで横にスライド切り替え） */
 .rcard { display: block; }
 .rcard__media {
   position: relative; overflow: hidden; aspect-ratio: 4/5;
   background: var(--bg-soft); border: 1px solid var(--line);
+  touch-action: pan-y; cursor: grab;
 }
-/* スライド：重ねて配置し、is-active だけを表示（クロスフェード） */
-.rcard__slide {
-  position: absolute; inset: 0; display: block; opacity: 0; pointer-events: none;
-  transition: opacity .45s var(--ease);
-}
-.rcard__slide.is-active { opacity: 1; pointer-events: auto; }
-.rcard__slide img { width: 100%; height: 100%; object-fit: cover; display: block; transition: transform .8s var(--ease); }
-.rcard:hover .rcard__slide.is-active img { transform: scale(1.03); }
+.rcard__media:active { cursor: grabbing; }
+/* トラックを横に並べて transform: translateX() で動かす＝実際に横スライドする */
+.rcard__track { display: flex; width: 100%; height: 100%; transition: transform .45s var(--ease); will-change: transform; }
+.rcard__slide { flex: 0 0 100%; width: 100%; height: 100%; display: block; }
+.rcard__slide img { width: 100%; height: 100%; object-fit: cover; display: block; pointer-events: none; user-select: none; }
 /* 左右の矢印（ホバーで表示。タップ操作のスマホでは常時薄く表示） */
 .rcard__nav {
   position: absolute; top: 50%; transform: translateY(-50%); z-index: 5;

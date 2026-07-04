@@ -95,11 +95,11 @@
       </div>
     </a>`;
   }
-  // イベントレポート用のカード（フライヤー／写真。2枚以上あると左右矢印で切り替え）
+  // イベントレポート用のカード（フライヤー／写真。2枚以上あると左右矢印・スワイプで横にスライド切り替え）
   function reportCard(r) {
     const imgs = (r.images && r.images.length) ? r.images : (r.img ? [r.img] : []);
     const slides = imgs.length
-      ? imgs.map((src, i) => `<a class="rcard__slide${i === 0 ? ' is-active' : ''}" data-i="${i}" href="${src}" target="_blank" rel="noopener"><img src="${src}" alt="${r.title || ''}" loading="lazy" decoding="async"></a>`).join('')
+      ? imgs.map(src => `<a class="rcard__slide" href="${src}" target="_blank" rel="noopener"><img src="${src}" alt="${r.title || ''}" loading="lazy" decoding="async" draggable="false"></a>`).join('')
       : `<span class="card__ph">Photo</span>`;
     const nav = imgs.length > 1
       ? `<button type="button" class="rcard__nav rcard__nav--prev" aria-label="前の写真">‹</button>
@@ -107,7 +107,7 @@
          <div class="rcard__dots">${imgs.map((_, i) => `<span class="${i === 0 ? 'is-active' : ''}"></span>`).join('')}</div>`
       : '';
     return `<div class="rcard reveal" data-count="${imgs.length}">
-      <div class="rcard__media">${slides}${nav}</div>
+      <div class="rcard__media"><div class="rcard__track">${slides}</div>${nav}</div>
       <div class="rcard__body">
         ${r.date ? `<div class="rcard__date">${r.date}</div>` : ''}
         <h3 class="rcard__title">${r.title || ''}</h3>
@@ -115,22 +115,58 @@
       </div>
     </div>`;
   }
-  // レポートカードの左右矢印・ドットを配線（複数枚あるカードのみ）
+  // レポートカードの左右矢印・ドット・スワイプ操作を配線（複数枚あるカードのみ）
   function wireReportCarousels() {
     document.querySelectorAll('#reports .rcard').forEach(function (card) {
+      const media = card.querySelector('.rcard__media');
+      const track = card.querySelector('.rcard__track');
       const slides = [...card.querySelectorAll('.rcard__slide')];
       if (slides.length < 2) return;
       const dots = [...card.querySelectorAll('.rcard__dots span')];
-      let idx = 0;
-      function show(i) {
-        idx = (i + slides.length) % slides.length;
-        slides.forEach((s, j) => s.classList.toggle('is-active', j === idx));
+      let idx = 0, dragging = false, moved = false, startX = 0, deltaX = 0;
+
+      function render(withTransition) {
+        track.style.transition = withTransition ? '' : 'none';
+        track.style.transform = 'translateX(' + (-idx * 100) + '%)';
         dots.forEach((d, j) => d.classList.toggle('is-active', j === idx));
       }
+      function goTo(i) { idx = (i + slides.length) % slides.length; render(true); }
+      render(false);
+
       const prev = card.querySelector('.rcard__nav--prev');
       const next = card.querySelector('.rcard__nav--next');
-      if (prev) prev.addEventListener('click', e => { e.preventDefault(); e.stopPropagation(); show(idx - 1); });
-      if (next) next.addEventListener('click', e => { e.preventDefault(); e.stopPropagation(); show(idx + 1); });
+      if (prev) prev.addEventListener('click', e => { e.preventDefault(); e.stopPropagation(); goTo(idx - 1); });
+      if (next) next.addEventListener('click', e => { e.preventDefault(); e.stopPropagation(); goTo(idx + 1); });
+
+      // スワイプ／ドラッグで実際に横スライドさせる
+      media.addEventListener('pointerdown', function (e) {
+        if (e.target.closest('.rcard__nav')) return;
+        if (e.pointerType === 'mouse' && e.button !== 0) return;
+        dragging = true; moved = false; startX = e.clientX; deltaX = 0;
+        track.style.transition = 'none';
+        media.setPointerCapture(e.pointerId);
+      });
+      media.addEventListener('pointermove', function (e) {
+        if (!dragging) return;
+        deltaX = e.clientX - startX;
+        if (Math.abs(deltaX) > 6) moved = true;
+        track.style.transform = 'translateX(calc(' + (-idx * 100) + '% + ' + deltaX + 'px))';
+      });
+      function endDrag() {
+        if (!dragging) return;
+        dragging = false;
+        const w = media.clientWidth || 1;
+        const threshold = w * 0.18;
+        if (deltaX <= -threshold) goTo(idx + 1);
+        else if (deltaX >= threshold) goTo(idx - 1);
+        else render(true);
+      }
+      media.addEventListener('pointerup', endDrag);
+      media.addEventListener('pointercancel', endDrag);
+      media.addEventListener('pointerleave', function () { if (dragging) endDrag(); });
+
+      // ドラッグ（スワイプ）した直後は、写真の拡大リンクへ飛ばさない
+      slides.forEach(s => s.addEventListener('click', e => { if (moved) e.preventDefault(); }));
     });
   }
   // カードを流し込む。中身が空のときは「近日公開」表示（画像があれば画像、無ければ文字）。
