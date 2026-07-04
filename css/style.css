@@ -538,15 +538,17 @@ select:focus-visible, textarea:focus-visible {
 a.mcard__sns:hover { transform: translateY(-3px); }
 .mcard__sns svg { width: 22px; height: 22px; display: block; }
 .mcard__body { padding-top: 20px; }
-.mcard__catch {
-  font-family: var(--f-jp); font-weight: 700; font-size: clamp(15px, 1.15vw, 17px);
-  line-height: 1.75; color: var(--ink); letter-spacing: 0.02em;
-}
-.mcard__person { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; margin-top: 20px; }
+/* 表示順は 氏名(person) → 所属(dept) → キャッチコピー/紹介文(catch/desc) */
+.mcard__person { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
 .mcard__name { font-family: var(--f-jp); font-weight: 700; font-size: 17px; letter-spacing: 0.08em; color: var(--ink); }
 .mcard__role { font-family: var(--f-jp); font-size: 10.5px; letter-spacing: 0.12em; color: var(--muted); }
 .mcard__dept { margin-top: 7px; font-family: var(--f-jp); font-size: 12.5px; letter-spacing: 0.03em; color: var(--ink-3); line-height: 1.6; }
+.mcard__catch {
+  margin-top: 14px; font-family: var(--f-jp); font-weight: 700; font-size: clamp(15px, 1.15vw, 17px);
+  line-height: 1.75; color: var(--ink); letter-spacing: 0.02em;
+}
 /* 複数段落の紹介文（catch の代わり。通常文で読みやすく） */
+.mcard__desc { margin-top: 14px; }
 .mcard__desc p { font-family: var(--f-jp); font-size: 13px; line-height: 1.95; color: var(--ink-2); }
 .mcard__desc p + p { margin-top: 11px; }
 
