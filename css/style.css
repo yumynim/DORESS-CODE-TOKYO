@@ -462,7 +462,8 @@ select:focus-visible, textarea:focus-visible {
 }
 .rcard__media:active { cursor: grabbing; }
 /* トラックを横に並べて transform: translateX() で動かす＝実際に横スライドする */
-.rcard__track { display: flex; width: 100%; height: 100%; transition: transform .45s var(--ease); will-change: transform; }
+.rcard__track { display: flex; width: 100%; height: 100%; transition: transform .38s cubic-bezier(.22,.61,.36,1); will-change: transform; touch-action: pan-y; }
+.rcard__slide { -webkit-user-drag: none; }
 .rcard__slide { flex: 0 0 100%; width: 100%; height: 100%; display: block; }
 .rcard__slide img { width: 100%; height: 100%; object-fit: cover; display: block; pointer-events: none; user-select: none; }
 /* 左右の矢印（ホバーで表示。タップ操作のスマホでは常時薄く表示） */

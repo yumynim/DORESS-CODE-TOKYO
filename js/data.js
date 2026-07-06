@@ -171,9 +171,11 @@ window.SITE = {
       slug: 'yui', name: 'YUI',
       photo: 'assets/images/member-yui.jpg',
       sns: { type: 'Instagram', href: 'https://www.instagram.com/yui.ishiko/' },
-      catch: 'キャッチコピーが入りますキャッチコピーが入ります',
-      role: '（役職）',
-      dept: '○○○○○○○○○○○○○○○○○○',
+      desc: [
+        'AI・データサイエンス・Webサービス開発の経験を活かし、まだ言葉にしづらい「願いや欲求」を形にするサービスづくりに取り組んでいます。',
+        'DRESS CODEでは、サイト制作を中心に、人の「好き」や感性が自然に混ざり合う場をつくっています。',
+        'リアルな体験とデジタルの可能性をつなぎ、出会いや感性が次の行動につながる仕組みを考えています。',
+      ],
       intro: '（ここに一言紹介を入れてください）',
       bio: ['（ここにプロフィール文を入れてください）'],
       gallery: ['assets/images/member-yui.jpg'],
@@ -202,20 +204,6 @@ window.SITE = {
     { label: 'TikTok',    sub: '@dress.code_tokyo',                        href: 'https://www.tiktok.com/@dress.code_tokyo' },
     { label: 'LINE',      sub: 'DRESS CODE TOKYO',                         href: 'https://line.me/R/ti/p/@799fggke' },
   ],
-
-  /* ▼ Contact：お問い合わせフォームの送信先（Google フォーム連携）
-     ここが空のあいだは「デモ動作（送信すると御礼が出るだけ）」です。
-     --------------------------------------------------------------
-     【設定方法】Google フォームを作成 → ⋮メニュー →「事前入力したリンクを取得」
-     → 各項目に適当な値を入れて送信 → 出てきた URL を私（Claude）に渡せば、
-     下の action と entry 番号を私が埋めます。それだけで本番送信が有効になります。 */
-  contactForm: {
-    action: '',          // 例: https://docs.google.com/forms/d/e/XXXX/formResponse
-    entries: {
-      name:    '',       // 例: entry.1111111
-      email:   '',       // 例: entry.2222222
-      type:    '',       // 例: entry.3333333
-      message: '',       // 例: entry.4444444
-    },
-  },
+  /* ※お問い合わせは各「ご用件」の＋から Google フォーム(iframe)を開く方式に変更済み。
+     旧・自作フォーム(contactForm)は廃止しました。 */
 };
