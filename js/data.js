@@ -96,8 +96,15 @@ window.SITE = {
       title: 'UNLABELED MARKET Vol.1',
       excerpt: 'ブランド・クリエイターが集った一日限りのマーケット。会場は東京・錦糸（墨田区）。',
       images: [
-        'assets/images/report-unlabeled.jpg',
-        'assets/images/report-venue.jpg',
+        'assets/images/report-1.jpg',
+        'assets/images/report-2.jpg',
+        'assets/images/report-3.jpg',
+        'assets/images/report-4.jpg',
+        'assets/images/report-5.jpg',
+        'assets/images/report-6.jpg',
+        'assets/images/report-7.jpg',
+        'assets/images/report-8.jpg',
+        'assets/images/report-9.jpg',
       ],
     },
   ],
@@ -176,12 +183,12 @@ window.SITE = {
   /* ▼ Contact：お問い合わせ理由の一覧
      embed を入れた項目は「＋」ボタンになり、タップで Google フォーム等が開きます。 */
   contactReasons: [
-    { no: '01', jp: '掲載依頼',           en: 'Feature' },
-    { no: '02', jp: '出店依頼',           en: 'Exhibit',
+    { no: '01', jp: '掲載依頼', en: 'Feature',
+      embed: '<iframe src="https://docs.google.com/forms/d/e/1FAIpQLSduz_JZXdTsko5iPl8_I7a88sqwvCI_CqMMMeGFP5zYg7CEPA/viewform?embedded=true" width="640" height="1880" frameborder="0" marginheight="0" marginwidth="0" loading="lazy">読み込んでいます…</iframe>' },
+    { no: '02', jp: '出店依頼', en: 'Exhibit',
       embed: '<iframe src="https://docs.google.com/forms/d/e/1FAIpQLSe3lhnx4As3rE9abt4NnPafZJK7Fp9cw9rdM7G-7vcBz8Ex0w/viewform?embedded=true" width="640" height="2085" frameborder="0" marginheight="0" marginwidth="0" loading="lazy">読み込んでいます…</iframe>' },
-    { no: '03', jp: 'コラボ依頼',         en: 'Collab' },
-    { no: '04', jp: '広告掲載',           en: 'Advertise' },
-    { no: '05', jp: 'その他お問い合わせ', en: 'Other' },
+    { no: '03', jp: 'その他お問い合わせ', en: 'Other',
+      embed: '<iframe src="https://docs.google.com/forms/d/e/1FAIpQLSeoWq68aG5KNmWLBjILMKYr-WkK_yISrrfFpoSjbrB0m50iIw/viewform?embedded=true" width="640" height="723" frameborder="0" marginheight="0" marginwidth="0" loading="lazy">読み込んでいます…</iframe>' },
   ],
 
   /* ▼ Contact / Footer：SNSリンク
@@ -191,7 +198,9 @@ window.SITE = {
     { label: 'Instagram', nick: 'fashion', sub: 'DRESS CODE TOKYO fashion', href: 'https://www.instagram.com/dresscode.tokyo_fashion?igsh=MWFmejd3NW81djYyaQ%3D%3D&utm_source=qr' },
     { label: 'Instagram', nick: 'study',   sub: 'DRESS CODE TOKYO study',   href: 'https://www.instagram.com/dresscodetokyo_study?igsh=dWU2OWdpMHlvZGtw&utm_source=qr' },
     { label: 'Instagram', nick: 'food',    sub: 'DRESS CODE TOKYO food',    href: 'https://www.instagram.com/dresscodetokyo_food?igsh=MWl3NHo5dWZoeGFtMw%3D%3D&utm_source=qr' },
-    { label: 'Instagram', nick: 'beauty',  sub: 'DRESS CODE TOKYO beauty',  href: 'https://www.instagram.com/dresscodetokyo_food?igsh=MWl3NHo5dWZoeGFtMw%3D%3D&utm_source=qr' },
+    { label: 'Instagram', nick: 'beauty',  sub: 'DRESS CODE TOKYO beauty',  href: 'https://www.instagram.com/dresscodetokyo_beauty?igsh=azd5aGJvZ3NzcTZt&utm_source=qr' },
+    { label: 'TikTok',    sub: '@dress.code_tokyo',                        href: 'https://www.tiktok.com/@dress.code_tokyo' },
+    { label: 'LINE',      sub: 'DRESS CODE TOKYO',                         href: 'https://line.me/R/ti/p/@799fggke' },
   ],
 
   /* ▼ Contact：お問い合わせフォームの送信先（Google フォーム連携）
