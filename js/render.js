@@ -197,10 +197,26 @@
 
   /* ---------- 運用メンバーのカードは、下の SNS アイコン定義のあとで描画します ---------- */
 
-  /* ---------- Contact: 理由 ---------- */
-  fill('contact-reasons', (S.contactReasons || []).map(r =>
-    `<div class="reasons__row"><span class="no">${r.no}</span><span class="jp">${r.jp}</span><span class="en">${r.en}</span></div>`
-  ).join(''));
+  /* ---------- Contact: 理由（embed のある項目は「＋」で開くフォーム） ---------- */
+  fill('contact-reasons', (S.contactReasons || []).map(r => {
+    if (r.embed) {
+      return `<div class="reasons__item">
+        <button type="button" class="reasons__row reasons__row--toggle" aria-expanded="false">
+          <span class="no">${r.no}</span><span class="jp">${r.jp}</span>
+          <span class="reasons__plus" aria-hidden="true">＋</span>
+        </button>
+        <div class="reasons__panel"><div class="reasons__panel-in">${r.embed}</div></div>
+      </div>`;
+    }
+    return `<div class="reasons__row"><span class="no">${r.no}</span><span class="jp">${r.jp}</span><span class="en">${r.en}</span></div>`;
+  }).join(''));
+  document.querySelectorAll('.reasons__row--toggle').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      const item = btn.closest('.reasons__item');
+      const open = item.classList.toggle('open');
+      btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+    });
+  });
 
   /* ---------- SNS アイコン ---------- */
   var _SNS = {
@@ -249,10 +265,49 @@
     });
   })();
 
-  /* ---------- Event キービジュアル写真 ---------- */
+  /* ---------- 画像ライトボックス（チラシ等をタップで拡大） ---------- */
+  function ensureLightbox() {
+    let lb = document.getElementById('lightbox');
+    if (lb) return lb;
+    lb = document.createElement('div');
+    lb.id = 'lightbox';
+    lb.className = 'lightbox';
+    lb.setAttribute('role', 'dialog');
+    lb.setAttribute('aria-modal', 'true');
+    lb.innerHTML = '<button type="button" class="lightbox__close" aria-label="閉じる">×</button><img alt="">';
+    document.body.appendChild(lb);
+    function close() { lb.classList.remove('open'); document.body.style.overflow = ''; }
+    lb.addEventListener('click', function (e) {
+      if (e.target === lb || e.target.classList.contains('lightbox__close')) close();
+    });
+    document.addEventListener('keydown', function (e) { if (e.key === 'Escape') close(); });
+    lb._close = close;
+    return lb;
+  }
+  function openLightbox(src, alt) {
+    const lb = ensureLightbox();
+    const img = lb.querySelector('img');
+    img.src = src; img.alt = alt || '';
+    lb.classList.add('open');
+    document.body.style.overflow = 'hidden';
+  }
+
+  /* ---------- Event キービジュアル写真（タップで拡大） ---------- */
   if (S.eventVisual) {
     const ev = document.getElementById('event-visual');
-    if (ev) ev.innerHTML = `<img src="${S.eventVisual}" alt="" class="event-visual-img" loading="lazy" decoding="async">`;
+    if (ev) {
+      ev.innerHTML = `<img src="${S.eventVisual}" alt="DRESS CODE MARKET チラシ" class="event-visual-img" loading="lazy" decoding="async">`
+        + `<span class="event-visual__zoom" aria-hidden="true">`
+        +   `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><line x1="16.5" y1="16.5" x2="21" y2="21"/><line x1="11" y1="8" x2="11" y2="14"/><line x1="8" y1="11" x2="14" y2="11"/></svg>`
+        +   `<span>タップで拡大</span>`
+        + `</span>`;
+      ev.classList.add('event__visual--zoomable');
+      ev.setAttribute('role', 'button');
+      ev.setAttribute('tabindex', '0');
+      ev.setAttribute('aria-label', 'DRESS CODE MARKET のチラシを拡大表示');
+      ev.addEventListener('click', function () { openLightbox(S.eventVisual, 'DRESS CODE MARKET チラシ'); });
+      ev.addEventListener('keydown', function (e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openLightbox(S.eventVisual, 'DRESS CODE MARKET チラシ'); } });
+    }
   }
 
   /* ---------- 動画エンベッド ---------- */

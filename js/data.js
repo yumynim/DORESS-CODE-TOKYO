@@ -46,8 +46,8 @@ window.SITE = {
 
   /* ▼ Event：ボタン */
   eventCtas: [
-    { en: 'Get Notified',  jp: '開催情報を受け取る',  href: '#contact' },
-    { en: 'For Exhibitors', jp: '出店について問い合わせる', href: '#contact' },
+    { en: 'For Exhibitors', jp: '出店申し込みはこちら', href: '#contact' },
+    { en: 'For Visitors',   jp: '来場予約',           href: '#contact' },
   ],
 
   /* ▼ Event：How to enjoy（3つの楽しみ方） */
@@ -105,9 +105,9 @@ window.SITE = {
   /* ▼ Community：3つの募集カード
      href = カードのリンク先。外部URLでもOK（外部は自動で別タブで開きます）。 */
   community: [
-    { en: 'For Everyone',   jp: 'メンバー募集',     body: 'イベントの最新情報や限定コンテンツを受け取れる、DRESS CODE のコアコミュニティ。', cta: 'コミュニティに参加する', href: 'https://celestial-finalhomelink.vercel.app/' },
-    { en: 'For Exhibitors', jp: '出店者向け案内',   body: '次回マーケットの出店についてご案内します。出店をご検討の方はこちらから。',         cta: '案内を受け取る',         href: 'community-exhibitor.html' },
-    // クリエイター募集は一旦非表示 → 復活させるときは下の行のコメントを外す
+    { en: 'For Everyone', jp: 'メンバー募集', body: 'DRESS CODE TOKYO を一緒につくる仲間を募集中。イベントの先行情報や限定コンテンツを受け取りながら、「好き」でつながるコミュニティに参加できます。', cta: 'コミュニティに参加する', href: 'https://celestial-finalhomelink.vercel.app/' },
+    // 出店者向け案内・クリエイター募集は一旦非表示 → 復活させるときは下の行のコメントを外す
+    // { en: 'For Exhibitors', jp: '出店者向け案内', body: '次回マーケットの出店についてご案内します。', cta: '案内を受け取る', href: 'community-exhibitor.html' },
     // { en: 'For Creators', jp: 'クリエイター募集', body: '撮影・動画・SNS・広告など、イベントづくりに関わりたい人を募集中。', cta: 'メンバー募集を見る', href: 'community-creator.html' },
   ],
 
@@ -125,7 +125,7 @@ window.SITE = {
     {
       slug: 'minami', name: 'MINAMI',
       photo: 'assets/images/member-minami.jpg',
-      sns: { type: 'Instagram', href: '' },
+      sns: { type: 'Instagram', href: 'https://www.instagram.com/dress.code.tokyo?igsh=MXd3Ymc2cGp6dzc3Yg%3D%3D&utm_source=qr' },
       // desc: 複数段落の紹介文（あれば catch より優先して表示。役職・所属は省略可）
       desc: [
         'ファッションを起点に、メディア運営・イベント企画を行っています。',
@@ -173,10 +173,12 @@ window.SITE = {
     },
   ],
 
-  /* ▼ Contact：お問い合わせ理由の一覧 */
+  /* ▼ Contact：お問い合わせ理由の一覧
+     embed を入れた項目は「＋」ボタンになり、タップで Google フォーム等が開きます。 */
   contactReasons: [
     { no: '01', jp: '掲載依頼',           en: 'Feature' },
-    { no: '02', jp: '出店依頼',           en: 'Exhibit' },
+    { no: '02', jp: '出店依頼',           en: 'Exhibit',
+      embed: '<iframe src="https://docs.google.com/forms/d/e/1FAIpQLSe3lhnx4As3rE9abt4NnPafZJK7Fp9cw9rdM7G-7vcBz8Ex0w/viewform?embedded=true" width="640" height="2085" frameborder="0" marginheight="0" marginwidth="0" loading="lazy">読み込んでいます…</iframe>' },
     { no: '03', jp: 'コラボ依頼',         en: 'Collab' },
     { no: '04', jp: '広告掲載',           en: 'Advertise' },
     { no: '05', jp: 'その他お問い合わせ', en: 'Other' },
@@ -185,11 +187,11 @@ window.SITE = {
   /* ▼ Contact / Footer：SNSリンク
      nick = アイコン下に出る短いラベル（同じプラットフォームが複数あるときに使用）。 */
   socials: [
-    { label: 'Instagram', sub: '@dress.code_tokyo',      nick: 'フリマ',  href: 'https://www.instagram.com/dress.code_tokyo/' },
-    { label: 'Instagram', sub: '@dresscode.tokyo_media', nick: 'media',   href: 'https://www.instagram.com/dresscode.tokyo_media/' },
-    { label: 'TikTok',    sub: '@dress.code_tokyo',                       href: 'https://www.tiktok.com/@dress.code_tokyo' },
-    { label: 'Facebook',  sub: 'Dress Code Tokyo',                        href: 'https://www.facebook.com/share/1CwA4cQzvy/?mibextid=wwXIfr' },
-    { label: 'LINE',      sub: 'DRESS CODE TOKYO',                        href: 'https://line.me/R/ti/p/@799fggke' },
+    { label: 'Instagram', nick: 'main',    sub: 'DRESS CODE TOKYO',        href: 'https://www.instagram.com/dress.code.tokyo?igsh=MXd3Ymc2cGp6dzc3Yg%3D%3D&utm_source=qr' },
+    { label: 'Instagram', nick: 'fashion', sub: 'DRESS CODE TOKYO fashion', href: 'https://www.instagram.com/dresscode.tokyo_fashion?igsh=MWFmejd3NW81djYyaQ%3D%3D&utm_source=qr' },
+    { label: 'Instagram', nick: 'study',   sub: 'DRESS CODE TOKYO study',   href: 'https://www.instagram.com/dresscodetokyo_study?igsh=dWU2OWdpMHlvZGtw&utm_source=qr' },
+    { label: 'Instagram', nick: 'food',    sub: 'DRESS CODE TOKYO food',    href: 'https://www.instagram.com/dresscodetokyo_food?igsh=MWl3NHo5dWZoeGFtMw%3D%3D&utm_source=qr' },
+    { label: 'Instagram', nick: 'beauty',  sub: 'DRESS CODE TOKYO beauty',  href: 'https://www.instagram.com/dresscodetokyo_food?igsh=MWl3NHo5dWZoeGFtMw%3D%3D&utm_source=qr' },
   ],
 
   /* ▼ Contact：お問い合わせフォームの送信先（Google フォーム連携）
