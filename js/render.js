@@ -213,12 +213,15 @@
   /* ---------- Contact: 理由（embed のある項目は「＋」で開くフォーム） ---------- */
   fill('contact-reasons', (S.contactReasons || []).map(r => {
     if (r.embed) {
+      // iframe は開くまで読み込ませない（src → data-src、lazy属性は除去）。
+      // 開いた瞬間に src をセットして確実に表示する（display:none 内の lazy 未読込を回避）。
+      const embed = r.embed.replace(/\sloading="lazy"/i, '').replace(/\ssrc=/i, ' data-src=');
       return `<div class="reasons__item">
         <button type="button" class="reasons__row reasons__row--toggle" aria-expanded="false">
           <span class="no">${r.no}</span><span class="jp">${r.jp}</span>
           <span class="reasons__plus" aria-hidden="true">＋</span>
         </button>
-        <div class="reasons__panel"><div class="reasons__panel-in">${r.embed}</div></div>
+        <div class="reasons__panel"><div class="reasons__panel-in">${embed}</div></div>
       </div>`;
     }
     return `<div class="reasons__row"><span class="no">${r.no}</span><span class="jp">${r.jp}</span><span class="en">${r.en}</span></div>`;
@@ -228,6 +231,10 @@
       const item = btn.closest('.reasons__item');
       const open = item.classList.toggle('open');
       btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+      if (open) {
+        const ifr = item.querySelector('iframe[data-src]');
+        if (ifr && !ifr.getAttribute('src')) { ifr.setAttribute('src', ifr.getAttribute('data-src')); }
+      }
     });
   });
 
