@@ -357,13 +357,6 @@
     );
   }
 
-  /* ---------- ニュースレター（簡易：送信先が未設定なら御礼表示） ---------- */
-  const nl = document.getElementById('newsletter-form');
-  if (nl) nl.addEventListener('submit', function () {
-    const email = nl.querySelector('input').value.trim();
-    if (email) nl.innerHTML = '<div style="padding:16px 0;font-family:var(--f-sans);letter-spacing:0.1em">ご登録ありがとうございます。最新情報をお送りします。</div>';
-  });
-
   /* ---------- スクロールでヘッダーを少し引き締める ---------- */
   const header = document.querySelector('.header');
   if (header) {
