@@ -159,18 +159,25 @@
         }
         if (axis !== 'x') return;                              // 縦 → 何もしない（スクロールに任せる）
         moved = true;
-        if (e.cancelable) e.preventDefault();
         deltaX = mx;
+        // 端（1枚目で右／最後で左）は抵抗を付けて「これ以上ない」ことを指で伝える
+        if ((idx === 0 && deltaX > 0) || (idx === slides.length - 1 && deltaX < 0)) deltaX = deltaX / 3;
         track.style.transform = 'translateX(calc(' + (-idx * 100) + '% + ' + deltaX + 'px))';
       });
+      // 横スワイプ確定後は、ブラウザの縦スクロール横取りを止める（pointermoveのpreventDefaultでは
+      // スクロールは止まらないため、非passiveなtouchmoveで止める。これがスマホでのガタつきの主因）
+      media.addEventListener('touchmove', function (e) {
+        if (axis === 'x' && e.cancelable) e.preventDefault();
+      }, { passive: false });
       function endDrag() {
         if (!dragging) return;
         dragging = false;
         if (axis === 'x') {
           const w = media.clientWidth || 1;
           const threshold = Math.min(w * 0.14, 60);           // 送りやすいしきい値
-          if (deltaX <= -threshold) goTo(idx + 1);
-          else if (deltaX >= threshold) goTo(idx - 1);
+          // スワイプは端でループさせない（1枚目→最後へ全スライド横断する巨大アニメを防ぐ）
+          if (deltaX <= -threshold && idx < slides.length - 1) goTo(idx + 1);
+          else if (deltaX >= threshold && idx > 0) goTo(idx - 1);
           else render(true);
         }
         axis = null;
