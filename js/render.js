@@ -82,7 +82,7 @@
     const color = catColors[a.cat] || 'var(--ink)';
     const cat = a.cat ? `<span class="card__cat"><span class="card__dot" style="background:${color}"></span>${a.cat}</span>` : '';
     const media = a.img
-      ? `${cat}<img src="${a.img}" alt="" loading="lazy" decoding="async">`
+      ? `${cat}<img src="${a.img}" alt="${a.title || ''}" loading="lazy" decoding="async">`
       : `${cat}<span class="card__ph">Photo — 差し替え可</span>`;
     const link = a.slug ? `article.html?id=${a.slug}` : (a.href || '#');
     return `<a href="${link}" class="card reveal">
