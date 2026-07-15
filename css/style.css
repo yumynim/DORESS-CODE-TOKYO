@@ -336,19 +336,11 @@ select:focus-visible, textarea:focus-visible {
   margin-top: clamp(40px, 5vw, 72px); display: grid; grid-template-columns: 1fr 1fr;
   gap: clamp(20px, 2.4vw, 40px); align-items: center;
 }
-.event__card {
-  background: var(--bg); border: 1px solid var(--line); padding: clamp(28px, 3vw, 44px);
-  display: flex; flex-direction: column; justify-content: space-between; min-height: 360px;
-}
-.section--soft .event__card { background: #fff; }
-.badge-row { display: flex; align-items: center; gap: 12px; }
-.badge { font-family: var(--f-sans); font-size: 11px; letter-spacing: 0.22em; text-transform: uppercase; background: var(--ink); color: #fff; padding: 5px 11px; }
-.badge--ghost { background: none; color: var(--muted); }
-.event__card h3 { margin-top: 24px; font-family: var(--f-serif); font-style: italic; font-weight: 400; font-size: clamp(28px, 3vw, 40px); line-height: 1.1; }
-.eventbar { margin-top: 28px; display: flex; flex-direction: column; }
-.eventbar__row { display: flex; justify-content: space-between; gap: 16px; padding: 13px 0; border-top: 1px solid var(--line); }
-.eventbar__row .k { font-family: var(--f-sans); font-size: 10.5px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--muted); flex: none; }
-.eventbar__row .v { font-size: 13.5px; color: var(--ink-2); text-align: right; }
+/* toB/toC の「チラシ＋購入エリア」行：購入カードが縦に伸びてもチラシに引っ張られて中央寄せされないよう上揃えに */
+.event__feature--purchase { align-items: start; }
+.event__feature--purchase + .event__feature--purchase { margin-top: clamp(56px, 7vw, 96px); }
+/* チラシの隣にネストするときは、tickets 自身の上余白は不要 */
+.event__feature .tickets { margin-top: 0; }
 
 .event__visual {
   position: relative; background: var(--bg-soft); border: 1px solid var(--line);
@@ -379,16 +371,6 @@ select:focus-visible, textarea:focus-visible {
 .lightbox.open { display: flex; }
 .lightbox img { max-width: 94vw; max-height: 92vh; object-fit: contain; box-shadow: 0 24px 70px rgba(0,0,0,0.55); }
 .lightbox__close { position: absolute; top: 16px; right: 20px; width: 44px; height: 44px; background: none; border: 0; color: #fff; font-size: 30px; line-height: 1; cursor: pointer; }
-
-/* イベントCTA（横並びの細いボタン群） */
-.ctarow { margin-top: clamp(20px, 2.4vw, 40px); display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1px; background: var(--line); border: 1px solid var(--line); }
-.ctarow a { background: #fff; padding: 22px 26px; display: flex; align-items: center; justify-content: space-between; gap: 14px; transition: background .35s var(--ease); }
-.section--soft .ctarow a { background: var(--bg-soft); }
-.ctarow a:hover { background: var(--ink); color: var(--on-ink); }
-.ctarow .en { display: block; font-family: var(--f-sans); font-size: 10px; letter-spacing: 0.2em; text-transform: uppercase; color: var(--muted); }
-.ctarow a:hover .en { color: var(--on-ink-2); }
-.ctarow .jp { display: block; margin-top: 6px; font-size: 15px; }
-.ctarow .arrow { font-size: 18px; }
 
 /* How to enjoy */
 .enjoy { margin-top: clamp(48px, 6vw, 96px); }
@@ -885,7 +867,6 @@ a.mcard__sns:hover { transform: translateY(-3px); }
 }
 @media (max-width: 860px) {
   .hero__grid, .about__grid, .event__top, .event__feature, .contact__grid { grid-template-columns: 1fr; }
-  .ctarow { grid-template-columns: repeat(2, 1fr); }
   .enjoy__grid { grid-template-columns: 1fr; }
   /* スマホ：backdrop-filter は描画が重くスクロールがカクつくので不透明背景に。
      スクロール時の高さ変化も止めて、ガタつきを無くす。 */
@@ -895,7 +876,7 @@ a.mcard__sns:hover { transform: translateY(-3px); }
 }
 @media (max-width: 600px) {
   /* レイアウト：1カラム中心に */
-  .tiles, .cardgrid, .community, .ctarow, .members { grid-template-columns: 1fr; }
+  .tiles, .cardgrid, .community, .members { grid-template-columns: 1fr; }
   .mcard__media { aspect-ratio: 4 / 5; }
   .newsletter__form { flex-direction: column; }
   .footer__grid { grid-template-columns: 1fr 1fr; }

@@ -38,18 +38,6 @@ window.SITE = {
     { jp: 'イベントレポート',   en: 'Report',        img: 'assets/images/tile-report.jpg',   href: '#report' },
   ],
 
-  /* ▼ Event：開催情報（詳細が決まり次第追加） */
-  eventInfo: [
-    { k: 'Location', v: 'TOKYO KINSHICHO' },
-    { k: 'Concept',  v: 'FASHION' },
-  ],
-
-  /* ▼ Event：ボタン */
-  eventCtas: [
-    { en: 'For Exhibitors', jp: '出店申し込みはこちら', href: '#contact' },
-    { en: 'For Visitors',   jp: '来場予約',           href: '#contact' },
-  ],
-
   /* ▼ Event：How to enjoy（3つの楽しみ方） */
   enjoy: [
     { no: '01', title: 'Discover brands',  body: '東京の作り手が集まるブースを巡り、まだ知らないブランドと出会う。' },
@@ -57,19 +45,37 @@ window.SITE = {
     { no: '03', title: 'Wear your story',  body: '撮影やコミュニティを通して、あなたのスタイルを街へ。' },
   ],
 
-  /* ▼ Event：キービジュアル（マーケットの告知フライヤー）。空ならプレースホルダー表示 */
-  eventVisual: 'assets/images/market-flyer.jpg',
+  /* ▼ Event：キービジュアル（チラシ）。空ならプレースホルダー表示 */
+  eventVisualB: 'assets/images/market-flyer.jpg',  // 出店者向け（toB）チラシ
+  eventVisualC: '',                                // 来場者向け（toC）チラシ。画像が決まったらパスを入れる
 
-  /* ▼ チケット：Square 決済リンクのカード（フライヤーの下に表示）。
-     - name  : チケット名（カードの見出し）
-     - price : 価格（数字だけ。カンマ無しでOK。例 2000 → ¥2,000 と表示）
-     - note  : 補足（任意。例「1日券 / 数量限定」）
-     - url   : Square の支払いリンク（「今すぐ支払う」ボタンのリンク先）
-     - img   : カード上部の写真（任意）。無いときは頭文字の入ったやわらかいプレースホルダー
-     - detail: 「もっと見る」を押すと右から出てくるパネルの中身（見出し＋本文の配列）
-               { heading, body } を必要なだけ並べる。省略もOK（その場合「もっと見る」は出ません）
-     ※ 2枚以上入れると PC では左右矢印のカルーセルになります。追加はこの { } を増やすだけ。 */
-  tickets: [
+  /* ▼ 出店者向け（toB）：申し込み・出店料のカード。
+     - name    : カードの見出し（例：出店料（1ブース））
+     - price   : 数字だけ（カンマ無しでOK）
+     - note    : 補足（任意）
+     - url     : ボタンのリンク先。決済リンクが無ければ申し込みフォーム（#contact 等）でもOK
+     - buyLabel: ボタンの文言（省略時は「今すぐ支払う」）
+     - img     : カード上部の写真（任意）
+     - detail  : 「もっと見る」の中身（{ heading, body } の配列。省略可）
+     ※ 決済リンクが決まったら url を差し替えてください。 */
+  ticketsB: [
+    {
+      name: '出店料（1ブース）',
+      price: 5000,
+      note: '約2m×2m / 現金・PayPay・口座振込',
+      url: 'index.html#contact',
+      buyLabel: '出店を申し込む',
+      img: '',
+      detail: [
+        { heading: '出店について', body: '古着・オリジナルブランド、アクセサリー、雑貨、ZINE、ハンドメイドなど幅広く出店いただけます。' },
+        { heading: '出店決定後の流れ', body: 'Googleフォーム提出 → お支払い（現金・PayPay・口座振込）→ 当アカウントのフォロー・リツイート等 → イベント当日。' },
+        { heading: '注意事項', body: '出店可否の詳細審査後にご連絡します。開催日時・会場は決まり次第お知らせします。' },
+      ],
+    },
+  ],
+
+  /* ▼ 来場者向け（toC）：Square 決済リンクのチケットカード。項目の意味は上の ticketsB と同じ。 */
+  ticketsC: [
     {
       name: '1日入場チケット',
       price: 2000,

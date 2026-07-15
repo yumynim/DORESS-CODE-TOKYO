@@ -127,44 +127,53 @@
         <p class="lead">来場者・出店者・クリエイター・ブランドが集まる、東京のファッションマーケット。買うためではなく、出会うための一日。</p>
       </div>
 
-      <div class="event__feature">
-        <div class="event__card">
-          <div>
-            <div class="badge-row">
-              <span class="badge">Vol.1</span>
-              <span class="badge badge--ghost">Coming Soon</span>
-            </div>
-            <h3>Wear your story.</h3>
-          </div>
-          <div>
-            <div id="event-info" class="eventbar"></div>
-            <p class="event__note">開催日が決まりましたら再度お知らせします。</p>
-          </div>
-        </div>
-        <div class="event__visual" id="event-visual">
+      <!-- ============ 出店者向け（toB）：チラシ（左）＋ 出店申し込み（右） ============ -->
+      <div class="event__feature event__feature--purchase">
+        <div class="event__visual" id="event-visual-b">
           <div class="cap">
             <div class="t">Key Visual</div>
             <div class="s">差し替え可</div>
           </div>
           <img class="mark" src="assets/images/mark.png" alt="">
         </div>
-      </div>
-
-      <!-- ============ チケット購入（Square 決済リンク）— PCは左右矢印で送るカルーセル ============ -->
-      <div id="tickets" class="tickets" hidden>
-        <div class="tickets__head">
-          <span class="kicker">Tickets</span>
-          <h3 class="tickets__title">チケットを購入する</h3>
-          <p class="tickets__note">オンラインで事前購入できます。ボタンを押すと決済ページ（Square）が開きます。</p>
-        </div>
-        <div class="carousel">
-          <div id="ticket-cards" class="carousel__track"></div>
-          <button type="button" class="carousel__nav carousel__nav--prev" aria-label="前へ">‹</button>
-          <button type="button" class="carousel__nav carousel__nav--next" aria-label="次へ">›</button>
+        <div class="tickets">
+          <div class="tickets__head">
+            <span class="kicker">For Exhibitors</span>
+            <h3 class="tickets__title">出店者の方へ</h3>
+            <p class="tickets__note">出店をご希望の方はこちらからお申し込みください。</p>
+          </div>
+          <div class="carousel">
+            <div id="ticket-cards-b" class="carousel__track"></div>
+            <button type="button" class="carousel__nav carousel__nav--prev" aria-label="前へ">‹</button>
+            <button type="button" class="carousel__nav carousel__nav--next" aria-label="次へ">›</button>
+          </div>
         </div>
       </div>
 
-      <!-- チケット詳細パネル（「もっと見る」で右からスライド表示） -->
+      <!-- ============ 来場者向け（toC）：チラシ（左）＋ チケット購入（右） ============ -->
+      <div class="event__feature event__feature--purchase">
+        <div class="event__visual" id="event-visual-c">
+          <div class="cap">
+            <div class="t">Key Visual</div>
+            <div class="s">差し替え可</div>
+          </div>
+          <img class="mark" src="assets/images/mark.png" alt="">
+        </div>
+        <div class="tickets">
+          <div class="tickets__head">
+            <span class="kicker">For Visitors</span>
+            <h3 class="tickets__title">チケットを購入する</h3>
+            <p class="tickets__note">オンラインで事前購入できます。ボタンを押すと決済ページ（Square）が開きます。</p>
+          </div>
+          <div class="carousel">
+            <div id="ticket-cards-c" class="carousel__track"></div>
+            <button type="button" class="carousel__nav carousel__nav--prev" aria-label="前へ">‹</button>
+            <button type="button" class="carousel__nav carousel__nav--next" aria-label="次へ">›</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- チケット詳細パネル（「もっと見る」で右からスライド表示。toB/toC共通） -->
       <div id="ticket-drawer" class="drawer" aria-hidden="true">
         <div class="drawer__backdrop" data-drawer-close></div>
         <div class="drawer__panel" role="dialog" aria-modal="true">
@@ -173,8 +182,6 @@
           <div class="drawer__body"></div>
         </div>
       </div>
-
-      <div id="event-ctas" class="ctarow"></div>
 
       <div class="enjoy">
         <span class="kicker">How to enjoy</span>

@@ -41,16 +41,6 @@
     `<div class="deflist__row"><span class="jp">${a.jp}</span><span class="en">${a.en}</span></div>`
   ).join(''));
 
-  /* ---------- Event: 開催情報 ---------- */
-  fill('event-info', (S.eventInfo || []).map(r =>
-    `<div class="eventbar__row"><span class="k">${r.k}</span><span class="v">${r.v}</span></div>`
-  ).join(''));
-
-  /* ---------- Event: CTA ---------- */
-  fill('event-ctas', (S.eventCtas || []).map(c =>
-    `<a href="${c.href}"><span><span class="en">${c.en}</span><span class="jp">${c.jp}</span></span><span class="arrow">→</span></a>`
-  ).join(''));
-
   /* ---------- Event: How to enjoy ---------- */
   fill('enjoy', (S.enjoy || []).map(e =>
     `<div><div class="enjoy__no">${e.no}</div><h4>${e.title}</h4><p>${e.body}</p></div>`
@@ -208,7 +198,7 @@
       ? `<img src="${t.img}" alt="${t.name || ''}" loading="lazy" decoding="async">`
       : `<span class="tcard__ph" aria-hidden="true">${(t.name || 'T').trim().charAt(0)}</span>`;
     const buy = t.url
-      ? `<a class="tcard__buy" href="${t.url}" target="_blank" rel="noopener" data-ticket-name="${t.name || ''}" data-ticket-price="${t.price || 0}">今すぐ支払う</a>`
+      ? `<a class="tcard__buy" href="${t.url}" target="_blank" rel="noopener" data-ticket-name="${t.name || ''}" data-ticket-price="${t.price || 0}">${t.buyLabel || '今すぐ支払う'}</a>`
       : `<span class="tcard__buy is-disabled" aria-disabled="true">準備中</span>`;
     const more = (t.detail && t.detail.length)
       ? `<button type="button" class="tcard__more" data-ticket-index="${i}">もっと見る</button>`
@@ -223,50 +213,50 @@
       </div>
     </div>`;
   }
-  (function () {
-    const wrap = document.getElementById('tickets');
-    const list = S.tickets || [];
-    if (!wrap) return;
-    if (!list.length) { wrap.hidden = true; return; }   // チケットが無いときはセクションごと非表示
-    wrap.hidden = false;
-    fillCards('ticket-cards', list, ticketCard);
-    wireTicketDrawer(list);
-  })();
 
-  /* ---------- チケット詳細：「もっと見る」→ 右からスライドするパネル ---------- */
-  function wireTicketDrawer(list) {
+  /* ---------- チケット詳細：「もっと見る」→ 右からスライドするパネル（toB/toC共通の1枚を使い回す） ---------- */
+  function openTicketDrawer(t) {
     const drawer = document.getElementById('ticket-drawer');
     if (!drawer) return;
-    const panelBody = drawer.querySelector('.drawer__body');
-    const titleEl = drawer.querySelector('.drawer__title');
-
-    function open(t) {
-      titleEl.textContent = t.name || '';
-      panelBody.innerHTML = (t.detail || []).map(d =>
-        `<div class="drawer__block">
-          ${d.heading ? `<h4>${d.heading}</h4>` : ''}
-          ${d.body ? `<p>${d.body}</p>` : ''}
-        </div>`
-      ).join('');
-      drawer.classList.add('open');
-      drawer.setAttribute('aria-hidden', 'false');
-      document.body.style.overflow = 'hidden';
-    }
-    function close() {
-      drawer.classList.remove('open');
-      drawer.setAttribute('aria-hidden', 'true');
-      document.body.style.overflow = '';
-    }
-
-    document.querySelectorAll('#ticket-cards .tcard__more').forEach(btn => {
+    drawer.querySelector('.drawer__title').textContent = t.name || '';
+    drawer.querySelector('.drawer__body').innerHTML = (t.detail || []).map(d =>
+      `<div class="drawer__block">
+        ${d.heading ? `<h4>${d.heading}</h4>` : ''}
+        ${d.body ? `<p>${d.body}</p>` : ''}
+      </div>`
+    ).join('');
+    drawer.classList.add('open');
+    drawer.setAttribute('aria-hidden', 'false');
+    document.body.style.overflow = 'hidden';
+  }
+  function closeTicketDrawer() {
+    const drawer = document.getElementById('ticket-drawer');
+    if (!drawer) return;
+    drawer.classList.remove('open');
+    drawer.setAttribute('aria-hidden', 'true');
+    document.body.style.overflow = '';
+  }
+  (function () {
+    const drawer = document.getElementById('ticket-drawer');
+    if (!drawer) return;
+    drawer.querySelectorAll('[data-drawer-close]').forEach(el => el.addEventListener('click', closeTicketDrawer));
+    document.addEventListener('keydown', e => { if (e.key === 'Escape') closeTicketDrawer(); });
+  })();
+  // 「もっと見る」ボタンをカード群に配線する（toB用・toC用でそれぞれ呼び出す）
+  function wireTicketMoreButtons(containerId, list) {
+    document.querySelectorAll('#' + containerId + ' .tcard__more').forEach(btn => {
       btn.addEventListener('click', function () {
         const i = Number(btn.getAttribute('data-ticket-index'));
-        if (list[i]) open(list[i]);
+        if (list[i]) openTicketDrawer(list[i]);
       });
     });
-    drawer.querySelectorAll('[data-drawer-close]').forEach(el => el.addEventListener('click', close));
-    document.addEventListener('keydown', e => { if (e.key === 'Escape') close(); });
   }
+
+  /* ---------- 出店者向け（toB）／来場者向け（toC）：それぞれのカードを描画 ---------- */
+  fillCards('ticket-cards-b', S.ticketsB, ticketCard);
+  wireTicketMoreButtons('ticket-cards-b', S.ticketsB || []);
+  fillCards('ticket-cards-c', S.ticketsC, ticketCard);
+  wireTicketMoreButtons('ticket-cards-c', S.ticketsC || []);
 
   /* ---------- Magazine: カテゴリのフィルタ（All / Fashion / Shop） ---------- */
   (function () {
@@ -436,23 +426,25 @@
     document.body.style.overflow = 'hidden';
   }
 
-  /* ---------- Event キービジュアル写真（タップで拡大） ---------- */
-  if (S.eventVisual) {
-    const ev = document.getElementById('event-visual');
-    if (ev) {
-      ev.innerHTML = `<img src="${S.eventVisual}" alt="DRESS CODE MARKET チラシ" class="event-visual-img" loading="lazy" decoding="async">`
-        + `<span class="event-visual__zoom" aria-hidden="true">`
-        +   `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><line x1="16.5" y1="16.5" x2="21" y2="21"/><line x1="11" y1="8" x2="11" y2="14"/><line x1="8" y1="11" x2="14" y2="11"/></svg>`
-        +   `<span>タップで拡大</span>`
-        + `</span>`;
-      ev.classList.add('event__visual--zoomable');
-      ev.setAttribute('role', 'button');
-      ev.setAttribute('tabindex', '0');
-      ev.setAttribute('aria-label', 'DRESS CODE MARKET のチラシを拡大表示');
-      ev.addEventListener('click', function () { openLightbox(S.eventVisual, 'DRESS CODE MARKET チラシ'); });
-      ev.addEventListener('keydown', function (e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openLightbox(S.eventVisual, 'DRESS CODE MARKET チラシ'); } });
-    }
+  /* ---------- Event キービジュアル写真（タップで拡大）。toB用・toC用の2枚を同じ仕組みで描画 ---------- */
+  function renderEventVisual(elId, src, altLabel) {
+    if (!src) return;
+    const ev = document.getElementById(elId);
+    if (!ev) return;
+    ev.innerHTML = `<img src="${src}" alt="${altLabel}" class="event-visual-img" loading="lazy" decoding="async">`
+      + `<span class="event-visual__zoom" aria-hidden="true">`
+      +   `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><line x1="16.5" y1="16.5" x2="21" y2="21"/><line x1="11" y1="8" x2="11" y2="14"/><line x1="8" y1="11" x2="14" y2="11"/></svg>`
+      +   `<span>タップで拡大</span>`
+      + `</span>`;
+    ev.classList.add('event__visual--zoomable');
+    ev.setAttribute('role', 'button');
+    ev.setAttribute('tabindex', '0');
+    ev.setAttribute('aria-label', altLabel + 'を拡大表示');
+    ev.addEventListener('click', function () { openLightbox(src, altLabel); });
+    ev.addEventListener('keydown', function (e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openLightbox(src, altLabel); } });
   }
+  renderEventVisual('event-visual-b', S.eventVisualB, 'DRESS CODE MARKET 出店者向けチラシ');
+  renderEventVisual('event-visual-c', S.eventVisualC, 'DRESS CODE MARKET 来場者向けチラシ');
 
   /* ---------- 動画エンベッド ---------- */
   if (S.videoEmbed) { const v = document.getElementById('event-video'); if (v) v.innerHTML = S.videoEmbed; }
