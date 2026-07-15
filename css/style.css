@@ -493,14 +493,19 @@ select:focus-visible, textarea:focus-visible {
 /* まるインジケーター（TikTok風）。JSが .carousel--photos に自動で追加する */
 .carousel__dots {
   position: absolute; z-index: 4; bottom: 12px; left: 50%; transform: translateX(-50%);
-  display: flex; gap: 6px; padding: 6px 10px; border-radius: 999px;
+  display: flex; padding: 0 4px; border-radius: 999px;
   background: rgba(22,21,15,0.28); backdrop-filter: blur(2px);
 }
+/* 見た目の丸は小さいまま、タップ判定は指で押しやすい大きさを確保する（span自体を大きめの当たり判定にする） */
 .carousel__dots span {
-  width: 6px; height: 6px; border-radius: 50%; background: rgba(255,255,255,0.55);
-  cursor: pointer; transition: background .3s, transform .3s;
+  width: 20px; height: 20px; display: flex; align-items: center; justify-content: center;
+  cursor: pointer;
 }
-.carousel__dots span.is-active { background: #fff; transform: scale(1.15); }
+.carousel__dots span::after {
+  content: ''; width: 6px; height: 6px; border-radius: 50%; background: rgba(255,255,255,0.55);
+  transition: background .3s, transform .3s;
+}
+.carousel__dots span.is-active::after { background: #fff; transform: scale(1.15); }
 
 /* Magazine：記事カード（画像の上にカテゴリ／タイトルを重ねる。popeye風オーバーレイ） */
 .magcard { flex: 0 0 clamp(232px, 30vw, 330px); display: block; }
