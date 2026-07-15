@@ -172,6 +172,24 @@
       media.addEventListener('pointerup', endDrag);
       media.addEventListener('pointercancel', endDrag);
 
+      // PCのトラックパッド2本指スワイプ対応：これは pointerdown ではなく wheel イベントとして届くため、
+      // 上のドラッグ処理とは別に横方向の wheel を検知して送る（縦方向はページスクロールに任せる）。
+      let wheelAccum = 0, wheelLocked = false, wheelResetTimer = null;
+      media.addEventListener('wheel', function (e) {
+        if (Math.abs(e.deltaX) <= Math.abs(e.deltaY)) return; // 縦方向の操作はページスクロールに任せる
+        e.preventDefault();
+        if (wheelLocked) return;
+        wheelAccum += e.deltaX;
+        clearTimeout(wheelResetTimer);
+        wheelResetTimer = setTimeout(() => { wheelAccum = 0; }, 200); // 操作が止まったら仕切り直す
+        const threshold = 36;
+        if (wheelAccum > threshold && idx < slides.length - 1) {
+          goTo(idx + 1); wheelAccum = 0; wheelLocked = true; setTimeout(() => { wheelLocked = false; }, 420);
+        } else if (wheelAccum < -threshold && idx > 0) {
+          goTo(idx - 1); wheelAccum = 0; wheelLocked = true; setTimeout(() => { wheelLocked = false; }, 420);
+        }
+      }, { passive: false });
+
       // ドラッグ（スワイプ）した直後は、写真の拡大リンクへ飛ばさない
       slides.forEach(s => s.addEventListener('click', e => { if (moved) e.preventDefault(); }));
     });
