@@ -82,117 +82,25 @@
       </div>
     </a>`;
   }
-  // イベントレポート用のカード（フライヤー／写真。2枚以上あると左右矢印・スワイプで横にスライド切り替え）
+  // イベントレポート用のカード（フライヤー／写真）。
+  // 写真の横送りは Magazine の記事ギャラリーと同じ「汎用カルーセル（.carousel--photos）」の仕組みをそのまま使う。
   function reportCard(r) {
     const imgs = (r.images && r.images.length) ? r.images : (r.img ? [r.img] : []);
     const slides = imgs.length
-      ? imgs.map(src => `<a class="rcard__slide" href="${src}" target="_blank" rel="noopener"><img src="${src}" alt="${r.title || ''}" loading="lazy" decoding="async" draggable="false"></a>`).join('')
+      ? imgs.map(src => `<a class="rcard__slide" href="${src}" target="_blank" rel="noopener"><img src="${src}" alt="${r.title || ''}" loading="lazy" decoding="async"></a>`).join('')
       : `<span class="card__ph">Photo</span>`;
     const nav = imgs.length > 1
-      ? `<button type="button" class="rcard__nav rcard__nav--prev" aria-label="前の写真">‹</button>
-         <button type="button" class="rcard__nav rcard__nav--next" aria-label="次の写真">›</button>
-         <div class="rcard__dots">${imgs.map((_, i) => `<span class="${i === 0 ? 'is-active' : ''}"></span>`).join('')}</div>`
+      ? `<button type="button" class="carousel__nav carousel__nav--prev" aria-label="前の写真">‹</button>
+         <button type="button" class="carousel__nav carousel__nav--next" aria-label="次の写真">›</button>`
       : '';
-    return `<div class="rcard reveal" data-count="${imgs.length}">
-      <div class="rcard__media"><div class="rcard__track">${slides}</div>${nav}</div>
+    return `<div class="rcard reveal">
+      <div class="carousel carousel--photos rcard__media"><div class="carousel__track rcard__track">${slides}</div>${nav}</div>
       <div class="rcard__body">
         ${r.date ? `<div class="rcard__date">${r.date}</div>` : ''}
         <h3 class="rcard__title">${r.title || ''}</h3>
         ${r.excerpt ? `<p class="rcard__excerpt">${r.excerpt}</p>` : ''}
       </div>
     </div>`;
-  }
-  // レポートカードの左右矢印・ドット・スワイプ操作を配線（複数枚あるカードのみ）
-  function wireReportCarousels() {
-    document.querySelectorAll('#reports .rcard').forEach(function (card) {
-      const media = card.querySelector('.rcard__media');
-      const track = card.querySelector('.rcard__track');
-      const slides = [...card.querySelectorAll('.rcard__slide')];
-      if (slides.length < 2) return;
-      const dots = [...card.querySelectorAll('.rcard__dots span')];
-      let idx = 0, dragging = false, moved = false, axis = null, startX = 0, startY = 0, deltaX = 0, pid = null;
-
-      function render(withTransition) {
-        track.style.transition = withTransition ? '' : 'none';
-        track.style.transform = 'translateX(' + (-idx * 100) + '%)';
-        dots.forEach((d, j) => d.classList.toggle('is-active', j === idx));
-      }
-      function goTo(i) { idx = (i + slides.length) % slides.length; render(true); }
-      render(false);
-
-      const prev = card.querySelector('.rcard__nav--prev');
-      const next = card.querySelector('.rcard__nav--next');
-      if (prev) prev.addEventListener('click', e => { e.preventDefault(); e.stopPropagation(); goTo(idx - 1); });
-      if (next) next.addEventListener('click', e => { e.preventDefault(); e.stopPropagation(); goTo(idx + 1); });
-
-      // スワイプ／ドラッグ：最初の指の動きで縦横を判定（軸ロック）。
-      // 横方向のときだけ画像送り、縦方向のときはページスクロールに任せる
-      // → 少し上下に指がぶれてもガタつかず、縦スクロールも妨げない。
-      media.addEventListener('pointerdown', function (e) {
-        if (e.target.closest('.rcard__nav')) return;
-        if (e.pointerType === 'mouse' && e.button !== 0) return;
-        dragging = true; moved = false; axis = null;
-        startX = e.clientX; startY = e.clientY; deltaX = 0; pid = e.pointerId;
-        track.style.transition = 'none';
-      });
-      media.addEventListener('pointermove', function (e) {
-        if (!dragging) return;
-        const mx = e.clientX - startX;
-        const my = e.clientY - startY;
-        if (axis === null) {
-          if (Math.abs(mx) < 8 && Math.abs(my) < 8) return;   // まだ判定できる動きではない
-          axis = Math.abs(mx) >= Math.abs(my) ? 'x' : 'y';    // 横優先で確定
-          if (axis === 'x') { try { media.setPointerCapture(pid); } catch (_) {} }
-        }
-        if (axis !== 'x') return;                              // 縦 → 何もしない（スクロールに任せる）
-        moved = true;
-        deltaX = mx;
-        // 端（1枚目で右／最後で左）は抵抗を付けて「これ以上ない」ことを指で伝える
-        if ((idx === 0 && deltaX > 0) || (idx === slides.length - 1 && deltaX < 0)) deltaX = deltaX / 3;
-        track.style.transform = 'translateX(calc(' + (-idx * 100) + '% + ' + deltaX + 'px))';
-      });
-      // 横スワイプ確定後は、ブラウザの縦スクロール横取りを止める（pointermoveのpreventDefaultでは
-      // スクロールは止まらないため、非passiveなtouchmoveで止める。これがスマホでのガタつきの主因）
-      media.addEventListener('touchmove', function (e) {
-        if (axis === 'x' && e.cancelable) e.preventDefault();
-      }, { passive: false });
-      function endDrag() {
-        if (!dragging) return;
-        dragging = false;
-        if (axis === 'x') {
-          const w = media.clientWidth || 1;
-          const threshold = Math.min(w * 0.14, 60);           // 送りやすいしきい値
-          // スワイプは端でループさせない（1枚目→最後へ全スライド横断する巨大アニメを防ぐ）
-          if (deltaX <= -threshold && idx < slides.length - 1) goTo(idx + 1);
-          else if (deltaX >= threshold && idx > 0) goTo(idx - 1);
-          else render(true);
-        }
-        axis = null;
-      }
-      media.addEventListener('pointerup', endDrag);
-      media.addEventListener('pointercancel', endDrag);
-
-      // PCのトラックパッド2本指スワイプ対応：これは pointerdown ではなく wheel イベントとして届くため、
-      // 上のドラッグ処理とは別に横方向の wheel を検知して送る（縦方向はページスクロールに任せる）。
-      let wheelAccum = 0, wheelLocked = false, wheelResetTimer = null;
-      media.addEventListener('wheel', function (e) {
-        if (Math.abs(e.deltaX) <= Math.abs(e.deltaY)) return; // 縦方向の操作はページスクロールに任せる
-        e.preventDefault();
-        if (wheelLocked) return;
-        wheelAccum += e.deltaX;
-        clearTimeout(wheelResetTimer);
-        wheelResetTimer = setTimeout(() => { wheelAccum = 0; }, 200); // 操作が止まったら仕切り直す
-        const threshold = 36;
-        if (wheelAccum > threshold && idx < slides.length - 1) {
-          goTo(idx + 1); wheelAccum = 0; wheelLocked = true; setTimeout(() => { wheelLocked = false; }, 420);
-        } else if (wheelAccum < -threshold && idx > 0) {
-          goTo(idx - 1); wheelAccum = 0; wheelLocked = true; setTimeout(() => { wheelLocked = false; }, 420);
-        }
-      }, { passive: false });
-
-      // ドラッグ（スワイプ）した直後は、写真の拡大リンクへ飛ばさない
-      slides.forEach(s => s.addEventListener('click', e => { if (moved) e.preventDefault(); }));
-    });
   }
   // カードを流し込む。中身が空のときは「近日公開」の控えめ表示にする。
   function fillCards(id, list, builder) {
@@ -204,7 +112,6 @@
   }
   fillCards('articles', S.articles, magCard);
   fillCards('reports', S.reports, reportCard);
-  wireReportCarousels();
 
   /* ---------- チケット：Square 決済リンクのカード（フライヤー下・PCはカルーセル） ---------- */
   function yen(n) {
@@ -326,6 +233,43 @@
     setTimeout(update, 60); setTimeout(update, 400);
     update();
   });
+
+  /* ---------- 写真カルーセルの「まるインジケーター」（TikTok風）----------
+     .carousel--photos （Magazineの記事ギャラリー／Field Reportの写真）にだけ自動で付く。
+     スマホは矢印が出ないので、これが無いと複数枚あることに気づけない → ドットで気づけるようにする。
+     article.html は画像を後から流し込んで resize イベントを発火するので、resize のたびに数を数え直す。 */
+  function syncPhotoDots() {
+    document.querySelectorAll('.carousel--photos').forEach(function (car) {
+      const track = car.querySelector('.carousel__track');
+      if (!track) return;
+      const count = track.children.length;
+      let dots = car.querySelector('.carousel__dots');
+      if (count < 2) { if (dots) dots.remove(); return; }
+      if (!dots || dots.children.length !== count) {
+        if (dots) dots.remove();
+        dots = document.createElement('div');
+        dots.className = 'carousel__dots';
+        dots.innerHTML = Array.from({ length: count }).map((_, i) => `<span${i === 0 ? ' class="is-active"' : ''}></span>`).join('');
+        car.appendChild(dots);
+        [...dots.children].forEach((d, i) => d.addEventListener('click', () => {
+          track.scrollTo({ left: i * track.clientWidth, behavior: 'smooth' });
+        }));
+      }
+      if (!track.dataset.dotsWired) {
+        track.dataset.dotsWired = '1';
+        track.addEventListener('scroll', function () {
+          requestAnimationFrame(function () {
+            const dEl = car.querySelector('.carousel__dots');
+            if (!dEl) return;
+            const i = Math.round(track.scrollLeft / (track.clientWidth || 1));
+            [...dEl.children].forEach((d, j) => d.classList.toggle('is-active', j === i));
+          });
+        }, { passive: true });
+      }
+    });
+  }
+  syncPhotoDots();
+  window.addEventListener('resize', syncPhotoDots);
 
   /* ---------- Community（カードごとに別ページへ） ---------- */
   fill('community-cards', (S.community || []).map(c => {

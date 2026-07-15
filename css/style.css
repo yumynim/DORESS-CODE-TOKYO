@@ -437,39 +437,15 @@ select:focus-visible, textarea:focus-visible {
 }
 .card:hover .card__title { opacity: 0.7; }
 
-/* イベントレポート：フライヤー／写真カード（複数枚は左右矢印・スワイプで横にスライド切り替え） */
+/* イベントレポート：フライヤー／写真カード。
+   写真の横送りは Magazine の記事ギャラリー（.carousel--photos）と全く同じ仕組み（下の汎用カルーセル）を共用。 */
 .rcard { display: block; }
 .rcard__media {
   position: relative; overflow: hidden; aspect-ratio: 4/5;
   background: var(--bg-soft); border: 1px solid var(--line);
-  touch-action: pan-y; cursor: grab;
 }
-.rcard__media:active { cursor: grabbing; }
-/* トラックを横に並べて transform: translateX() で動かす＝実際に横スライドする */
-.rcard__track { display: flex; width: 100%; height: 100%; transition: transform .38s cubic-bezier(.22,.61,.36,1); will-change: transform; touch-action: pan-y; }
-.rcard__slide { -webkit-user-drag: none; }
-.rcard__slide { flex: 0 0 100%; width: 100%; height: 100%; display: block; }
-.rcard__slide img { width: 100%; height: 100%; object-fit: cover; display: block; pointer-events: none; user-select: none; }
-/* 左右の矢印（ホバーで表示。タップ操作のスマホでは常時薄く表示） */
-.rcard__nav {
-  position: absolute; top: 50%; transform: translateY(-50%); z-index: 5;
-  width: 36px; height: 36px; border-radius: 50%; border: none; cursor: pointer;
-  background: rgba(255,255,255,0.85); color: var(--ink); font-size: 18px; line-height: 1;
-  display: flex; align-items: center; justify-content: center;
-  opacity: 0; transition: opacity .3s var(--ease), background .3s;
-}
-.rcard:hover .rcard__nav { opacity: 1; }
-.rcard__nav:hover { background: #fff; }
-.rcard__nav--prev { left: 10px; }
-.rcard__nav--next { right: 10px; }
-/* ドットインジケーター */
-.rcard__dots { position: absolute; z-index: 4; bottom: 12px; left: 0; right: 0; display: flex; justify-content: center; gap: 6px; }
-.rcard__dots span { width: 6px; height: 6px; border-radius: 50%; background: rgba(255,255,255,0.55); transition: background .3s; }
-.rcard__dots span.is-active { background: #fff; }
-@media (max-width: 700px) {
-  /* スマホはホバーが無いので矢印を常時薄く表示 */
-  .rcard__nav { opacity: 0.85; }
-}
+.rcard__slide { display: block; -webkit-user-drag: none; }
+.rcard__slide img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .rcard__body { padding-top: 16px; }
 .rcard__date { font-family: var(--f-sans); font-size: 11px; letter-spacing: 0.14em; color: var(--muted); }
 .rcard__title { margin-top: 8px; font-family: var(--f-jp); font-weight: 700; font-size: 16px; line-height: 1.5; color: var(--ink); }
@@ -506,6 +482,25 @@ select:focus-visible, textarea:focus-visible {
 @media (min-width: 861px) {
   .carousel:not(.has-overflow) .carousel__track { justify-content: center; }
 }
+
+/* 写真を1枚ずつ全面表示してスワイプ／矢印で送るカルーセル（Magazineの記事ギャラリー・Field Reportの写真で共用） */
+.carousel--photos .carousel__track { gap: 10px; padding: 0; scroll-snap-type: x mandatory; }
+.carousel--photos .carousel__track > * { flex: 0 0 100%; width: 100%; }
+/* Field Report の写真は固定の縦横比コンテナ（.rcard__media）いっぱいに敷き詰めるので、トラックと写真の高さも明示的に100%に。
+   Magazine の記事ギャラリーは各写真が自分の aspect-ratio で高さを決めるので、ここでは高さを強制しない。 */
+.rcard__media .carousel__track,
+.rcard__media .carousel__track > * { height: 100%; }
+/* まるインジケーター（TikTok風）。JSが .carousel--photos に自動で追加する */
+.carousel__dots {
+  position: absolute; z-index: 4; bottom: 12px; left: 50%; transform: translateX(-50%);
+  display: flex; gap: 6px; padding: 6px 10px; border-radius: 999px;
+  background: rgba(22,21,15,0.28); backdrop-filter: blur(2px);
+}
+.carousel__dots span {
+  width: 6px; height: 6px; border-radius: 50%; background: rgba(255,255,255,0.55);
+  cursor: pointer; transition: background .3s, transform .3s;
+}
+.carousel__dots span.is-active { background: #fff; transform: scale(1.15); }
 
 /* Magazine：記事カード（画像の上にカテゴリ／タイトルを重ねる。popeye風オーバーレイ） */
 .magcard { flex: 0 0 clamp(232px, 30vw, 330px); display: block; }
@@ -827,8 +822,7 @@ a.mcard__sns:hover { transform: translateY(-3px); }
 .article__meta .article__date { margin-top: 0; }
 /* 記事詳細：画像ギャラリー（横スワイプ／PC矢印） */
 .article__gallery { max-width: 600px; margin: clamp(26px, 4vw, 42px) auto 0; }
-.article__gallery .carousel__track { scroll-snap-type: x mandatory; gap: 10px; }
-.article__slide { flex: 0 0 100%; display: block; aspect-ratio: 3/4; overflow: hidden; background: var(--bg-soft); border: 1px solid var(--line); }
+.article__slide { display: block; aspect-ratio: 3/4; overflow: hidden; background: var(--bg-soft); border: 1px solid var(--line); }
 .article__slide img { width: 100%; height: 100%; object-fit: cover; display: block; }
 /* 記事詳細：Brand / 画像提供 */
 .article__credit { font-size: 14px !important; line-height: 1.9 !important; color: var(--ink-2) !important; margin: 0 0 8px !important; }
