@@ -48,12 +48,20 @@
   <main class="article">
     <a class="article__back" href="index.html#magazine">← Back to Magazine</a>
     <div class="article__head">
-      <span class="article__cat" id="a-cat"></span>
+      <div class="article__meta">
+        <span class="article__cat" id="a-cat"></span>
+        <span class="article__date" id="a-date"></span>
+      </div>
       <h1 class="article__title" id="a-title"></h1>
-      <div class="article__date" id="a-date"></div>
     </div>
-    <div class="article__cover" id="a-cover"></div>
+    <!-- 画像ギャラリー（左右矢印／指スワイプで切替） -->
+    <div class="carousel article__gallery">
+      <div id="a-gallery" class="carousel__track"></div>
+      <button type="button" class="carousel__nav carousel__nav--prev" aria-label="前の写真">‹</button>
+      <button type="button" class="carousel__nav carousel__nav--next" aria-label="次の写真">›</button>
+    </div>
     <div class="article__body" id="a-body"></div>
+    <div class="article__tags" id="a-tags"></div>
     <div class="article__nav">
       <a class="btn-link" href="index.html#magazine">← Magazine 一覧へ</a>
       <a class="btn-link" href="index.html#contact">お問い合わせ →</a>
@@ -99,32 +107,38 @@
     // ?id=スラッグ から記事を特定して描画
     (function () {
       const S = window.SITE || {};
+      const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
       const id = new URLSearchParams(location.search).get('id');
       const a = (S.articles || []).find(x => x.slug === id) || (S.articles || [])[0];
       if (!a) { document.getElementById('a-title').textContent = '記事が見つかりませんでした'; return; }
 
-      document.title = a.title + ' — DRESS CODE TOKYO';
-      const colors = S.catColors || {};
-      const catEl = document.getElementById('a-cat');
-      catEl.textContent = a.cat || '';
-      if (colors[a.cat]) catEl.style.color = colors[a.cat];
+      // カテゴリ表示名（data.js の magCats から）
+      const catLabel = ((S.magCats || []).find(c => c.key === a.cat) || {}).label || a.cat || '';
+      document.title = catLabel + '｜' + a.title + ' — DRESS CODE TOKYO';
+      document.getElementById('a-cat').textContent = catLabel;
+      document.getElementById('a-date').textContent = a.date || '';
       document.getElementById('a-title').textContent = a.title || '';
-      // 読了目安（本文＋抜粋の文字数 ÷ 約400字/分）
-      let chars = (a.excerpt || '').length;
-      (a.body || []).forEach(b => { chars += (b.p || b.h || b.quote || b.cap || '').length; });
-      const min = Math.max(1, Math.round(chars / 400));
-      document.getElementById('a-date').textContent = (a.date || '') + ' ・ 約' + min + '分で読めます';
-      if (a.img) document.getElementById('a-cover').innerHTML = `<img src="${a.img}" alt="">`;
 
-      const esc = s => String(s == null ? '' : s).replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
-      const blocks = (a.body || []).map(function (b) {
-        if (b.h) return `<h2>${esc(b.h)}</h2>`;
-        if (b.quote) return `<blockquote>${esc(b.quote)}</blockquote>`;
-        if (b.img) return `<figure><img src="${b.img}" alt="" loading="lazy">${b.cap ? `<figcaption>${esc(b.cap)}</figcaption>` : ''}</figure>`;
-        if (b.p) return `<p>${esc(b.p)}</p>`;
-        return '';
+      // 画像ギャラリー
+      const imgs = (a.images && a.images.length) ? a.images : (a.img ? [a.img] : []);
+      document.getElementById('a-gallery').innerHTML = imgs.map(function (src) {
+        return '<a class="article__slide" href="' + esc(src) + '" target="_blank" rel="noopener"><img src="' + esc(src) + '" alt="' + esc(a.title) + '" loading="lazy" decoding="async"></a>';
       }).join('');
-      document.getElementById('a-body').innerHTML = blocks || `<p>${esc(a.excerpt || '')}</p>`;
+
+      // 本文＋提供元
+      let html = '';
+      if (a.body) html += '<p>' + esc(a.body) + '</p>';
+      if (a.brand) html += '<p class="article__credit"><span>Brand</span>' + esc(a.brand) + '</p>';
+      if (a.credit) html += '<p class="article__credit"><span>画像提供</span>' + esc(a.credit) + '</p>';
+      document.getElementById('a-body').innerHTML = html;
+
+      // タグ
+      if (a.tags && a.tags.length) {
+        document.getElementById('a-tags').innerHTML = a.tags.map(t => '<span>' + esc(t) + '</span>').join('');
+      }
+
+      // カルーセルの矢印表示を再計算（画像を後から入れたため）
+      window.dispatchEvent(new Event('resize'));
       window.scrollTo(0, 0);
     })();
   </script>

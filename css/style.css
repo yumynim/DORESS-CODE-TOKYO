@@ -492,6 +492,75 @@ select:focus-visible, textarea:focus-visible {
 .rcard:hover .rcard__title { opacity: 0.7; }
 .rcard__excerpt { margin-top: 8px; font-size: 13px; line-height: 1.9; color: var(--ink-3); }
 
+/* =========================================================
+   汎用カルーセル（横スクロール＋PCの左右矢印）— Magazine / Report で共用
+   ========================================================= */
+.carousel { position: relative; }
+.carousel__track {
+  display: flex; gap: clamp(14px, 2vw, 28px);
+  overflow-x: auto; overflow-y: hidden;
+  scroll-snap-type: x proximity; scroll-behavior: smooth;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none; padding: 4px 1px 10px;
+}
+.carousel__track::-webkit-scrollbar { display: none; }
+.carousel__track > * { scroll-snap-align: start; }
+.carousel__nav {
+  position: absolute; top: 40%; transform: translateY(-50%); z-index: 6;
+  width: 44px; height: 44px; border-radius: 50%; border: 1px solid var(--line-2);
+  background: rgba(255,255,255,0.94); color: var(--ink); font-size: 22px; line-height: 1;
+  display: none; align-items: center; justify-content: center; cursor: pointer;
+  box-shadow: 0 8px 22px rgba(22,21,15,0.12); transition: opacity .3s var(--ease), background .3s;
+}
+.carousel__nav--prev { left: -6px; }
+.carousel__nav--next { right: -6px; }
+.carousel__nav:hover { background: #fff; }
+.carousel__nav:disabled { opacity: 0; pointer-events: none; }
+.carousel.has-overflow .carousel__nav { display: flex; }   /* はみ出す時だけ矢印を出す */
+@media (max-width: 860px) { .carousel__nav { display: none !important; } } /* スマホは指スワイプ */
+
+/* Magazine：記事カード（画像＋カテゴリ＋タイトル。popeye風） */
+.magcard { flex: 0 0 clamp(232px, 30vw, 330px); display: block; }
+.magcard.is-hidden { display: none; }
+.magcard__media {
+  position: relative; aspect-ratio: 3/4; overflow: hidden;
+  background: var(--bg-soft); border: 1px solid var(--line);
+}
+.magcard__media img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; transition: transform .8s var(--ease); }
+.magcard:hover .magcard__media img { transform: scale(1.04); }
+.magcard__view {
+  position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+  background: rgba(22,21,15,0.22); opacity: 0; transition: opacity .35s var(--ease);
+}
+.magcard__view span {
+  font-family: var(--f-sans); font-size: 11px; letter-spacing: 0.2em; text-transform: uppercase;
+  color: #fff; border: 1px solid rgba(255,255,255,0.85); padding: 9px 16px;
+}
+.magcard:hover .magcard__view { opacity: 1; }
+.magcard__body { padding-top: 14px; }
+.magcard__meta { display: flex; align-items: center; gap: 12px; }
+.magcard__cat {
+  font-family: var(--f-sans); font-size: 10px; letter-spacing: 0.18em; text-transform: uppercase;
+  color: #fff; background: var(--ink); padding: 4px 10px;
+}
+.magcard__date { font-family: var(--f-sans); font-size: 11px; letter-spacing: 0.1em; color: var(--muted); }
+.magcard__title { margin-top: 10px; font-family: var(--f-jp); font-weight: 700; font-size: 16px; line-height: 1.55; color: var(--ink); }
+.magcard:hover .magcard__title { opacity: 0.7; }
+.magcard__brand { margin-top: 6px; font-family: var(--f-sans); font-size: 12px; letter-spacing: 0.03em; color: var(--ink-3); }
+
+/* Report カードをカルーセル項目として（横幅指定） */
+.carousel__track > .rcard { flex: 0 0 clamp(280px, 40vw, 380px); }
+
+/* Magazine：フィルタ（All / Fashion / Shop） */
+.magfilter { display: flex; flex-wrap: wrap; gap: 8px; }
+.magfilter__btn {
+  font-family: var(--f-sans); font-size: 11.5px; letter-spacing: 0.14em; text-transform: uppercase;
+  color: var(--ink-3); background: none; border: 1px solid var(--line-2); padding: 8px 16px;
+  cursor: pointer; transition: background .3s var(--ease), color .3s var(--ease), border-color .3s var(--ease);
+}
+.magfilter__btn:hover { border-color: var(--ink); color: var(--ink); }
+.magfilter__btn.is-active { background: var(--ink); color: #fff; border-color: var(--ink); }
+
 /* カテゴリのフィルタタグ */
 .tags { display: flex; flex-wrap: wrap; gap: 8px; max-width: 380px; }
 .tags span {
@@ -709,6 +778,21 @@ a.mcard__sns:hover { transform: translateY(-3px); }
 .article__date { margin-top: 16px; font-family: var(--f-sans); font-size: 11px; letter-spacing: 0.14em; color: var(--muted); }
 .article__cover { margin: clamp(32px, 5vw, 56px) 0 0; aspect-ratio: 16/9; overflow: hidden; background: var(--bg-soft); }
 .article__cover img { width: 100%; height: 100%; object-fit: cover; }
+/* 記事詳細：メタ（カテゴリチップ＋日付） */
+.article__meta { display: inline-flex; align-items: center; gap: 12px; }
+.article__cat { font-family: var(--f-sans); font-size: 10px; letter-spacing: 0.18em; text-transform: uppercase; color: #fff; background: var(--ink); padding: 4px 11px; }
+.article__meta .article__date { margin-top: 0; }
+/* 記事詳細：画像ギャラリー（横スワイプ／PC矢印） */
+.article__gallery { max-width: 600px; margin: clamp(26px, 4vw, 42px) auto 0; }
+.article__gallery .carousel__track { scroll-snap-type: x mandatory; gap: 10px; }
+.article__slide { flex: 0 0 100%; display: block; aspect-ratio: 3/4; overflow: hidden; background: var(--bg-soft); border: 1px solid var(--line); }
+.article__slide img { width: 100%; height: 100%; object-fit: cover; display: block; }
+/* 記事詳細：Brand / 画像提供 */
+.article__credit { font-size: 14px !important; line-height: 1.9 !important; color: var(--ink-2) !important; margin: 0 0 8px !important; }
+.article__credit span { display: inline-block; min-width: 64px; font-family: var(--f-sans); font-size: 10.5px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted); margin-right: 8px; }
+/* 記事詳細：ハッシュタグ */
+.article__tags { max-width: 720px; margin: 24px auto 0; display: flex; flex-wrap: wrap; gap: 8px; }
+.article__tags span { font-family: var(--f-sans); font-size: 12px; letter-spacing: 0.02em; color: var(--ink-3); background: var(--bg-band); border: 1px solid var(--line); padding: 6px 12px; }
 .article__body { max-width: 720px; margin: clamp(36px, 5vw, 60px) auto 0; }
 .article__body p { font-size: 16px; line-height: 2.1; color: var(--ink-2); margin: 0 0 26px; }
 .article__body h2 { font-family: var(--f-jp-serif); font-weight: 600; font-size: clamp(20px, 2.4vw, 27px); line-height: 1.6; margin: 44px 0 18px; }

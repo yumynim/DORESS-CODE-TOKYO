@@ -63,29 +63,52 @@ window.SITE = {
   /* ▼ Event：動画（いずれ追加予定 — iframe を貼ると表示される）
   videoEmbed: '<iframe width="560" height="315" src="https://www.youtube.com/embed/..." allowfullscreen></iframe>', */
 
-  /* ▼ Magazine：カテゴリのタグ（記事の cat とそろえてください） */
-  categories: ['マーケットイベント', 'マガジン', 'イベントレポート'],
-
-  /* ▼ カテゴリごとの色（記事カードの丸ドット・記事ページの見出し色に使用） */
-  catColors: {
-    'マーケットイベント': '#e8533a',
-    'マガジン':           '#d4459a',
-    'イベントレポート':   '#8b46c9',
-  },
+  /* ▼ Magazine：カテゴリ（フィルタに使用）。key=データ上の値 / label=表示名 */
+  magCats: [
+    { key: 'fashion', label: 'Fashion' },
+    { key: 'shop',    label: 'Shop' },
+  ],
 
   /* ▼ Magazine：記事一覧 ★ここに { } を足すと記事カードが増えます★
-     - cat     : カテゴリ名
-     - date    : 日付（表示用の文字列）
-     - title   : 記事タイトル
-     - excerpt : 一覧に出る短い説明
-     - href    : クリック先（記事ページを作ったら 'articles/xxx.html' などに）
-     - img     : カバー画像パス（空ならプレースホルダー） */
-  /* ▼ Magazine：記事一覧 ★ここに { } を足すと記事カードが増えます★
-     記事を追加するときはこの下に { cat, date, slug, title, excerpt, img, body } を追加してください。 */
-  articles: [],
-
-  /* ▼ Magazine：記事が空のときに表示する「近日公開」画像（空にすると文字表示に戻る） */
-  comingSoonImage: 'assets/images/coming-soon.png',
+     記事の追加手順は下のサンプルと同じ形式で：
+     - cat    : 'fashion' か 'shop'
+     - slug   : ファイル/URL用ID。fashionは f番号(f1,f2…)、shopは s番号(s1,s2…)
+     - title  : タイトル（TikTokの見出しっぽく。カテゴリはカードで自動的に頭に付く）
+     - date   : 表示用の日付文字列
+     - images : 画像パスの配列（詳細ページで左右に切替）。1枚目がカードのカバー
+     - body   : 本文（TikTok概要のメイン文）
+     - brand  : 取り上げたブランド/提供元（@付き。無ければ省略可）
+     - credit : 画像提供元（@付き。無ければ省略可）
+     - tags   : ハッシュタグの配列（# 付き） */
+  articles: [
+    {
+      cat: 'fashion', slug: 'f1',
+      title: '今日の主役はチェックスカート',
+      date: '2026.06.05',
+      images: ['assets/images/mag-f1-1.jpg','assets/images/mag-f1-2.jpg','assets/images/mag-f1-3.jpg','assets/images/mag-f1-4.jpg','assets/images/mag-f1-5.jpg','assets/images/mag-f1-6.jpg','assets/images/mag-f1-7.jpg'],
+      body: '合わせ方次第でプレッピーにもストリートにも。1枚持っておくと、つい手が伸びる定番アイテム。',
+      credit: '@____ooo24',
+      tags: ['#ootd','#チェックスカート','#古着女子','#ストリートファッション','#dresscodetokyo'],
+    },
+    {
+      cat: 'shop', slug: 's1',
+      title: '旅するように暮らす',
+      date: '2026.06.09',
+      images: ['assets/images/mag-s1-1.jpg','assets/images/mag-s1-2.jpg','assets/images/mag-s1-3.jpg'],
+      body: 'Dress Code：「旅するように暮らす」。シンプルな服に、少しだけ遊び心を。毎日の景色を特別にしてくれる Hamblepie のバッグと。',
+      brand: '@hamblepie',
+      tags: ['#hamblepie','#dailyjourney','#ootd','#dresscodetokyo','#fashion'],
+    },
+    {
+      cat: 'fashion', slug: 'f2',
+      title: '足元はメリージェーンで可愛く',
+      date: '2026.06.04',
+      images: ['assets/images/mag-f2-1.jpg','assets/images/mag-f2-2.jpg','assets/images/mag-f2-3.jpg','assets/images/mag-f2-4.jpg','assets/images/mag-f2-5.jpg'],
+      body: 'my favorite shoes lately。可愛さも履きやすさもあって、つい手に取ってしまうお気に入り。ソックス合わせで雰囲気を変えられるのも好き。',
+      brand: '@mustmissme.preorder',
+      tags: ['#dresscodetokyo','#韓国コーデ','#ootd','#fashion'],
+    },
+  ],
 
   /* ▼ イベントレポート：開催したイベントの記録（フライヤー／ポスター形式のカード）
      { date, title, excerpt, images } を追加。images は配列で、2枚以上あると

@@ -162,14 +162,19 @@
 
   <!-- ============ MAGAZINE ============ -->
   <section id="magazine" class="container section" style="scroll-margin-top:80px">
-    <div class="section-head" style="margin-bottom:36px">
+    <div class="section-head" style="margin-bottom:28px">
       <div>
         <span class="kicker">Magazine</span>
         <h2 class="display" style="margin-top:16px">Stories from<br>the floor.</h2>
       </div>
-      <div id="categories" class="tags"></div>
+      <div id="mag-filters" class="magfilter"></div>
     </div>
-    <div id="articles" class="cardgrid"></div>
+    <!-- PC は左右矢印で送るカルーセル、スマホは指スワイプで横スクロール -->
+    <div class="carousel">
+      <div id="articles" class="carousel__track"></div>
+      <button type="button" class="carousel__nav carousel__nav--prev" aria-label="前へ">‹</button>
+      <button type="button" class="carousel__nav carousel__nav--next" aria-label="次へ">›</button>
+    </div>
   </section>
 
   <!-- ============ EVENT REPORT（イベントレポート） ============ -->
@@ -181,7 +186,11 @@
       </div>
       <p class="lead" style="max-width:380px">開催したイベントの記録。DRESS CODE MARKET をはじめ、これから開く一日一日の熱量をここにまとめていきます。</p>
     </div>
-    <div id="reports" class="cardgrid"></div>
+    <div class="carousel">
+      <div id="reports" class="carousel__track"></div>
+      <button type="button" class="carousel__nav carousel__nav--prev" aria-label="前へ">‹</button>
+      <button type="button" class="carousel__nav carousel__nav--next" aria-label="次へ">›</button>
+    </div>
   </section>
 
   <!-- ============ COMMUNITY ============ -->

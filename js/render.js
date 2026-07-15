@@ -66,32 +66,23 @@
     return `<div class="gallery__item reveal${g.img ? ' has-img' : ''}">${img}<span class="label">${g.label}</span></div>`;
   }).join(''));
 
-  /* ---------- Magazine: カテゴリタグ ---------- */
-  fill('categories', (S.categories || []).map(c => `<span>${c}</span>`).join(''));
+  /* ---------- Magazine: カテゴリ名の対応表（key→表示ラベル） ---------- */
+  const MAGCATS = S.magCats || [{ key: 'fashion', label: 'Fashion' }, { key: 'shop', label: 'Shop' }];
+  function magCatLabel(key) { const m = MAGCATS.find(c => c.key === key); return m ? m.label : (key || ''); }
 
-  /* ---------- Magazine: 記事 ---------- */
-  const catColors = S.catColors || {};
-  // 本文＋抜粋の文字数からおおよその読了時間（約400字/分）を算出
-  function readMin(a) {
-    let c = (a.excerpt || '').length;
-    (a.body || []).forEach(b => { c += (b.p || b.h || b.quote || b.cap || '').length; });
-    return Math.max(1, Math.round(c / 400));
-  }
-  // 記事・イベントレポート共通のカード（同じ見た目で使い回し）
-  function articleCard(a) {
-    const color = catColors[a.cat] || 'var(--ink)';
-    const cat = a.cat ? `<span class="card__cat"><span class="card__dot" style="background:${color}"></span>${a.cat}</span>` : '';
-    const media = a.img
-      ? `${cat}<img src="${a.img}" alt="${a.title || ''}" loading="lazy" decoding="async">`
-      : `${cat}<span class="card__ph">Photo — 差し替え可</span>`;
-    const link = a.slug ? `article.html?id=${a.slug}` : (a.href || '#');
-    return `<a href="${link}" class="card reveal">
-      <div class="card__media">${media}<div class="card__view"><span>Read →</span></div></div>
-      <div class="card__body">
-        <div class="card__date">${a.date} <span class="card__read">· 約${readMin(a)}分で読めます</span></div>
-        <h3 class="card__title">${a.title}</h3>
-        <p class="card__excerpt">${a.excerpt}</p>
-        <span class="card__more">Read →</span>
+  /* ---------- Magazine: 記事カード（画像＋カテゴリ＋タイトル。popeye風） ---------- */
+  function magCard(a) {
+    const cover = (a.images && a.images[0]) || a.img || '';
+    const media = cover
+      ? `<img src="${cover}" alt="${a.title || ''}" loading="lazy" decoding="async">`
+      : `<span class="card__ph">Photo</span>`;
+    const sub = a.brand || a.credit || '';
+    return `<a href="article.html?id=${a.slug}" class="magcard" data-cat="${a.cat || ''}">
+      <div class="magcard__media">${media}<div class="magcard__view"><span>Read →</span></div></div>
+      <div class="magcard__body">
+        <div class="magcard__meta"><span class="magcard__cat">${magCatLabel(a.cat)}</span>${a.date ? `<span class="magcard__date">${a.date}</span>` : ''}</div>
+        <h3 class="magcard__title">${a.title || ''}</h3>
+        ${sub ? `<p class="magcard__brand">${sub}</p>` : ''}
       </div>
     </a>`;
   }
@@ -189,18 +180,68 @@
       slides.forEach(s => s.addEventListener('click', e => { if (moved) e.preventDefault(); }));
     });
   }
-  // カードを流し込む。中身が空のときは「近日公開」表示（画像があれば画像、無ければ文字）。
-  function fillCards(id, list, builder, emptyImg) {
+  // カードを流し込む。中身が空のときは「近日公開」の控えめ表示にする。
+  function fillCards(id, list, builder) {
     const el = document.getElementById(id);
     if (!el) return;
-    if (list && list.length) { el.innerHTML = list.map(builder || articleCard).join(''); return; }
-    el.innerHTML = emptyImg
-      ? '<div class="cards-comingsoon"><img src="' + emptyImg + '" alt="近日公開 Coming soon" loading="lazy" decoding="async"></div>'
+    el.innerHTML = (list && list.length)
+      ? list.map(builder).join('')
       : '<p class="cards-empty">近日公開 — Coming soon.</p>';
   }
-  fillCards('articles', S.articles, articleCard, S.comingSoonImage);
+  fillCards('articles', S.articles, magCard);
   fillCards('reports', S.reports, reportCard);
   wireReportCarousels();
+
+  /* ---------- Magazine: カテゴリのフィルタ（All / Fashion / Shop） ---------- */
+  (function () {
+    const fbox = document.getElementById('mag-filters');
+    const track = document.getElementById('articles');
+    if (!fbox || !track) return;
+    const btns = [{ key: 'all', label: 'All' }].concat(MAGCATS);
+    fbox.innerHTML = btns.map((b, i) =>
+      `<button type="button" class="magfilter__btn${i === 0 ? ' is-active' : ''}" data-cat="${b.key}">${b.label}</button>`
+    ).join('');
+    fbox.addEventListener('click', function (e) {
+      const btn = e.target.closest('.magfilter__btn');
+      if (!btn) return;
+      const cat = btn.getAttribute('data-cat');
+      fbox.querySelectorAll('.magfilter__btn').forEach(b => b.classList.toggle('is-active', b === btn));
+      track.querySelectorAll('.magcard').forEach(card => {
+        const show = (cat === 'all') || (card.getAttribute('data-cat') === cat);
+        card.classList.toggle('is-hidden', !show);
+      });
+      track.scrollTo({ left: 0, behavior: 'smooth' });
+      track.dispatchEvent(new Event('carousel:refresh'));
+    });
+  })();
+
+  /* ---------- 汎用カルーセル（横スクロール＋PCの左右矢印） ---------- */
+  document.querySelectorAll('.carousel').forEach(function (car) {
+    const track = car.querySelector('.carousel__track');
+    const prev = car.querySelector('.carousel__nav--prev');
+    const next = car.querySelector('.carousel__nav--next');
+    if (!track) return;
+    function step() {
+      const card = track.querySelector(':scope > *:not(.is-hidden)');
+      const gap = parseFloat(getComputedStyle(track).columnGap) || 24;
+      return card ? card.getBoundingClientRect().width + gap : track.clientWidth * 0.8;
+    }
+    function update() {
+      const max = track.scrollWidth - track.clientWidth - 2;
+      const overflow = max > 2;
+      car.classList.toggle('has-overflow', overflow);
+      if (prev) prev.disabled = track.scrollLeft <= 2;
+      if (next) next.disabled = track.scrollLeft >= max;
+    }
+    if (prev) prev.addEventListener('click', () => track.scrollBy({ left: -step(), behavior: 'smooth' }));
+    if (next) next.addEventListener('click', () => track.scrollBy({ left: step(), behavior: 'smooth' }));
+    track.addEventListener('scroll', update, { passive: true });
+    track.addEventListener('carousel:refresh', update);
+    window.addEventListener('resize', update);
+    // 画像読み込みで幅が変わるので、少し遅らせても再計算
+    setTimeout(update, 60); setTimeout(update, 400);
+    update();
+  });
 
   /* ---------- Community（カードごとに別ページへ） ---------- */
   fill('community-cards', (S.community || []).map(c => {
