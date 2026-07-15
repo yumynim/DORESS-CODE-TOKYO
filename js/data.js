@@ -60,6 +60,25 @@ window.SITE = {
   /* ▼ Event：キービジュアル（マーケットの告知フライヤー）。空ならプレースホルダー表示 */
   eventVisual: 'assets/images/market-flyer.jpg',
 
+  /* ▼ チケット：Square 決済リンクのカード（フライヤーの下に表示）。
+     - name  : チケット名（カードの見出し）
+     - price : 価格（数字だけ。カンマ無しでOK。例 2000 → ¥2,000 と表示）
+     - note  : 補足（任意。例「1日券 / 数量限定」）
+     - url   : Square の支払いリンク（「今すぐ支払う」ボタンのリンク先）
+     - img   : カード上部の写真（任意）。無いときは頭文字の入ったやわらかいプレースホルダー
+     ※ 2枚以上入れると PC では左右矢印のカルーセルになります。追加はこの { } を増やすだけ。 */
+  tickets: [
+    {
+      name: '1日入場チケット',
+      price: 2000,
+      note: '前売り / 数量限定',
+      url: 'https://square.link/u/cCcEtmx3?src=embed',
+      img: '',
+    },
+    // 例：もう1種類増やすときは下のコメントを外して編集
+    // { name: 'ペアチケット', price: 3500, note: '2名分', url: 'https://square.link/u/xxxxxxx?src=embed', img: '' },
+  ],
+
   /* ▼ Event：動画（いずれ追加予定 — iframe を貼ると表示される）
   videoEmbed: '<iframe width="560" height="315" src="https://www.youtube.com/embed/..." allowfullscreen></iframe>', */
 

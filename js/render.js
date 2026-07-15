@@ -70,19 +70,25 @@
   const MAGCATS = S.magCats || [{ key: 'fashion', label: 'Fashion' }, { key: 'shop', label: 'Shop' }];
   function magCatLabel(key) { const m = MAGCATS.find(c => c.key === key); return m ? m.label : (key || ''); }
 
-  /* ---------- Magazine: 記事カード（画像＋カテゴリ＋タイトル。popeye風） ---------- */
+  /* ---------- Magazine: 記事カード（画像の上にカテゴリ＋タイトルを重ねる。popeye風オーバーレイ） ---------- */
   function magCard(a) {
     const cover = (a.images && a.images[0]) || a.img || '';
     const media = cover
       ? `<img src="${cover}" alt="${a.title || ''}" loading="lazy" decoding="async">`
       : `<span class="card__ph">Photo</span>`;
     const sub = a.brand || a.credit || '';
+    // 画像の上に載せる帯：カテゴリ（小さなラベル）→ タイトル → サブ（ブランド等）
     return `<a href="article.html?id=${a.slug}" class="magcard" data-cat="${a.cat || ''}">
-      <div class="magcard__media">${media}<div class="magcard__view"><span>Read →</span></div></div>
-      <div class="magcard__body">
-        <div class="magcard__meta"><span class="magcard__cat">${magCatLabel(a.cat)}</span>${a.date ? `<span class="magcard__date">${a.date}</span>` : ''}</div>
-        <h3 class="magcard__title">${a.title || ''}</h3>
-        ${sub ? `<p class="magcard__brand">${sub}</p>` : ''}
+      <div class="magcard__media">
+        ${media}
+        <div class="magcard__overlay">
+          <span class="magcard__cat">${magCatLabel(a.cat)}</span>
+          <div class="magcard__caption">
+            <h3 class="magcard__title">${a.title || ''}</h3>
+            ${sub ? `<p class="magcard__brand">${sub}</p>` : ''}
+          </div>
+          ${a.date ? `<span class="magcard__date">${a.date}</span>` : ''}
+        </div>
       </div>
     </a>`;
   }
@@ -191,6 +197,37 @@
   fillCards('articles', S.articles, magCard);
   fillCards('reports', S.reports, reportCard);
   wireReportCarousels();
+
+  /* ---------- チケット：Square 決済リンクのカード（フライヤー下・PCはカルーセル） ---------- */
+  function yen(n) {
+    const num = Number(String(n).replace(/[^\d.]/g, ''));
+    return isFinite(num) && num > 0 ? '¥' + num.toLocaleString('ja-JP') : String(n || '');
+  }
+  function ticketCard(t) {
+    const media = t.img
+      ? `<img src="${t.img}" alt="${t.name || ''}" loading="lazy" decoding="async">`
+      : `<span class="tcard__ph" aria-hidden="true">${(t.name || 'T').trim().charAt(0)}</span>`;
+    const buy = t.url
+      ? `<a class="tcard__buy" href="${t.url}" target="_blank" rel="noopener">今すぐ支払う</a>`
+      : `<span class="tcard__buy is-disabled" aria-disabled="true">準備中</span>`;
+    return `<div class="tcard reveal">
+      <div class="tcard__media">${media}</div>
+      <div class="tcard__body">
+        <h4 class="tcard__name">${t.name || ''}</h4>
+        ${t.note ? `<p class="tcard__note">${t.note}</p>` : ''}
+        <div class="tcard__price"><span class="tcard__price-k">価格</span><span class="tcard__price-v">${yen(t.price)}</span><span class="tcard__tax">税込</span></div>
+        ${buy}
+      </div>
+    </div>`;
+  }
+  (function () {
+    const wrap = document.getElementById('tickets');
+    const list = S.tickets || [];
+    if (!wrap) return;
+    if (!list.length) { wrap.hidden = true; return; }   // チケットが無いときはセクションごと非表示
+    wrap.hidden = false;
+    fillCards('ticket-cards', list, ticketCard);
+  })();
 
   /* ---------- Magazine: カテゴリのフィルタ（All / Fashion / Shop） ---------- */
   (function () {
