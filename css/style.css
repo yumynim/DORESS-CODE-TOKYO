@@ -461,6 +461,9 @@ select:focus-visible, textarea:focus-visible {
   overflow-x: auto; overflow-y: hidden;
   scroll-snap-type: x proximity; scroll-behavior: smooth;
   -webkit-overflow-scrolling: touch;
+  /* このトラックは横方向の操作だけを受け持つ、と先に伝えておくことで、
+     指の動きが縦か横か毎回判定させず、縦スクロールを即座にページへ渡す（スマホでのカクつき対策） */
+  touch-action: pan-x;
   scrollbar-width: none; padding: 4px 1px 10px;
 }
 .carousel__track::-webkit-scrollbar { display: none; }
@@ -872,6 +875,11 @@ a.mcard__sns:hover { transform: translateY(-3px); }
   .header { background: #ffffff; -webkit-backdrop-filter: none; backdrop-filter: none; }
   .header__inner, .header.scrolled .header__inner { height: 62px; transition: none; }
   .header.scrolled .logo img { transition: none; }
+  /* 同じ理由で、写真の上に重ねるドット・カテゴリラベル・タイトル帯も blur を外す。
+     透明度を少し上げて、blur が無くても文字が読めるようにする。 */
+  .carousel__dots { background: rgba(22,21,15,0.55); backdrop-filter: none; -webkit-backdrop-filter: none; }
+  .magcard__cat { background: rgba(31,41,58,0.75); backdrop-filter: none; -webkit-backdrop-filter: none; }
+  .magcard__caption { background: rgba(31,41,58,0.55); backdrop-filter: none; -webkit-backdrop-filter: none; }
 }
 @media (max-width: 600px) {
   /* レイアウト：1カラム中心に */
