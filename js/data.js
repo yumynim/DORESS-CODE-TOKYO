@@ -66,6 +66,8 @@ window.SITE = {
      - note  : 補足（任意。例「1日券 / 数量限定」）
      - url   : Square の支払いリンク（「今すぐ支払う」ボタンのリンク先）
      - img   : カード上部の写真（任意）。無いときは頭文字の入ったやわらかいプレースホルダー
+     - detail: 「もっと見る」を押すと右から出てくるパネルの中身（見出し＋本文の配列）
+               { heading, body } を必要なだけ並べる。省略もOK（その場合「もっと見る」は出ません）
      ※ 2枚以上入れると PC では左右矢印のカルーセルになります。追加はこの { } を増やすだけ。 */
   tickets: [
     {
@@ -74,9 +76,14 @@ window.SITE = {
       note: '前売り / 数量限定',
       url: 'https://square.link/u/cCcEtmx3?src=embed',
       img: '',
+      detail: [
+        { heading: 'このチケットについて', body: 'DRESS CODE MARKET 当日、1日通して入場できるチケットです。前売り・数量限定での販売となります。' },
+        { heading: '購入方法', body: 'ボタンを押すとSquareの決済ページが開きます。購入完了後、確認のご連絡は登録いただいたメールアドレス宛に届きます。' },
+        { heading: '注意事項', body: '購入後のキャンセル・返金は原則承っておりません。開催日時・会場の詳細は決まり次第、本サイトでお知らせします。' },
+      ],
     },
     // 例：もう1種類増やすときは下のコメントを外して編集
-    // { name: 'ペアチケット', price: 3500, note: '2名分', url: 'https://square.link/u/xxxxxxx?src=embed', img: '' },
+    // { name: 'ペアチケット', price: 3500, note: '2名分', url: 'https://square.link/u/xxxxxxx?src=embed', img: '', detail: [{ heading: 'このチケットについて', body: '...' }] },
   ],
 
   /* ▼ Event：動画（いずれ追加予定 — iframe を貼ると表示される）

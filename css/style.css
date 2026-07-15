@@ -38,6 +38,8 @@
 
 /* ---------- リセット & ベース ---------- */
 * { box-sizing: border-box; }
+/* hidden 属性は display:flex 等を使うクラス（.btn 等）より弱いので、常に勝つように固定しておく */
+[hidden] { display: none !important; }
 html { scroll-behavior: smooth; }
 body {
   margin: 0;
@@ -936,3 +938,119 @@ a.mcard__sns:hover { transform: translateY(-3px); }
     transition-duration: .001ms !important;
   }
 }
+
+/* =========================================================
+   チケットカードのボタン列（今すぐ支払う／もっと見る）
+   ========================================================= */
+.tcard__actions { margin-top: 18px; display: flex; flex-direction: column; gap: 10px; }
+.tcard__buy {
+  display: block; text-align: center;
+  font-family: var(--f-sans); font-size: 14px; letter-spacing: 0.06em; line-height: 46px; height: 46px;
+  color: #fff; background: var(--ink); border-radius: 7px;
+  transition: background .3s var(--ease), opacity .3s;
+}
+.tcard__buy:hover { background: #000; }
+.tcard__buy.is-disabled { background: var(--line-2); color: var(--muted); pointer-events: none; }
+.tcard__more {
+  display: block; width: 100%; text-align: center; background: none; cursor: pointer;
+  font-family: var(--f-sans); font-size: 12.5px; letter-spacing: 0.08em; line-height: 40px; height: 40px;
+  color: var(--ink-3); border: 1px solid var(--line-2); border-radius: 7px;
+  transition: background .3s var(--ease), color .3s var(--ease), border-color .3s;
+}
+.tcard__more:hover { background: var(--bg-band); color: var(--ink); border-color: var(--ink); }
+
+/* =========================================================
+   チケット詳細パネル（「もっと見る」→右からスライド）
+   ========================================================= */
+.drawer { position: fixed; inset: 0; z-index: 200; visibility: hidden; }
+.drawer.open { visibility: visible; }
+.drawer__backdrop {
+  position: absolute; inset: 0; background: rgba(22,21,15,0.4);
+  opacity: 0; transition: opacity .35s var(--ease);
+}
+.drawer.open .drawer__backdrop { opacity: 1; }
+.drawer__panel {
+  position: absolute; top: 0; right: 0; bottom: 0; width: min(420px, 92vw);
+  background: #fff; box-shadow: -12px 0 40px rgba(22,21,15,0.16);
+  padding: clamp(28px, 4vw, 44px) clamp(24px, 3.5vw, 36px);
+  overflow-y: auto;
+  transform: translateX(100%); transition: transform .4s var(--ease);
+}
+.drawer.open .drawer__panel { transform: translateX(0); }
+.drawer__close {
+  position: absolute; top: 20px; right: 20px; width: 36px; height: 36px; border-radius: 50%;
+  border: 1px solid var(--line-2); background: #fff; font-size: 18px; line-height: 1; cursor: pointer;
+  display: flex; align-items: center; justify-content: center; transition: background .3s;
+}
+.drawer__close:hover { background: var(--bg-band); }
+.drawer__title { font-family: var(--f-jp); font-weight: 700; font-size: 20px; margin: 6px 40px 24px 0; color: var(--ink); }
+.drawer__block { margin-bottom: 24px; }
+.drawer__block h4 { font-family: var(--f-jp); font-weight: 700; font-size: 13px; letter-spacing: 0.04em; color: var(--ink); margin-bottom: 8px; }
+.drawer__block p { font-size: 13.5px; line-height: 1.95; color: var(--ink-3); }
+
+/* =========================================================
+   ログイン／新規登録モーダル（js/auth.js が組み立てて挿入）
+   ========================================================= */
+.auth-modal { position: fixed; inset: 0; z-index: 300; visibility: hidden; display: flex; align-items: center; justify-content: center; }
+.auth-modal.open { visibility: visible; }
+.auth-modal__backdrop { position: absolute; inset: 0; background: rgba(22,21,15,0.45); opacity: 0; transition: opacity .3s var(--ease); }
+.auth-modal.open .auth-modal__backdrop { opacity: 1; }
+.auth-modal__panel {
+  position: relative; z-index: 1; width: min(380px, 92vw); max-height: 88vh; overflow-y: auto;
+  background: #fff; border-radius: 12px; box-shadow: 0 30px 70px rgba(22,21,15,0.24);
+  padding: clamp(28px, 4vw, 40px) clamp(24px, 3.5vw, 32px);
+  transform: translateY(14px) scale(.98); opacity: 0; transition: transform .3s var(--ease), opacity .3s var(--ease);
+}
+.auth-modal.open .auth-modal__panel { transform: translateY(0) scale(1); opacity: 1; }
+.auth-modal__close {
+  position: absolute; top: 16px; right: 16px; width: 32px; height: 32px; border-radius: 50%;
+  border: 1px solid var(--line-2); background: #fff; font-size: 16px; line-height: 1; cursor: pointer;
+  display: flex; align-items: center; justify-content: center; transition: background .3s;
+}
+.auth-modal__close:hover { background: var(--bg-band); }
+.auth-modal__tabs { display: flex; gap: 6px; margin-bottom: 22px; }
+.auth-modal__tab {
+  flex: 1; background: none; cursor: pointer; border: 1px solid var(--line-2); border-radius: 7px;
+  font-family: var(--f-sans); font-size: 12px; letter-spacing: 0.1em; text-transform: uppercase;
+  color: var(--ink-3); line-height: 38px; transition: background .3s, color .3s, border-color .3s;
+}
+.auth-modal__tab.is-active { background: var(--ink); color: #fff; border-color: var(--ink); }
+.auth-modal__title { font-family: var(--f-jp); font-weight: 700; font-size: 18px; color: var(--ink); margin-bottom: 6px; }
+.auth-modal__lead { font-size: 12.5px; line-height: 1.8; color: var(--ink-3); margin-bottom: 16px; }
+.auth-modal__notice { font-size: 12.5px; line-height: 1.8; color: var(--ink-3); background: var(--bg-band); border-radius: 8px; padding: 14px 16px; }
+.auth-form { display: flex; flex-direction: column; gap: 14px; margin-top: 18px; }
+.auth-form label { display: flex; flex-direction: column; gap: 6px; font-family: var(--f-sans); font-size: 11.5px; letter-spacing: 0.06em; color: var(--ink-3); }
+.auth-form input {
+  font-family: var(--f-jp); font-size: 14px; color: var(--ink); padding: 12px 13px;
+  border: 1px solid var(--line-2); border-radius: 7px; background: var(--bg-band);
+  transition: border-color .3s, background .3s;
+}
+.auth-form input:focus { outline: none; border-color: var(--ink); background: #fff; }
+.auth-form__error { font-size: 12px; line-height: 1.7; color: #b8442f; }
+.auth-form__submit { margin-top: 4px; width: 100%; justify-content: center; border: none; }
+
+/* =========================================================
+   マイページ（会員限定：購入したチケットの確認）
+   ========================================================= */
+.mypage { max-width: 720px; margin: 0 auto; padding: clamp(48px, 6vw, 88px) var(--pad) clamp(72px, 9vw, 120px); min-height: 50vh; }
+.mypage__state { }
+.mypage__title { font-family: var(--f-jp-serif); font-weight: 600; font-size: clamp(28px, 4vw, 38px); color: var(--ink); margin-top: 14px; }
+.mypage__note { margin-top: 16px; font-size: 14px; line-height: 1.9; color: var(--ink-3); max-width: 480px; }
+.mypage__state > .btn { margin-top: 28px; }
+.mypage__section { margin-top: clamp(40px, 5vw, 64px); }
+.mypage__section h2 { font-family: var(--f-jp); font-weight: 700; font-size: 16px; color: var(--ink); margin-bottom: 18px; }
+.mypage__purchases { display: flex; flex-direction: column; gap: 12px; }
+.mypage__purchase {
+  display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap;
+  padding: 18px 20px; border: 1px solid var(--line); border-radius: 10px; background: var(--bg-band);
+}
+.mypage__purchase-main h3 { font-family: var(--f-jp); font-weight: 700; font-size: 14.5px; color: var(--ink); }
+.mypage__purchase-date { display: block; margin-top: 4px; font-family: var(--f-sans); font-size: 11px; letter-spacing: 0.06em; color: var(--muted); }
+.mypage__purchase-side { display: flex; align-items: center; gap: 12px; }
+.mypage__purchase-price { font-family: var(--f-jp); font-weight: 700; font-size: 15px; color: var(--ink); }
+.mypage__purchase-status {
+  font-family: var(--f-sans); font-size: 10.5px; letter-spacing: 0.08em; text-transform: uppercase;
+  padding: 4px 10px; border-radius: 20px; background: var(--line-2); color: var(--ink-3);
+}
+.mypage__purchase-status.is-paid { background: #e4efe6; color: #2f6b43; }
+.mypage__purchase-status.is-canceled { background: #f2e4e2; color: #a1402c; }

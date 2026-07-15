@@ -203,20 +203,23 @@
     const num = Number(String(n).replace(/[^\d.]/g, ''));
     return isFinite(num) && num > 0 ? '¥' + num.toLocaleString('ja-JP') : String(n || '');
   }
-  function ticketCard(t) {
+  function ticketCard(t, i) {
     const media = t.img
       ? `<img src="${t.img}" alt="${t.name || ''}" loading="lazy" decoding="async">`
       : `<span class="tcard__ph" aria-hidden="true">${(t.name || 'T').trim().charAt(0)}</span>`;
     const buy = t.url
-      ? `<a class="tcard__buy" href="${t.url}" target="_blank" rel="noopener">今すぐ支払う</a>`
+      ? `<a class="tcard__buy" href="${t.url}" target="_blank" rel="noopener" data-ticket-name="${t.name || ''}" data-ticket-price="${t.price || 0}">今すぐ支払う</a>`
       : `<span class="tcard__buy is-disabled" aria-disabled="true">準備中</span>`;
+    const more = (t.detail && t.detail.length)
+      ? `<button type="button" class="tcard__more" data-ticket-index="${i}">もっと見る</button>`
+      : '';
     return `<div class="tcard reveal">
       <div class="tcard__media">${media}</div>
       <div class="tcard__body">
         <h4 class="tcard__name">${t.name || ''}</h4>
         ${t.note ? `<p class="tcard__note">${t.note}</p>` : ''}
         <div class="tcard__price"><span class="tcard__price-k">価格</span><span class="tcard__price-v">${yen(t.price)}</span><span class="tcard__tax">税込</span></div>
-        ${buy}
+        <div class="tcard__actions">${buy}${more}</div>
       </div>
     </div>`;
   }
@@ -227,7 +230,43 @@
     if (!list.length) { wrap.hidden = true; return; }   // チケットが無いときはセクションごと非表示
     wrap.hidden = false;
     fillCards('ticket-cards', list, ticketCard);
+    wireTicketDrawer(list);
   })();
+
+  /* ---------- チケット詳細：「もっと見る」→ 右からスライドするパネル ---------- */
+  function wireTicketDrawer(list) {
+    const drawer = document.getElementById('ticket-drawer');
+    if (!drawer) return;
+    const panelBody = drawer.querySelector('.drawer__body');
+    const titleEl = drawer.querySelector('.drawer__title');
+
+    function open(t) {
+      titleEl.textContent = t.name || '';
+      panelBody.innerHTML = (t.detail || []).map(d =>
+        `<div class="drawer__block">
+          ${d.heading ? `<h4>${d.heading}</h4>` : ''}
+          ${d.body ? `<p>${d.body}</p>` : ''}
+        </div>`
+      ).join('');
+      drawer.classList.add('open');
+      drawer.setAttribute('aria-hidden', 'false');
+      document.body.style.overflow = 'hidden';
+    }
+    function close() {
+      drawer.classList.remove('open');
+      drawer.setAttribute('aria-hidden', 'true');
+      document.body.style.overflow = '';
+    }
+
+    document.querySelectorAll('#ticket-cards .tcard__more').forEach(btn => {
+      btn.addEventListener('click', function () {
+        const i = Number(btn.getAttribute('data-ticket-index'));
+        if (list[i]) open(list[i]);
+      });
+    });
+    drawer.querySelectorAll('[data-drawer-close]').forEach(el => el.addEventListener('click', close));
+    document.addEventListener('keydown', e => { if (e.key === 'Escape') close(); });
+  }
 
   /* ---------- Magazine: カテゴリのフィルタ（All / Fashion / Shop） ---------- */
   (function () {

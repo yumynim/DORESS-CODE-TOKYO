@@ -74,12 +74,12 @@
     <div class="header__inner">
       <a href="#top" class="logo"><img src="assets/images/logo.png" alt="DRESS CODE TOKYO"></a>
       <nav id="nav-desktop" class="nav"></nav>
-      <a href="#event" class="btn btn--solid header__cta">来場について <span class="arrow">→</span></a>
+      <button type="button" class="btn btn--solid header__cta" data-auth-trigger>ログイン</button>
       <button id="menu-btn" class="menu-btn">MENU</button>
     </div>
     <div id="mobile-menu" class="mobile-menu">
       <div id="nav-mobile"></div>
-      <a href="#event" class="btn btn--solid" data-close>来場について</a>
+      <button type="button" class="btn btn--solid" data-close data-auth-trigger>ログイン</button>
     </div>
   </header>
 
@@ -161,6 +161,16 @@
           <div id="ticket-cards" class="carousel__track"></div>
           <button type="button" class="carousel__nav carousel__nav--prev" aria-label="前へ">‹</button>
           <button type="button" class="carousel__nav carousel__nav--next" aria-label="次へ">›</button>
+        </div>
+      </div>
+
+      <!-- チケット詳細パネル（「もっと見る」で右からスライド表示） -->
+      <div id="ticket-drawer" class="drawer" aria-hidden="true">
+        <div class="drawer__backdrop" data-drawer-close></div>
+        <div class="drawer__panel" role="dialog" aria-modal="true">
+          <button type="button" class="drawer__close" data-drawer-close aria-label="閉じる">×</button>
+          <h3 class="drawer__title"></h3>
+          <div class="drawer__body"></div>
         </div>
       </div>
 
@@ -288,5 +298,9 @@
 
   <script src="js/data.js"></script>
   <script src="js/render.js"></script>
+  <!-- 会員登録・ログイン（Supabase）。js/auth-config.js に接続情報を設定してください -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="js/auth-config.js"></script>
+  <script src="js/auth.js"></script>
 </body>
 </html>

@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>マイページ — DRESS CODE TOKYO</title>
+  <meta name="description" content="DRESS CODE TOKYO 会員限定ページ。購入したチケットの確認ができます。">
+  <link rel="canonical" href="https://doress-code-tokyo-cip1.vercel.app/members-only.html">
+  <link rel="icon" href="assets/images/logo-square.jpg">
+  <link rel="apple-touch-icon" href="assets/images/logo-square.jpg">
+  <meta name="theme-color" content="#ffffff">
+  <meta name="robots" content="noindex,nofollow">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;1,300;1,400&family=Jost:wght@300;400;500;600&family=Zen+Kaku+Gothic+New:wght@400;500;700&family=Zen+Old+Mincho:wght@400;500;600;700&display=swap">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+  <div class="announce">
+    <div class="announce__inner">
+      <span><strong>NEXT — DRESS CODE MARKET VOL.1</strong></span>
+      <span class="announce__sep">/</span>
+      <span>Tokyo</span>
+      <span class="announce__sep">/</span>
+      <span>開催情報は近日公開</span>
+    </div>
+  </div>
+
+  <header class="header">
+    <div class="header__inner">
+      <a href="index.html" class="logo"><img src="assets/images/logo.png" alt="DRESS CODE TOKYO"></a>
+      <nav id="nav-desktop" class="nav"></nav>
+      <button type="button" class="btn btn--outline header__cta" id="logout-btn" hidden>ログアウト</button>
+      <button id="menu-btn" class="menu-btn">MENU</button>
+    </div>
+    <div id="mobile-menu" class="mobile-menu">
+      <div id="nav-mobile"></div>
+      <button type="button" class="btn btn--outline" id="logout-btn-mobile" data-close hidden>ログアウト</button>
+    </div>
+  </header>
+
+  <main class="mypage">
+    <!-- 会員登録・ログインが未設定のとき -->
+    <div id="mypage-unconfigured" class="mypage__state" hidden>
+      <span class="kicker">Members</span>
+      <h1 class="mypage__title">マイページ</h1>
+      <p class="mypage__note">会員登録・ログイン機能は現在準備中です。もうしばらくお待ちください。</p>
+      <a class="btn btn--solid" href="index.html">トップに戻る <span class="arrow">→</span></a>
+    </div>
+
+    <!-- 未ログインのとき -->
+    <div id="mypage-guest" class="mypage__state" hidden>
+      <span class="kicker">Members</span>
+      <h1 class="mypage__title">ログインが必要です</h1>
+      <p class="mypage__note">チケットの購入履歴を見るには、ログイン（または新規登録）してください。</p>
+      <button type="button" class="btn btn--solid" id="mypage-login-btn">ログイン / 新規登録 <span class="arrow">→</span></button>
+    </div>
+
+    <!-- ログイン中 -->
+    <div id="mypage-content" class="mypage__state" hidden>
+      <span class="kicker">Members</span>
+      <h1 class="mypage__title" id="mypage-greeting">マイページ</h1>
+      <p class="mypage__note">購入したチケットはこちらで確認できます。</p>
+
+      <section class="mypage__section">
+        <h2>購入したチケット</h2>
+        <div id="mypage-purchases" class="mypage__purchases">
+          <p class="cards-empty">読み込み中…</p>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <footer class="footer">
+    <div class="footer__inner">
+      <div class="footer__grid">
+        <div>
+          <div class="brand-serif">DRESS CODE</div>
+          <div class="brand-sub">TOKYO</div>
+          <p class="blurb">Tokyo Fashion Market &amp; Culture Community. ファッションをきっかけに、人とカルチャーが出会う場所。</p>
+        </div>
+        <div class="footer__col"><h4>Sitemap</h4><div id="footer-sitemap" class="links"></div></div>
+        <div class="footer__col">
+          <h4>Get involved</h4>
+          <div class="links">
+            <a href="index.html#event">来場について</a>
+            <a href="index.html#community">コミュニティに参加する</a>
+            <a href="index.html#members">運用メンバー</a>
+            <a href="index.html#contact">お問い合わせ</a>
+          </div>
+        </div>
+        <div class="footer__col"><div id="footer-socials"></div></div>
+      </div>
+      <div class="footer__bar">
+        <span>© 2026 DRESS CODE TOKYO</span>
+        <span>Wear your story. Meet the culture.</span>
+      </div>
+    </div>
+  </footer>
+
+  <script src="js/data.js"></script>
+  <script src="js/render.js"></script>
+  <!-- 会員登録・ログイン（Supabase）。js/auth-config.js に接続情報を設定してください -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="js/auth-config.js"></script>
+  <script src="js/auth.js"></script>
+  <script>
+    (function () {
+      const states = {
+        unconfigured: document.getElementById('mypage-unconfigured'),
+        guest: document.getElementById('mypage-guest'),
+        content: document.getElementById('mypage-content'),
+      };
+      function show(name) {
+        Object.keys(states).forEach(k => { states[k].hidden = (k !== name); });
+      }
+
+      const yen = n => (isFinite(n) && n > 0) ? '¥' + Number(n).toLocaleString('ja-JP') : String(n || '');
+      const STATUS_LABEL = { initiated: '手続き中', paid: '購入完了', canceled: 'キャンセル' };
+
+      function renderPurchases(list) {
+        const el = document.getElementById('mypage-purchases');
+        if (!list.length) { el.innerHTML = '<p class="cards-empty">まだチケットの購入履歴はありません。</p>'; return; }
+        el.innerHTML = list.map(p => `
+          <div class="mypage__purchase">
+            <div class="mypage__purchase-main">
+              <h3>${p.ticket_name}</h3>
+              <span class="mypage__purchase-date">${new Date(p.created_at).toLocaleDateString('ja-JP')}</span>
+            </div>
+            <div class="mypage__purchase-side">
+              <span class="mypage__purchase-price">${yen(p.price)}</span>
+              <span class="mypage__purchase-status is-${p.status}">${STATUS_LABEL[p.status] || p.status}</span>
+            </div>
+          </div>`).join('');
+      }
+
+      function loadPurchases(session) {
+        const client = window.DCT_AUTH.getClient();
+        client.from('purchases')
+          .select('ticket_name, price, status, created_at')
+          .eq('user_id', session.user.id)
+          .order('created_at', { ascending: false })
+          .then(res => {
+            if (res.error) { document.getElementById('mypage-purchases').innerHTML = '<p class="cards-empty">読み込みに失敗しました。</p>'; return; }
+            renderPurchases(res.data || []);
+          });
+      }
+
+      function paint(session) {
+        if (!window.DCT_AUTH.isConfigured()) { show('unconfigured'); return; }
+        if (!session) { show('guest'); return; }
+        show('content');
+        const name = (session.user.user_metadata && session.user.user_metadata.display_name) || session.user.email;
+        document.getElementById('mypage-greeting').textContent = name + ' さん、こんにちは。';
+        document.getElementById('logout-btn').hidden = false;
+        document.getElementById('logout-btn-mobile').hidden = false;
+        loadPurchases(session);
+      }
+
+      document.getElementById('mypage-login-btn').addEventListener('click', function () {
+        window.DCT_AUTH.openModal({ tab: 'signin' });
+      });
+      ['logout-btn', 'logout-btn-mobile'].forEach(id => {
+        document.getElementById(id).addEventListener('click', function () {
+          window.DCT_AUTH.signOut().then(() => { window.location.href = 'index.html'; });
+        });
+      });
+
+      // auth.js の DOMContentLoaded 初期化を待ってから状態を判定する
+      window.addEventListener('load', function () {
+        paint(window.DCT_AUTH.getSession());
+        window.DCT_AUTH.onChange(paint);
+      });
+    })();
+  </script>
+</body>
+</html>

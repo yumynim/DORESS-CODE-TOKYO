@@ -31,12 +31,12 @@
     <div class="header__inner">
       <a href="index.html" class="logo"><img src="assets/images/logo.png" alt="DRESS CODE TOKYO"></a>
       <nav id="nav-desktop" class="nav"></nav>
-      <a href="index.html#event" class="btn btn--solid header__cta">来場について <span class="arrow">→</span></a>
+      <button type="button" class="btn btn--solid header__cta" data-auth-trigger>ログイン</button>
       <button id="menu-btn" class="menu-btn">MENU</button>
     </div>
     <div id="mobile-menu" class="mobile-menu">
       <div id="nav-mobile"></div>
-      <a href="index.html#event" class="btn btn--solid" data-close>来場について</a>
+      <button type="button" class="btn btn--solid" data-close data-auth-trigger>ログイン</button>
     </div>
   </header>
 
@@ -85,5 +85,9 @@
 
   <script src="js/data.js"></script>
   <script src="js/render.js"></script>
+  <!-- 会員登録・ログイン（Supabase）。js/auth-config.js に接続情報を設定してください -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="js/auth-config.js"></script>
+  <script src="js/auth.js"></script>
 </body>
 </html>
