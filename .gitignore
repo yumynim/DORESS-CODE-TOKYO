@@ -10,5 +10,13 @@ DRESS CODE TOKYO.html
 # Vercel
 .vercel
 
+# 依存パッケージ（npm install で復元される。コミット不要）
+node_modules/
+
+# 実際の秘密鍵（.env.example はテンプレートなのでコミットOK、.env自体は絶対NG）
+.env
+.env.local
+.env*.local
+
 # 素材フォルダ（写真・動画の元データ。サイトには含めない）
 添付資料/

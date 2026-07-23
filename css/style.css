@@ -1042,3 +1042,58 @@ a.mcard__sns:hover { transform: translateY(-3px); }
 }
 .mypage__purchase-status.is-paid { background: #e4efe6; color: #2f6b43; }
 .mypage__purchase-status.is-canceled { background: #f2e4e2; color: #a1402c; }
+
+/* =========================================================
+   カート（複数商品まとめてSquare決済）
+   ========================================================= */
+/* ヘッダーのカートボタン */
+.cart-btn {
+  position: relative; flex: none; display: flex; align-items: center; justify-content: center;
+  width: 40px; height: 40px; border-radius: 50%; border: 1px solid var(--line-2); background: none;
+  color: var(--ink); cursor: pointer; transition: background .3s, border-color .3s;
+}
+.cart-btn:hover { background: var(--bg-band); border-color: var(--ink); }
+.cart-badge {
+  position: absolute; top: -4px; right: -4px; min-width: 17px; height: 17px; padding: 0 4px;
+  border-radius: 999px; background: var(--ink); color: #fff;
+  font-family: var(--f-sans); font-size: 10px; font-weight: 700; line-height: 17px; text-align: center;
+}
+.cart-btn--mobile {
+  width: auto; height: auto; border-radius: 999px; padding: 12px 20px; gap: 10px;
+  border: 1px solid var(--ink); margin-top: 10px;
+}
+.cart-btn--mobile .cart-badge { position: static; margin-left: 4px; }
+
+/* 商品カードの「カートに追加」ボタン */
+.tcard__cart-add {
+  display: block; width: 100%; text-align: center; background: none; cursor: pointer;
+  font-family: var(--f-sans); font-size: 12.5px; letter-spacing: 0.08em; line-height: 40px; height: 40px;
+  color: var(--ink); border: 1px solid var(--ink); border-radius: 7px;
+  transition: background .3s var(--ease), color .3s var(--ease);
+}
+.tcard__cart-add:hover { background: var(--ink); color: #fff; }
+
+/* カートドロワーの中身（既存の .drawer / .drawer__panel を土台に使う） */
+.cart-list { display: flex; flex-direction: column; gap: 14px; margin-top: 8px; }
+.cart-item {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding-bottom: 14px; border-bottom: 1px solid var(--line);
+}
+.cart-item__body { display: flex; flex-direction: column; gap: 4px; }
+.cart-item__name { font-family: var(--f-jp); font-weight: 700; font-size: 13.5px; color: var(--ink); }
+.cart-item__price { font-family: var(--f-sans); font-size: 12px; color: var(--ink-3); }
+.cart-item__qty { display: flex; align-items: center; gap: 10px; flex: none; }
+.cart-item__step {
+  width: 26px; height: 26px; border-radius: 50%; border: 1px solid var(--line-2); background: none;
+  cursor: pointer; font-size: 15px; line-height: 1; color: var(--ink); transition: background .3s;
+}
+.cart-item__step:hover { background: var(--bg-band); }
+.cart-item__n { min-width: 16px; text-align: center; font-variant-numeric: tabular-nums; font-size: 13px; color: var(--ink); }
+.cart-error { margin-top: 10px; font-size: 12px; line-height: 1.7; color: #b8442f; }
+.cart-summary {
+  margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--line-2);
+  display: flex; align-items: baseline; justify-content: space-between;
+  font-family: var(--f-jp); font-weight: 700; font-size: 16px; color: var(--ink);
+}
+.cart-checkout { margin-top: 16px; width: 100%; justify-content: center; border: none; }
+.cart-checkout:disabled { background: var(--line-2); color: var(--muted); pointer-events: none; }

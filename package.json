@@ -1,0 +1,10 @@
+{
+  "name": "dress-code-tokyo",
+  "private": true,
+  "version": "1.0.0",
+  "description": "DRESS CODE TOKYO — 静的サイト＋Vercel Functions（Square決済・Webhook）",
+  "type": "commonjs",
+  "dependencies": {
+    "@supabase/supabase-js": "^2.45.0"
+  }
+}

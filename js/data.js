@@ -50,14 +50,18 @@ window.SITE = {
   eventVisualC: '',                                // 来場者向け（toC）チラシ。画像が決まったらパスを入れる
 
   /* ▼ 出店者向け（toB）：申し込み・出店料のカード。
-     - name    : カードの見出し（例：出店料（1ブース））
-     - price   : 数字だけ（カンマ無しでOK）
-     - note    : 補足（任意）
-     - url     : ボタンのリンク先。決済リンクが無ければ申し込みフォーム（#contact 等）でもOK
-     - buyLabel: ボタンの文言（省略時は「今すぐ支払う」）
-     - img     : カード上部の写真（任意）
-     - detail  : 「もっと見る」の中身（{ heading, body } の配列。省略可）
-     ※ 決済リンクが決まったら url を差し替えてください。 */
+     - name           : カードの見出し（例：出店料（1ブース））
+     - price          : 数字だけ（カンマ無しでOK）
+     - note           : 補足（任意）
+     - url            : 「今すぐ支払う」ボタンのリンク先（単品購入・従来の動線）
+     - buyLabel       : ボタンの文言（省略時は「今すぐ支払う」）
+     - img            : カード上部の写真（任意）
+     - detail         : 「もっと見る」の中身（{ heading, body } の配列。省略可）
+     - catalogObjectId: Square の「アイテムライブラリ」にこの商品を登録した後に発行される商品ID。
+                         これを入れると「カートに追加」ボタンが使えるようになる（複数商品をまとめて決済可能）。
+                         空のままなら「今すぐ支払う」（単品購入）だけが表示される。
+                         調べ方：Square Dashboard → 商品管理 → 対象の商品を開く → URLの末尾、または
+                         Square Developer Dashboard → API Explorer → Catalog API → ListCatalog で確認できる。 */
   ticketsB: [
     {
       name: '出店料（1ブース）',
@@ -66,6 +70,7 @@ window.SITE = {
       url: 'index.html#contact',
       buyLabel: '出店を申し込む',
       img: '',
+      catalogObjectId: '', // ← Squareのアイテムライブラリに登録後、ここに商品IDを貼る
       detail: [
         { heading: '出店について', body: '古着・オリジナルブランド、アクセサリー、雑貨、ZINE、ハンドメイドなど幅広く出店いただけます。' },
         { heading: '出店決定後の流れ', body: 'Googleフォーム提出 → お支払い（現金・PayPay・口座振込）→ 当アカウントのフォロー・リツイート等 → イベント当日。' },
@@ -82,6 +87,7 @@ window.SITE = {
       note: '前売り / 数量限定',
       url: 'https://square.link/u/cCcEtmx3?src=embed',
       img: '',
+      catalogObjectId: '', // ← Squareのアイテムライブラリに登録後、ここに商品IDを貼る
       detail: [
         { heading: 'このチケットについて', body: 'DRESS CODE MARKET 当日、1日通して入場できるチケットです。前売り・数量限定での販売となります。' },
         { heading: '購入方法', body: 'ボタンを押すとSquareの決済ページが開きます。購入完了後、確認のご連絡は登録いただいたメールアドレス宛に届きます。' },
@@ -89,7 +95,7 @@ window.SITE = {
       ],
     },
     // 例：もう1種類増やすときは下のコメントを外して編集
-    // { name: 'ペアチケット', price: 3500, note: '2名分', url: 'https://square.link/u/xxxxxxx?src=embed', img: '', detail: [{ heading: 'このチケットについて', body: '...' }] },
+    // { name: 'ペアチケット', price: 3500, note: '2名分', url: 'https://square.link/u/xxxxxxx?src=embed', img: '', catalogObjectId: '', detail: [{ heading: 'このチケットについて', body: '...' }] },
   ],
 
   /* ▼ Event：動画（いずれ追加予定 — iframe を貼ると表示される）

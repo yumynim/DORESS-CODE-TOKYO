@@ -128,13 +128,18 @@
     const more = (t.detail && t.detail.length)
       ? `<button type="button" class="tcard__more" data-ticket-index="${i}">もっと見る</button>`
       : '';
+    // Squareのアイテムライブラリに登録済み（catalogObjectIdあり）の商品だけ、カート追加ができる
+    // （複数商品をまとめて1回で決済したい時用。未登録の商品は単品購入のみ）
+    const cartAdd = t.catalogObjectId
+      ? `<button type="button" class="tcard__cart-add" data-catalog-id="${t.catalogObjectId}" data-name="${t.name || ''}" data-price="${t.price || 0}">カートに追加</button>`
+      : '';
     return `<div class="tcard reveal">
       <div class="tcard__media">${media}</div>
       <div class="tcard__body">
         <h4 class="tcard__name">${t.name || ''}</h4>
         ${t.note ? `<p class="tcard__note">${t.note}</p>` : ''}
         <div class="tcard__price"><span class="tcard__price-k">価格</span><span class="tcard__price-v">${yen(t.price)}</span><span class="tcard__tax">税込</span></div>
-        <div class="tcard__actions">${buy}${more}</div>
+        <div class="tcard__actions">${buy}${cartAdd}${more}</div>
       </div>
     </div>`;
   }
