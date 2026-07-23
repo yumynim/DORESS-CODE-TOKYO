@@ -17,10 +17,27 @@
   }
 
   var session = null;              // 現在のログインセッション（未ログインなら null）
-  var pendingTicket = null;        // ログイン前にチケット購入を押した場合、ログイン後に再開するための一時保存
   var listeners = [];              // ログイン状態が変わったときに呼ぶコールバック
+  var PENDING_TICKET_KEY = 'dct_pending_ticket';
+
+  // ログイン前にチケット購入を押した場合、ログイン後に再開するための一時保存。
+  // Googleログインは別ドメインへ丸ごと画面遷移する（=JSの変数は消える）ので、
+  // メモリ上の変数ではなく sessionStorage に保存しておく（戻ってきた後も読み出せる）。
+  function setPendingTicket(t) { sessionStorage.setItem(PENDING_TICKET_KEY, JSON.stringify(t)); }
+  function takePendingTicket() {
+    var raw = sessionStorage.getItem(PENDING_TICKET_KEY);
+    if (!raw) return null;
+    sessionStorage.removeItem(PENDING_TICKET_KEY);
+    try { return JSON.parse(raw); } catch (e) { return null; }
+  }
 
   function notify() { listeners.forEach(function (fn) { try { fn(session); } catch (e) {} }); }
+
+  function signInWithGoogle() {
+    if (!client) return;
+    // 今いるページに戻ってくるように redirectTo を指定（チケット購入の再開に必要）
+    client.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: window.location.href } });
+  }
 
   /* ---------- モーダル DOM を組み立てて body 末尾に差し込む ---------- */
   function buildModal() {
@@ -39,6 +56,11 @@
       '  <h3 id="auth-modal-title" class="auth-modal__title">アカウントにログイン</h3>' +
       '  <p class="auth-modal__lead" id="auth-modal-lead" hidden></p>' +
       '  <p class="auth-modal__notice" id="auth-modal-notice" hidden></p>' +
+      '  <button type="button" class="auth-modal__google" id="auth-google-btn">' +
+      '    <svg viewBox="0 0 18 18" width="18" height="18" aria-hidden="true"><path fill="#4285F4" d="M17.64 9.2c0-.64-.06-1.25-.16-1.84H9v3.48h4.84a4.14 4.14 0 0 1-1.8 2.72v2.26h2.9c1.7-1.57 2.7-3.88 2.7-6.62z"/><path fill="#34A853" d="M9 18c2.43 0 4.47-.8 5.96-2.18l-2.9-2.26c-.8.54-1.83.86-3.06.86-2.35 0-4.34-1.59-5.05-3.72H.9v2.33A9 9 0 0 0 9 18z"/><path fill="#FBBC05" d="M3.95 10.7A5.4 5.4 0 0 1 3.67 9c0-.59.1-1.17.28-1.7V4.97H.9A9 9 0 0 0 0 9c0 1.45.35 2.83.9 4.03l3.05-2.33z"/><path fill="#EA4335" d="M9 3.58c1.32 0 2.51.46 3.44 1.35l2.58-2.58C13.46.89 11.43 0 9 0A9 9 0 0 0 .9 4.97l3.05 2.33C4.66 5.17 6.65 3.58 9 3.58z"/></svg>' +
+      '    Googleでログイン' +
+      '  </button>' +
+      '  <div class="auth-modal__or"><span>または</span></div>' +
       '  <form id="auth-form-signin" class="auth-form">' +
       '    <label>メールアドレス<input type="email" name="email" required autocomplete="email"></label>' +
       '    <label>パスワード<input type="password" name="password" required autocomplete="current-password"></label>' +
@@ -57,7 +79,7 @@
     return wrap;
   }
 
-  var modal = null, elLead = null, elNotice = null, formSignin = null, formSignup = null, tabBtns = null, titleEl = null;
+  var modal = null, elLead = null, elNotice = null, formSignin = null, formSignup = null, tabBtns = null, titleEl = null, googleBtn = null;
 
   function ensureModal() {
     if (modal) return modal;
@@ -68,6 +90,7 @@
     formSignup = modal.querySelector('#auth-form-signup');
     tabBtns = modal.querySelectorAll('.auth-modal__tab');
     titleEl = modal.querySelector('#auth-modal-title');
+    googleBtn = modal.querySelector('#auth-google-btn');
 
     modal.querySelectorAll('[data-auth-close]').forEach(function (el) {
       el.addEventListener('click', closeModal);
@@ -84,9 +107,12 @@
       formSignin.hidden = true;
       formSignup.hidden = true;
       modal.querySelector('.auth-modal__tabs').hidden = true;
+      googleBtn.hidden = true;
+      modal.querySelector('.auth-modal__or').hidden = true;
     } else {
       formSignin.addEventListener('submit', handleSignin);
       formSignup.addEventListener('submit', handleSignup);
+      googleBtn.addEventListener('click', signInWithGoogle);
     }
     return modal;
   }
@@ -174,11 +200,14 @@
     session = newSession;
     closeModal();
     notify();
-    if (pendingTicket) {
-      var t = pendingTicket; pendingTicket = null;
-      recordPurchase(t);
-      window.open(t.url, '_blank', 'noopener');
-    }
+    resumePendingTicket();
+  }
+
+  function resumePendingTicket() {
+    var t = takePendingTicket();
+    if (!t) return;
+    recordPurchase(t);
+    window.open(t.url, '_blank', 'noopener');
   }
 
   function recordPurchase(t) {
@@ -232,7 +261,7 @@
       };
       if (!session) {
         e.preventDefault();
-        pendingTicket = ticket;
+        setPendingTicket(ticket);
         openModal({ tab: 'signup', lead: 'チケットの購入にはログイン（または新規登録）が必要です。' });
         return;
       }
@@ -249,11 +278,16 @@
       session = res.data.session;
       paintAuthButtons();
       notify();
+      // Googleログインからページ遷移して戻ってきた直後もここを通るので、
+      // 既にセッションが存在していれば保留中のチケット購入をここで再開する。
+      if (session) resumePendingTicket();
     });
     client.auth.onAuthStateChange(function (_event, newSession) {
+      var wasLoggedOut = !session;
       session = newSession;
       paintAuthButtons();
       notify();
+      if (wasLoggedOut && session) resumePendingTicket();
     });
   }
 
@@ -269,5 +303,6 @@
     onChange: function (fn) { listeners.push(fn); },
     signOut: function () { return client ? client.auth.signOut() : Promise.resolve(); },
     openModal: openModal,
+    signInWithGoogle: signInWithGoogle,
   };
 })();

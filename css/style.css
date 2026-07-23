@@ -1006,6 +1006,17 @@ a.mcard__sns:hover { transform: translateY(-3px); }
 .auth-modal__title { font-family: var(--f-jp); font-weight: 700; font-size: 18px; color: var(--ink); margin-bottom: 6px; }
 .auth-modal__lead { font-size: 12.5px; line-height: 1.8; color: var(--ink-3); margin-bottom: 16px; }
 .auth-modal__notice { font-size: 12.5px; line-height: 1.8; color: var(--ink-3); background: var(--bg-band); border-radius: 8px; padding: 14px 16px; }
+/* Googleでログイン */
+.auth-modal__google {
+  width: 100%; display: flex; align-items: center; justify-content: center; gap: 10px;
+  font-family: var(--f-sans); font-size: 13px; color: var(--ink); background: #fff; cursor: pointer;
+  border: 1px solid var(--line-2); border-radius: 7px; line-height: 44px; height: 44px;
+  transition: background .3s, border-color .3s;
+}
+.auth-modal__google:hover { background: var(--bg-band); border-color: var(--ink-3); }
+.auth-modal__or { display: flex; align-items: center; gap: 12px; margin: 16px 0; }
+.auth-modal__or::before, .auth-modal__or::after { content: ''; flex: 1; height: 1px; background: var(--line); }
+.auth-modal__or span { font-family: var(--f-sans); font-size: 10.5px; letter-spacing: 0.1em; color: var(--muted); }
 .auth-form { display: flex; flex-direction: column; gap: 14px; margin-top: 18px; }
 .auth-form label { display: flex; flex-direction: column; gap: 6px; font-family: var(--f-sans); font-size: 11.5px; letter-spacing: 0.06em; color: var(--ink-3); }
 .auth-form input {

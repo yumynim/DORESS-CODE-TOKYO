@@ -136,17 +136,23 @@
     errorEl.hidden = false;
   }
 
-  /* ---------- チェックアウト：/api/checkout に送って Square の決済ページへ ---------- */
+  /* ---------- チェックアウト：/api/checkout に送って Square の決済ページへ ----------
+     Googleログインは別画面へ丸ごと遷移する（=このページのJS状態は消える）ため、
+     「カートのお会計をしようとしていた」という事実は sessionStorage に残しておき、
+     ログインして戻ってきた時に自動でチェックアウトを再開する。 */
+  const PENDING_CHECKOUT_KEY = 'dct_pending_checkout';
   function startCheckout() {
     errorEl.hidden = true;
     const auth = window.DCT_AUTH;
     if (!auth || !auth.isConfigured()) { showError('ログイン機能が準備中のため、まだ購入できません。'); return; }
     const session = auth.getSession();
     if (!session) {
+      sessionStorage.setItem(PENDING_CHECKOUT_KEY, '1');
       closeCart();
       auth.openModal({ tab: 'signup', lead: 'カートのお会計にはログイン（または新規登録）が必要です。' });
       return;
     }
+    sessionStorage.removeItem(PENDING_CHECKOUT_KEY);
     const list = readCart();
     if (!list.length) return;
 
@@ -191,4 +197,17 @@
 
   document.addEventListener('DOMContentLoaded', function () { ensurePanel(); updateBadge(); });
   if (document.readyState !== 'loading') { ensurePanel(); updateBadge(); }
+
+  /* ---------- ログイン状態が変わったら、保留中のチェックアウトがあれば自動で再開 ---------- */
+  function wireResumeCheckout() {
+    if (!window.DCT_AUTH) return;
+    window.DCT_AUTH.onChange(function (session) {
+      if (session && sessionStorage.getItem(PENDING_CHECKOUT_KEY) && readCart().length) {
+        sessionStorage.removeItem(PENDING_CHECKOUT_KEY);
+        startCheckout();
+      }
+    });
+  }
+  if (window.DCT_AUTH) { wireResumeCheckout(); }
+  else { document.addEventListener('DOMContentLoaded', wireResumeCheckout); }
 })();
