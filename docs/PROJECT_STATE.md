@@ -43,7 +43,8 @@ DORESS CODE TOKYO/
 ├── vercel.json                    セキュリティヘッダー設定
 ├── .env.example                   環境変数テンプレート（実値は Vercel の環境変数に設定する想定）
 ├── DRESS CODE TOKYO.html          元の22MBバンドル（バックアップ、gitignore対象・デプロイ不要）
-└── 添付資料/                       元画像の受け取りフォルダ（gitignore対象）
+└── 方針/ 事業/ 案件/ 素材/          運営資料（すべてgitignore対象・ローカルのみ。詳細はCLAUDE.md参照。
+                                   「素材」は旧フォルダ名「添付資料」からリネーム）
 ```
 
 # 使用技術・外部サービス
