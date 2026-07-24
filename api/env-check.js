@@ -30,6 +30,13 @@ module.exports = async function handler(req, res) {
 
   const status = {};
   keys.forEach((k) => { status[k] = !!process.env[k]; });
+  // このデプロイが「本当に今回のpush・環境変数の変更を反映したものか」を見分けるための目印
+  // （Vercelが自動で用意するSystem Environment Variables。プロジェクト設定で
+  //  "Enable access to System Environment Variables" がオンである必要がある）
+  status.__respondedAt = new Date().toISOString();
+  status.__vercelUrl = process.env.VERCEL_URL || null;               // このデプロイ固有のURL
+  status.__vercelEnv = process.env.VERCEL_ENV || null;                // production / preview / development
+  status.__gitCommitSha = process.env.VERCEL_GIT_COMMIT_SHA || null;  // どのコミットからビルドされたか
 
   res.status(200).json(status);
 };
