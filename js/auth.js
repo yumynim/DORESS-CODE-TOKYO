@@ -137,8 +137,8 @@
 
   function openModal(opts) {
     opts = opts || {};
+    if (session) { openAccountDrawer(); return; }
     ensureModal();
-    if (session) { window.location.href = 'members-only.html'; return; }
     if (opts.lead) { elLead.hidden = false; elLead.textContent = opts.lead; } else { elLead.hidden = true; }
     if (CONFIGURED) switchTab(opts.tab || 'signin');
     modal.classList.add('open');
@@ -223,52 +223,105 @@
     });
   }
 
-  /* ---------- ヘッダーの「ログイン」ボタンの出し分け ---------- */
+  /* ---------- ヘッダーの「ログイン」ボタン ⇄ マイページアイコンの出し分け ----------
+     ログイン中は他のページから離脱させたくないので、ページ遷移ではなく
+     ドロワー（カートと同じ仕組み）でマイページの中身を表示する。 */
+  var ACCOUNT_ICON_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="19" height="19"><circle cx="12" cy="8" r="3.4"/><path d="M4.5 20c1.4-4 4-6 7.5-6s6.1 2 7.5 6"/></svg>';
+
   function paintAuthButtons() {
     document.querySelectorAll('[data-auth-trigger]').forEach(function (btn) {
-      var dot = btn.querySelector('.notif-dot'); // textContent= で消えるので後で戻す
-      if (!CONFIGURED) { btn.textContent = 'ログイン'; return; }
-      if (session) {
-        var name = (session.user.user_metadata && session.user.user_metadata.display_name) || session.user.email;
-        btn.textContent = 'マイページ';
-        btn.setAttribute('title', name + ' としてログイン中');
-      } else {
-        btn.textContent = 'ログイン';
+      if (!CONFIGURED || !session) {
         btn.removeAttribute('title');
+        btn.removeAttribute('aria-label');
+        btn.textContent = 'ログイン';
+        return;
       }
-      if (dot) btn.appendChild(dot);
+      var name = (session.user.user_metadata && session.user.user_metadata.display_name) || session.user.email;
+      btn.setAttribute('title', name + ' としてログイン中');
+      btn.setAttribute('aria-label', 'マイページを開く');
+      btn.innerHTML = ACCOUNT_ICON_SVG + '<span>マイページ</span>';
     });
-  }
-
-  /* ---------- ヘッダーの未読お知らせバッジ（マイページに未読の通知があるとき赤丸を出す） ---------- */
-  function setNotifDot(show) {
-    document.querySelectorAll('[data-auth-trigger]').forEach(function (btn) {
-      var dot = btn.querySelector('.notif-dot');
-      if (!dot) {
-        dot = document.createElement('span');
-        dot.className = 'notif-dot';
-        btn.appendChild(dot);
-      }
-      dot.hidden = !show;
-    });
-  }
-  function refreshNotifBadge() {
-    if (!CONFIGURED || !client || !session) { setNotifDot(false); return; }
-    client.from('notifications')
-      .select('id', { count: 'exact', head: true })
-      .eq('user_id', session.user.id)
-      .eq('read', false)
-      .then(function (res) { setNotifDot(!res.error && res.count > 0); });
   }
 
   function wireAuthButtons() {
     document.querySelectorAll('[data-auth-trigger]').forEach(function (btn) {
       btn.addEventListener('click', function (e) {
         e.preventDefault();
-        if (CONFIGURED && session) { window.location.href = 'members-only.html'; return; }
+        if (CONFIGURED && session) { openAccountDrawer(); return; }
         openModal({ tab: 'signin' });
       });
     });
+  }
+
+  /* ---------- マイページ用ドロワー（購入したチケット＋ログアウト） ----------
+     ヘッダーのアイコンから、他のページを離れずに開ける。 */
+  var accountDrawer = null, accountGreetingEl = null, accountPurchasesEl = null;
+  var ACCOUNT_STATUS_LABEL = { initiated: '手続き中', paid: '購入完了', canceled: 'キャンセル' };
+  function escHtml(s) { return String(s == null ? '' : s).replace(/[&<>]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]; }); }
+
+  function ensureAccountDrawer() {
+    if (accountDrawer) return accountDrawer;
+    accountDrawer = document.createElement('div');
+    accountDrawer.id = 'account-drawer';
+    accountDrawer.className = 'drawer';
+    accountDrawer.setAttribute('aria-hidden', 'true');
+    accountDrawer.innerHTML =
+      '<div class="drawer__backdrop" data-account-close></div>' +
+      '<div class="drawer__panel" role="dialog" aria-modal="true">' +
+      '  <button type="button" class="drawer__close" data-account-close aria-label="閉じる">×</button>' +
+      '  <h3 class="drawer__title" id="account-greeting">マイページ</h3>' +
+      '  <section class="mypage__section">' +
+      '    <h2>購入したチケット</h2>' +
+      '    <div id="account-purchases" class="mypage__purchases"><p class="cards-empty">読み込み中…</p></div>' +
+      '  </section>' +
+      '  <button type="button" class="btn btn--outline account-drawer__logout" id="account-logout">ログアウト</button>' +
+      '</div>';
+    document.body.appendChild(accountDrawer);
+    accountGreetingEl = accountDrawer.querySelector('#account-greeting');
+    accountPurchasesEl = accountDrawer.querySelector('#account-purchases');
+    accountDrawer.querySelectorAll('[data-account-close]').forEach(function (el) { el.addEventListener('click', closeAccountDrawer); });
+    accountDrawer.querySelector('#account-logout').addEventListener('click', function () {
+      client.auth.signOut().then(closeAccountDrawer);
+    });
+    document.addEventListener('keydown', function (e) { if (e.key === 'Escape') closeAccountDrawer(); });
+    return accountDrawer;
+  }
+
+  function loadAccountPurchases() {
+    var yen = function (n) { return (isFinite(n) && n > 0) ? '¥' + Number(n).toLocaleString('ja-JP') : String(n || ''); };
+    client.from('purchases')
+      .select('ticket_name, price, status, created_at')
+      .eq('user_id', session.user.id)
+      .order('created_at', { ascending: false })
+      .then(function (res) {
+        if (res.error) { accountPurchasesEl.innerHTML = '<p class="cards-empty">読み込みに失敗しました。</p>'; return; }
+        var list = res.data || [];
+        if (!list.length) { accountPurchasesEl.innerHTML = '<p class="cards-empty">まだチケットの購入履歴はありません。</p>'; return; }
+        accountPurchasesEl.innerHTML = list.map(function (p) {
+          return '<div class="mypage__purchase">' +
+            '<div class="mypage__purchase-main"><h3>' + escHtml(p.ticket_name) + '</h3>' +
+            '<span class="mypage__purchase-date">' + new Date(p.created_at).toLocaleDateString('ja-JP') + '</span></div>' +
+            '<div class="mypage__purchase-side"><span class="mypage__purchase-price">' + yen(p.price) + '</span>' +
+            '<span class="mypage__purchase-status is-' + p.status + '">' + escHtml(ACCOUNT_STATUS_LABEL[p.status] || p.status) + '</span></div></div>';
+        }).join('');
+      });
+  }
+
+  function openAccountDrawer() {
+    if (!session) return;
+    ensureAccountDrawer();
+    var name = (session.user.user_metadata && session.user.user_metadata.display_name) || session.user.email;
+    accountGreetingEl.textContent = name + ' さん';
+    loadAccountPurchases();
+    accountDrawer.classList.add('open');
+    accountDrawer.setAttribute('aria-hidden', 'false');
+    document.body.style.overflow = 'hidden';
+  }
+  function closeAccountDrawer() {
+    if (!accountDrawer) return;
+    accountDrawer.classList.remove('open');
+    accountDrawer.setAttribute('aria-hidden', 'true');
+    document.body.style.overflow = '';
   }
 
   /* ---------- チケット購入ボタン：未ログインならログインへ誘導、ログイン中なら履歴を記録 ---------- */
@@ -300,7 +353,6 @@
     client.auth.getSession().then(function (res) {
       session = res.data.session;
       paintAuthButtons();
-      refreshNotifBadge();
       notify();
       // Googleログインからページ遷移して戻ってきた直後もここを通るので、
       // 既にセッションが存在していれば保留中のチケット購入をここで再開する。
@@ -310,7 +362,6 @@
       var wasLoggedOut = !session;
       session = newSession;
       paintAuthButtons();
-      refreshNotifBadge();
       notify();
       if (wasLoggedOut && session) resumePendingTicket();
     });
@@ -329,6 +380,6 @@
     signOut: function () { return client ? client.auth.signOut() : Promise.resolve(); },
     openModal: openModal,
     signInWithGoogle: signInWithGoogle,
-    refreshNotifBadge: refreshNotifBadge,
+    openAccountDrawer: openAccountDrawer,
   };
 })();

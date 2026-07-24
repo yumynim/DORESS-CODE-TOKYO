@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>お知らせ投稿 — DRESS CODE TOKYO</title>
+  <meta name="description" content="DRESS CODE TOKYO 管理者向け：会員全員へのお知らせ投稿ページ。">
+  <link rel="icon" href="assets/images/logo-square.jpg">
+  <link rel="apple-touch-icon" href="assets/images/logo-square.jpg">
+  <meta name="theme-color" content="#ffffff">
+  <meta name="robots" content="noindex,nofollow">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;1,300;1,400&family=Jost:wght@300;400;500;600&family=Zen+Kaku+Gothic+New:wght@400;500;700&family=Zen+Old+Mincho:wght@400;500;600;700&display=swap">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+  <header class="header">
+    <div class="header__inner">
+      <a href="index.html" class="logo"><img src="assets/images/logo.png" alt="DRESS CODE TOKYO"></a>
+      <nav id="nav-desktop" class="nav"></nav>
+      <button type="button" class="btn btn--outline header__cta" id="logout-btn" hidden>ログアウト</button>
+      <button id="menu-btn" class="menu-btn">MENU</button>
+    </div>
+    <div id="mobile-menu" class="mobile-menu">
+      <div id="nav-mobile"></div>
+      <button type="button" class="btn btn--outline" id="logout-btn-mobile" data-close hidden>ログアウト</button>
+    </div>
+  </header>
+
+  <main class="mypage">
+    <!-- 会員登録・ログインが未設定のとき -->
+    <div id="admin-unconfigured" class="mypage__state" hidden>
+      <span class="kicker">Admin</span>
+      <h1 class="mypage__title">お知らせ投稿</h1>
+      <p class="mypage__note">会員登録・ログイン機能は現在準備中です。もうしばらくお待ちください。</p>
+      <a class="btn btn--solid" href="index.html">トップに戻る <span class="arrow">→</span></a>
+    </div>
+
+    <!-- 未ログインのとき -->
+    <div id="admin-guest" class="mypage__state" hidden>
+      <span class="kicker">Admin</span>
+      <h1 class="mypage__title">ログインが必要です</h1>
+      <p class="mypage__note">このページは管理者専用です。ログインしてください。</p>
+      <button type="button" class="btn btn--solid" id="admin-login-btn">ログイン <span class="arrow">→</span></button>
+    </div>
+
+    <!-- ログイン中だが管理者ではないとき -->
+    <div id="admin-forbidden" class="mypage__state" hidden>
+      <span class="kicker">Admin</span>
+      <h1 class="mypage__title">権限がありません</h1>
+      <p class="mypage__note">このアカウントにはお知らせを投稿する権限がありません。心当たりがない場合は運営メンバーに確認してください。</p>
+      <a class="btn btn--solid" href="index.html">トップに戻る <span class="arrow">→</span></a>
+    </div>
+
+    <!-- 管理者としてログイン中 -->
+    <div id="admin-content" class="mypage__state" hidden>
+      <span class="kicker">Admin</span>
+      <h1 class="mypage__title">お知らせ投稿</h1>
+      <p class="mypage__note">ここで投稿すると、会員全員のヘッダー通知アイコン「ドレスコードからのお知らせ」に届きます。</p>
+
+      <section class="mypage__section">
+        <h2>新しいお知らせ</h2>
+        <form id="admin-form" class="auth-form admin-form">
+          <label>タイトル<input type="text" name="title" required maxlength="80"></label>
+          <label>本文<textarea name="body" required maxlength="2000" rows="5"></textarea></label>
+          <p class="auth-form__error" id="admin-form-error" hidden></p>
+          <button type="submit" class="btn btn--solid auth-form__submit">投稿する</button>
+        </form>
+      </section>
+
+      <section class="mypage__section">
+        <h2>投稿済みのお知らせ</h2>
+        <div id="admin-list" class="mypage__notifications">
+          <p class="cards-empty">読み込み中…</p>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <footer class="footer">
+    <div class="footer__inner">
+      <div class="footer__grid">
+        <div>
+          <div class="brand-serif">DRESS CODE</div>
+          <div class="brand-sub">TOKYO</div>
+          <p class="blurb">Tokyo Fashion Market &amp; Culture Community. ファッションをきっかけに、人とカルチャーが出会う場所。</p>
+        </div>
+        <div class="footer__col"><h4>Sitemap</h4><div id="footer-sitemap" class="links"></div></div>
+        <div class="footer__col">
+          <h4>Get involved</h4>
+          <div class="links">
+            <a href="index.html#event">来場について</a>
+            <a href="index.html#community">コミュニティに参加する</a>
+            <a href="index.html#members">運用メンバー</a>
+            <a href="index.html#contact">お問い合わせ</a>
+          </div>
+        </div>
+        <div class="footer__col"><div id="footer-socials"></div></div>
+      </div>
+      <div class="footer__bar">
+        <span>© 2026 DRESS CODE TOKYO</span>
+        <span>Wear your story. Meet the culture.</span>
+      </div>
+    </div>
+  </footer>
+
+  <script src="js/data.js"></script>
+  <script src="js/render.js"></script>
+  <!-- 会員登録・ログイン（Supabase）。js/auth-config.js に接続情報を設定してください -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="js/auth-config.js"></script>
+  <script src="js/auth.js"></script>
+  <script>
+    (function () {
+      const states = {
+        unconfigured: document.getElementById('admin-unconfigured'),
+        guest: document.getElementById('admin-guest'),
+        forbidden: document.getElementById('admin-forbidden'),
+        content: document.getElementById('admin-content'),
+      };
+      function show(name) {
+        Object.keys(states).forEach(k => { states[k].hidden = (k !== name); });
+      }
+
+      const esc = s => String(s == null ? '' : s).replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
+      const form = document.getElementById('admin-form');
+      const formError = document.getElementById('admin-form-error');
+      const listEl = document.getElementById('admin-list');
+
+      function renderList(list) {
+        if (!list.length) { listEl.innerHTML = '<p class="cards-empty">まだお知らせはありません。</p>'; return; }
+        listEl.innerHTML = list.map(n => `
+          <div class="mypage__notification" data-id="${esc(n.id)}">
+            <div class="mypage__notification-head">
+              <h3>${esc(n.title)}</h3>
+              <span class="mypage__notification-date">${new Date(n.created_at).toLocaleDateString('ja-JP')}</span>
+            </div>
+            <p>${esc(n.body)}</p>
+            <button type="button" class="btn-link admin-form__delete" data-delete-id="${esc(n.id)}">削除する</button>
+          </div>`).join('');
+        listEl.querySelectorAll('[data-delete-id]').forEach(btn => {
+          btn.addEventListener('click', () => deleteAnnouncement(btn.getAttribute('data-delete-id')));
+        });
+      }
+
+      function loadList() {
+        const client = window.DCT_AUTH.getClient();
+        client.from('announcements')
+          .select('id, title, body, created_at')
+          .order('created_at', { ascending: false })
+          .then(res => {
+            if (res.error) { listEl.innerHTML = '<p class="cards-empty">読み込みに失敗しました。</p>'; return; }
+            renderList(res.data || []);
+          });
+      }
+
+      function deleteAnnouncement(id) {
+        if (!confirm('このお知らせを削除しますか？')) return;
+        const session = window.DCT_AUTH.getSession();
+        fetch('/api/admin-announcements', {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id, access_token: session.access_token }),
+        })
+          .then(r => r.json().then(data => ({ ok: r.ok, data })))
+          .then(({ ok, data }) => {
+            if (!ok) { alert(data.error || '削除に失敗しました'); return; }
+            loadList();
+          })
+          .catch(() => alert('通信エラーが発生しました'));
+      }
+
+      form.addEventListener('submit', function (e) {
+        e.preventDefault();
+        formError.hidden = true;
+        const session = window.DCT_AUTH.getSession();
+        const title = form.title.value.trim();
+        const body = form.body.value.trim();
+        const btn = form.querySelector('.auth-form__submit');
+        btn.disabled = true;
+        btn.textContent = '投稿中…';
+        fetch('/api/admin-announcements', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ title, body, access_token: session.access_token }),
+        })
+          .then(r => r.json().then(data => ({ ok: r.ok, data })))
+          .then(({ ok, data }) => {
+            btn.disabled = false;
+            btn.textContent = '投稿する';
+            if (!ok) { formError.textContent = data.error || '投稿に失敗しました'; formError.hidden = false; return; }
+            form.reset();
+            loadList();
+          })
+          .catch(() => {
+            btn.disabled = false;
+            btn.textContent = '投稿する';
+            formError.textContent = '通信エラーが発生しました';
+            formError.hidden = false;
+          });
+      });
+
+      function paint(session) {
+        if (!window.DCT_AUTH.isConfigured()) { show('unconfigured'); return; }
+        if (!session) { show('guest'); return; }
+        document.getElementById('logout-btn').hidden = false;
+        document.getElementById('logout-btn-mobile').hidden = false;
+        const client = window.DCT_AUTH.getClient();
+        client.from('profiles').select('is_admin').eq('id', session.user.id).single().then(res => {
+          if (res.error || !res.data || !res.data.is_admin) { show('forbidden'); return; }
+          show('content');
+          loadList();
+        });
+      }
+
+      document.getElementById('admin-login-btn').addEventListener('click', function () {
+        window.DCT_AUTH.openModal({ tab: 'signin' });
+      });
+      ['logout-btn', 'logout-btn-mobile'].forEach(id => {
+        document.getElementById(id).addEventListener('click', function () {
+          window.DCT_AUTH.signOut().then(() => { window.location.href = 'index.html'; });
+        });
+      });
+
+      window.addEventListener('load', function () {
+        paint(window.DCT_AUTH.getSession());
+        window.DCT_AUTH.onChange(paint);
+      });
+    })();
+  </script>
+</body>
+</html>

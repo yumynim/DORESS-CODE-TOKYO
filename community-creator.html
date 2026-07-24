@@ -31,11 +31,19 @@
     <div class="header__inner">
       <a href="index.html" class="logo"><img src="assets/images/logo.png" alt="DRESS CODE TOKYO"></a>
       <nav id="nav-desktop" class="nav"></nav>
+      <button type="button" class="icon-btn" data-notif-trigger aria-label="お知らせを開く">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="19" height="19"><path d="M6 8a6 6 0 0 1 12 0c0 4 1.5 5.5 2 6H4c.5-.5 2-2 2-6Z"/><path d="M10 19a2 2 0 0 0 4 0"/></svg>
+        <span class="icon-btn__badge" hidden></span>
+      </button>
       <button type="button" class="btn btn--solid header__cta" data-auth-trigger>ログイン</button>
       <button id="menu-btn" class="menu-btn">MENU</button>
     </div>
     <div id="mobile-menu" class="mobile-menu">
       <div id="nav-mobile"></div>
+      <button type="button" class="icon-btn--mobile" data-notif-trigger data-close aria-label="お知らせを開く">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="19" height="19"><path d="M6 8a6 6 0 0 1 12 0c0 4 1.5 5.5 2 6H4c.5-.5 2-2 2-6Z"/><path d="M10 19a2 2 0 0 0 4 0"/></svg>
+        <span>お知らせ</span><span class="icon-btn__badge" hidden></span>
+      </button>
       <button type="button" class="btn btn--solid" data-close data-auth-trigger>ログイン</button>
     </div>
   </header>
@@ -89,5 +97,7 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="js/auth-config.js"></script>
   <script src="js/auth.js"></script>
+  <!-- お知らせ（ヘッダーの通知アイコン。あなた専用のお知らせ／ドレスコードからのお知らせ） -->
+  <script src="js/notifications.js"></script>
 </body>
 </html>

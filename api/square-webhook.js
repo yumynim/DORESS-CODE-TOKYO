@@ -16,37 +16,7 @@
    ========================================================= */
 const crypto = require('crypto');
 const { createClient } = require('@supabase/supabase-js');
-
-function escapeHtml(s) {
-  return String(s == null ? '' : s).replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
-}
-
-async function sendEmail(serviceClient, userId, subject, text) {
-  const apiKey = process.env.RESEND_API_KEY;
-  const from = process.env.NOTIFY_FROM_EMAIL;
-  if (!apiKey || !from) return; // 未設定ならメールはスキップ（サイト内通知は別途届く）
-
-  const { data, error } = await serviceClient.auth.admin.getUserById(userId);
-  const to = data && data.user && data.user.email;
-  if (error || !to) { console.error('email skipped: user email not found', error && error.message); return; }
-
-  try {
-    const res = await fetch('https://api.resend.com/emails', {
-      method: 'POST',
-      headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        from,
-        to,
-        subject: `【DRESS CODE TOKYO】${subject}`,
-        text,
-        html: `<p>${escapeHtml(text).replace(/\n/g, '<br>')}</p>`,
-      }),
-    });
-    if (!res.ok) console.error('Resend API error:', await res.text());
-  } catch (e) {
-    console.error('email send failed:', e);
-  }
-}
+const { sendEmail } = require('../lib/mailer');
 
 async function notifyPurchaser(serviceClient, purchase, newStatus) {
   const isPaid = newStatus === 'paid';
@@ -63,7 +33,10 @@ async function notifyPurchaser(serviceClient, purchase, newStatus) {
   });
   if (notifErr) console.error('notifications insert failed:', notifErr.message);
 
-  await sendEmail(serviceClient, purchase.user_id, title, body);
+  const { data, error } = await serviceClient.auth.admin.getUserById(purchase.user_id);
+  const to = data && data.user && data.user.email;
+  if (error || !to) { console.error('email skipped: user email not found', error && error.message); return; }
+  await sendEmail({ to, subject: title, text: body });
 }
 
 function readRawBody(req) {

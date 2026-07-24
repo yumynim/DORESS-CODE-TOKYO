@@ -864,7 +864,9 @@ a.mcard__sns:hover { transform: translateY(-3px); }
 /* ナビ項目「DRESS CODE MARKET」が長いため、横並びで詰まる幅では
    早めにハンバーガーメニューへ切り替える（1240px以下）。 */
 @media (max-width: 1240px) {
-  .nav, .header__cta { display: none; }
+  /* .header__inner を付けて .icon-btn（マイページアイコンが兼用するクラス）より詳細度を上げる。
+     こうしないと、後方で定義されている .icon-btn { display:flex } に負けて隠れなくなる。 */
+  .nav, .header__inner .header__cta { display: none; }
   .menu-btn { display: inline-flex; }
 }
 @media (max-width: 860px) {
@@ -1064,13 +1066,43 @@ a.mcard__sns:hover { transform: translateY(-3px); }
 .mypage__notification-date { flex: none; font-family: var(--f-sans); font-size: 11px; letter-spacing: 0.06em; color: var(--muted); }
 .mypage__notification p { margin-top: 6px; font-family: var(--f-sans); font-size: 13px; line-height: 1.7; color: var(--ink-3); }
 
-/* ヘッダーの「ログイン/マイページ」ボタンにつく未読お知らせバッジ */
-.header__cta { position: relative; }
-.notif-dot {
-  display: inline-block; width: 9px; height: 9px; margin-left: 7px; border-radius: 50%;
-  background: #a1402c; vertical-align: middle;
+/* ヘッダーのアイコン型ボタン共通土台（マイページアイコン・通知アイコンで使用） */
+.icon-btn {
+  position: relative; flex: none; display: flex; align-items: center; justify-content: center;
+  width: 40px; height: 40px; border-radius: 50%; border: 1px solid var(--line-2); background: none;
+  color: var(--ink); cursor: pointer; transition: background .3s, border-color .3s;
 }
-.notif-dot[hidden] { display: none; }
+.icon-btn:hover { background: var(--bg-band); border-color: var(--ink); }
+.icon-btn--mobile {
+  flex: none; display: flex; align-items: center; justify-content: center; gap: 10px;
+  width: auto; height: auto; border-radius: 999px; padding: 12px 20px; margin-top: 10px;
+  border: 1px solid var(--ink); background: none; color: var(--ink); cursor: pointer;
+  font-family: var(--f-sans); font-size: 12.5px; letter-spacing: 0.06em;
+}
+.icon-btn__badge {
+  position: absolute; top: -3px; right: -3px; width: 10px; height: 10px; border-radius: 50%;
+  background: #a1402c; border: 2px solid #fff;
+}
+.icon-btn--mobile .icon-btn__badge { position: static; width: 8px; height: 8px; border: none; }
+.icon-btn__badge[hidden] { display: none; }
+
+/* 通知ドロワーのタブ切り替え（あなたへ／ドレスコードから） */
+.notif-tabs { display: flex; gap: 8px; margin: 18px 0 20px; }
+.notif-tab {
+  flex: 1; padding: 10px 12px; border: 1px solid var(--line-2); border-radius: 8px; background: none;
+  font-family: var(--f-sans); font-size: 11.5px; letter-spacing: 0.04em; color: var(--muted); cursor: pointer;
+  transition: background .3s, border-color .3s, color .3s;
+}
+.notif-tab.is-active { border-color: var(--ink); color: var(--ink); background: var(--bg-band); }
+
+/* マイページドロワーのログアウトボタン */
+.account-drawer__logout { margin-top: 24px; width: 100%; }
+
+/* お知らせ投稿ページ（admin-announcements.html） */
+.admin-form { max-width: 480px; }
+.admin-form__delete {
+  background: none; border: none; padding: 0; cursor: pointer; margin-top: 10px;
+}
 
 /* =========================================================
    カート（複数商品まとめてSquare決済）

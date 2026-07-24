@@ -179,12 +179,10 @@
             if (res.error) { document.getElementById('mypage-notifications').innerHTML = '<p class="cards-empty">読み込みに失敗しました。</p>'; return; }
             const list = res.data || [];
             renderNotifications(list);
-            // 開いた時点で未読を既読にする（ヘッダーの赤丸バッジも合わせて消す）
+            // 開いた時点で未読を既読にする
             const unreadIds = list.filter(n => !n.read).map(n => n.id);
             if (unreadIds.length) {
-              client.from('notifications').update({ read: true }).in('id', unreadIds).then(() => {
-                if (window.DCT_AUTH.refreshNotifBadge) window.DCT_AUTH.refreshNotifBadge();
-              });
+              client.from('notifications').update({ read: true }).in('id', unreadIds);
             }
           });
       }
