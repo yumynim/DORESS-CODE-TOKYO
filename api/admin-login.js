@@ -8,6 +8,12 @@ const crypto = require('crypto');
 const { issueAdminToken } = require('../lib/adminAuth');
 
 module.exports = async function handler(req, res) {
+  if (req.method === 'GET') {
+    // 値は返さず「設定されているかどうか」だけを返す簡易診断用（ブラウザで直接開いて確認できる）
+    res.status(200).json({ configured: !!process.env.ADMIN_CONSOLE_PASSWORD });
+    return;
+  }
+
   if (req.method !== 'POST') {
     res.status(405).json({ error: 'このメソッドは対応していません' });
     return;

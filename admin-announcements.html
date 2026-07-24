@@ -34,15 +34,15 @@
     <div id="admin-locked" class="mypage__state">
       <span class="kicker">Admin</span>
       <h1 class="mypage__title">お知らせ投稿</h1>
-      <p class="mypage__note">このページは管理者専用です。合言葉を入力してください。</p>
+      <p class="mypage__note">このページは管理者専用です。管理者パスワードを入力してください。</p>
       <form id="admin-login-form" class="auth-form admin-form">
-        <label>合言葉<input type="password" name="password" required autocomplete="current-password"></label>
+        <label>管理者パスワード<input type="password" name="password" required autocomplete="current-password"></label>
         <p class="auth-form__error" id="admin-login-error" hidden></p>
-        <button type="submit" class="btn btn--solid auth-form__submit">入室する</button>
+        <button type="submit" class="btn btn--solid auth-form__submit">ログイン</button>
       </form>
     </div>
 
-    <!-- 合言葉が正しいとき -->
+    <!-- パスワードが正しいとき -->
     <div id="admin-content" class="mypage__state" hidden>
       <span class="kicker">Admin</span>
       <h1 class="mypage__title">お知らせ投稿</h1>
@@ -193,7 +193,7 @@
           .then(r => r.json().then(data => ({ ok: r.ok, data })))
           .then(({ ok, data }) => {
             btn.disabled = false;
-            btn.textContent = '入室する';
+            btn.textContent = 'ログイン';
             if (!ok) { loginError.textContent = data.error || 'パスワードが違います'; loginError.hidden = false; return; }
             setToken(data.token);
             loginForm.reset();
@@ -201,7 +201,7 @@
           })
           .catch(() => {
             btn.disabled = false;
-            btn.textContent = '入室する';
+            btn.textContent = 'ログイン';
             loginError.textContent = '通信エラーが発生しました';
             loginError.hidden = false;
           });
