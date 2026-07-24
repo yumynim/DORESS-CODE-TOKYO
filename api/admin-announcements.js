@@ -2,13 +2,13 @@
    /api/admin-announcements
    ---------------------------------------------------------
    お知らせ（announcements、会員全員向け）の投稿／削除。
-   admin-announcements.html から呼ばれる。
+   admin-announcements.html（/console）から呼ばれる。
 
+   認証は個人のSupabaseアカウントではなく、共通パスワード方式
+   （api/admin-login.js が発行したトークンを lib/adminAuth.js で検証）。
    announcements テーブルへの insert/delete は RLS 上どのユーザーにも
-   許可していない（service role のみ）ので、ここで
-   1. ログイン中のユーザーを確認
-   2. profiles.is_admin が true か確認
-   を行ってから、service role でテーブルを操作する。
+   許可していない（service role のみ）ので、トークン検証を通った
+   リクエストだけが service role 経由でテーブルを操作できる。
 
    投稿（POST）が成功したら、サイト内通知（announcements）に加えて
    会員全員へ確認メールも送る（Resend経由。RESEND_API_KEY / NOTIFY_FROM_EMAIL
@@ -16,6 +16,7 @@
    ========================================================= */
 const { createClient } = require('@supabase/supabase-js');
 const { sendEmail } = require('../lib/mailer');
+const { verifyAdminToken } = require('../lib/adminAuth');
 
 async function sendBroadcastEmail(serviceClient, { subject, text }) {
   // 会員数が多くなってきたら、ここは一括送信APIやキュー経由に切り替えたほうがよい
@@ -34,36 +35,33 @@ async function sendBroadcastEmail(serviceClient, { subject, text }) {
   }
 }
 
-async function requireAdmin(req, authClient, serviceClient) {
-  const access_token = (req.body || {}).access_token;
-  if (!access_token) return { error: 'ログインが必要です', status: 401 };
-
-  const { data: userData, error: userErr } = await authClient.auth.getUser(access_token);
-  if (userErr || !userData || !userData.user) return { error: 'ログイン情報を確認できませんでした。再度ログインしてください', status: 401 };
-
-  const { data: profile, error: profileErr } = await serviceClient
-    .from('profiles')
-    .select('is_admin')
-    .eq('id', userData.user.id)
-    .single();
-  if (profileErr || !profile || !profile.is_admin) return { error: '投稿権限がありません', status: 403 };
-
-  return { userId: userData.user.id };
-}
-
 module.exports = async function handler(req, res) {
-  if (req.method !== 'POST' && req.method !== 'DELETE') {
+  if (req.method !== 'GET' && req.method !== 'POST' && req.method !== 'DELETE') {
     res.status(405).json({ error: 'このメソッドは対応していません' });
     return;
   }
 
-  const authClient = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_ANON_KEY);
+  // GETはクエリ文字列、POST/DELETEはJSONボディでトークンを受け取る
+  const token = req.method === 'GET' ? req.query.token : (req.body || {}).token;
+  if (!verifyAdminToken(token)) {
+    res.status(401).json({ error: '認証が切れました。もう一度パスワードを入力してください' });
+    return;
+  }
+
   const serviceClient = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
 
-  const auth = await requireAdmin(req, authClient, serviceClient);
-  if (auth.error) { res.status(auth.status).json({ error: auth.error }); return; }
-
   try {
+    if (req.method === 'GET') {
+      const { data, error } = await serviceClient
+        .from('announcements')
+        .select('id, title, body, created_at')
+        .order('created_at', { ascending: false })
+        .limit(100);
+      if (error) { res.status(500).json({ error: '読み込みに失敗しました' }); return; }
+      res.status(200).json({ announcements: data || [] });
+      return;
+    }
+
     if (req.method === 'POST') {
       const { title, body } = req.body || {};
       if (!title || !String(title).trim() || !body || !String(body).trim()) {

@@ -45,3 +45,4 @@ DRESS CODE TOKYO のウェブサイト。静的サイト（素の HTML/CSS/JS）
 - Webhook の署名検証は `crypto.timingSafeEqual` を使う（タイミング攻撃対策）。単純な `===` 比較に戻さない。
 - Sandbox 用と Production 用の Square 認証情報（ACCESS_TOKEN / LOCATION_ID / WEBHOOK_SIGNATURE_KEY）を混在させない。
 - ブラウザ側コード（`js/*.js`）には anon key 以外の秘密情報を絶対に置かない。
+- お知らせ投稿ページ（`/console` = `admin-announcements.html`）は共通パスワード方式（`ADMIN_CONSOLE_PASSWORD`）。パスワード比較も `crypto.timingSafeEqual` を使う（`api/admin-login.js`）。トークン検証（`lib/adminAuth.js`）を弱めたり、`announcements` テーブルへの insert/delete を service role 以外に開放したりしない。

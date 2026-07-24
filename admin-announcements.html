@@ -20,45 +20,33 @@
     <div class="header__inner">
       <a href="index.html" class="logo"><img src="assets/images/logo.png" alt="DRESS CODE TOKYO"></a>
       <nav id="nav-desktop" class="nav"></nav>
-      <button type="button" class="btn btn--outline header__cta" id="logout-btn" hidden>ログアウト</button>
+      <button type="button" class="btn btn--outline header__cta" id="admin-logout-btn" hidden>ログアウト</button>
       <button id="menu-btn" class="menu-btn">MENU</button>
     </div>
     <div id="mobile-menu" class="mobile-menu">
       <div id="nav-mobile"></div>
-      <button type="button" class="btn btn--outline" id="logout-btn-mobile" data-close hidden>ログアウト</button>
+      <button type="button" class="btn btn--outline" id="admin-logout-btn-mobile" data-close hidden>ログアウト</button>
     </div>
   </header>
 
   <main class="mypage">
-    <!-- 会員登録・ログインが未設定のとき -->
-    <div id="admin-unconfigured" class="mypage__state" hidden>
+    <!-- パスワード未入力／不一致のとき -->
+    <div id="admin-locked" class="mypage__state">
       <span class="kicker">Admin</span>
       <h1 class="mypage__title">お知らせ投稿</h1>
-      <p class="mypage__note">会員登録・ログイン機能は現在準備中です。もうしばらくお待ちください。</p>
-      <a class="btn btn--solid" href="index.html">トップに戻る <span class="arrow">→</span></a>
+      <p class="mypage__note">このページは管理者専用です。合言葉を入力してください。</p>
+      <form id="admin-login-form" class="auth-form admin-form">
+        <label>合言葉<input type="password" name="password" required autocomplete="current-password"></label>
+        <p class="auth-form__error" id="admin-login-error" hidden></p>
+        <button type="submit" class="btn btn--solid auth-form__submit">入室する</button>
+      </form>
     </div>
 
-    <!-- 未ログインのとき -->
-    <div id="admin-guest" class="mypage__state" hidden>
-      <span class="kicker">Admin</span>
-      <h1 class="mypage__title">ログインが必要です</h1>
-      <p class="mypage__note">このページは管理者専用です。ログインしてください。</p>
-      <button type="button" class="btn btn--solid" id="admin-login-btn">ログイン <span class="arrow">→</span></button>
-    </div>
-
-    <!-- ログイン中だが管理者ではないとき -->
-    <div id="admin-forbidden" class="mypage__state" hidden>
-      <span class="kicker">Admin</span>
-      <h1 class="mypage__title">権限がありません</h1>
-      <p class="mypage__note">このアカウントにはお知らせを投稿する権限がありません。心当たりがない場合は運営メンバーに確認してください。</p>
-      <a class="btn btn--solid" href="index.html">トップに戻る <span class="arrow">→</span></a>
-    </div>
-
-    <!-- 管理者としてログイン中 -->
+    <!-- 合言葉が正しいとき -->
     <div id="admin-content" class="mypage__state" hidden>
       <span class="kicker">Admin</span>
       <h1 class="mypage__title">お知らせ投稿</h1>
-      <p class="mypage__note">ここで投稿すると、会員全員のヘッダー通知アイコン「ドレスコードからのお知らせ」に届きます。</p>
+      <p class="mypage__note">ここで投稿すると、会員全員のヘッダー通知アイコン「ドレスコードからのお知らせ」に届き、メールでも送信されます。</p>
 
       <section class="mypage__section">
         <h2>新しいお知らせ</h2>
@@ -108,26 +96,44 @@
 
   <script src="js/data.js"></script>
   <script src="js/render.js"></script>
-  <!-- 会員登録・ログイン（Supabase）。js/auth-config.js に接続情報を設定してください -->
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="js/auth-config.js"></script>
-  <script src="js/auth.js"></script>
   <script>
     (function () {
-      const states = {
-        unconfigured: document.getElementById('admin-unconfigured'),
-        guest: document.getElementById('admin-guest'),
-        forbidden: document.getElementById('admin-forbidden'),
-        content: document.getElementById('admin-content'),
-      };
-      function show(name) {
-        Object.keys(states).forEach(k => { states[k].hidden = (k !== name); });
-      }
-
-      const esc = s => String(s == null ? '' : s).replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
+      const TOKEN_KEY = 'dct_admin_token';
+      const locked = document.getElementById('admin-locked');
+      const content = document.getElementById('admin-content');
+      const loginForm = document.getElementById('admin-login-form');
+      const loginError = document.getElementById('admin-login-error');
       const form = document.getElementById('admin-form');
       const formError = document.getElementById('admin-form-error');
       const listEl = document.getElementById('admin-list');
+      const logoutBtns = [document.getElementById('admin-logout-btn'), document.getElementById('admin-logout-btn-mobile')];
+
+      const esc = s => String(s == null ? '' : s).replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
+
+      function getToken() { return sessionStorage.getItem(TOKEN_KEY); }
+      function setToken(t) { sessionStorage.setItem(TOKEN_KEY, t); }
+      function clearToken() { sessionStorage.removeItem(TOKEN_KEY); }
+
+      // トークンは「有効期限.署名」の形式。期限だけここでも確認し、
+      // 切れていればサーバーに問い合わせず入室画面に戻す。
+      function tokenLooksValid(t) {
+        if (!t) return false;
+        const expiresAt = Number(t.split('.')[0]);
+        return Number.isFinite(expiresAt) && Date.now() < expiresAt;
+      }
+
+      function showLocked() {
+        clearToken();
+        locked.hidden = false;
+        content.hidden = true;
+        logoutBtns.forEach(b => { b.hidden = true; });
+      }
+      function showContent() {
+        locked.hidden = true;
+        content.hidden = false;
+        logoutBtns.forEach(b => { b.hidden = false; });
+        loadList();
+      }
 
       function renderList(list) {
         if (!list.length) { listEl.innerHTML = '<p class="cards-empty">まだお知らせはありません。</p>'; return; }
@@ -146,36 +152,64 @@
       }
 
       function loadList() {
-        const client = window.DCT_AUTH.getClient();
-        client.from('announcements')
-          .select('id, title, body, created_at')
-          .order('created_at', { ascending: false })
-          .then(res => {
-            if (res.error) { listEl.innerHTML = '<p class="cards-empty">読み込みに失敗しました。</p>'; return; }
-            renderList(res.data || []);
-          });
+        fetch('/api/admin-announcements?token=' + encodeURIComponent(getToken()))
+          .then(r => r.json().then(data => ({ ok: r.ok, status: r.status, data })))
+          .then(({ ok, status, data }) => {
+            if (status === 401) { showLocked(); return; }
+            if (!ok) { listEl.innerHTML = '<p class="cards-empty">読み込みに失敗しました。</p>'; return; }
+            renderList(data.announcements || []);
+          })
+          .catch(() => { listEl.innerHTML = '<p class="cards-empty">通信エラーが発生しました。</p>'; });
       }
 
       function deleteAnnouncement(id) {
         if (!confirm('このお知らせを削除しますか？')) return;
-        const session = window.DCT_AUTH.getSession();
         fetch('/api/admin-announcements', {
           method: 'DELETE',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ id, access_token: session.access_token }),
+          body: JSON.stringify({ id, token: getToken() }),
         })
-          .then(r => r.json().then(data => ({ ok: r.ok, data })))
-          .then(({ ok, data }) => {
+          .then(r => r.json().then(data => ({ ok: r.ok, status: r.status, data })))
+          .then(({ ok, status, data }) => {
+            if (status === 401) { showLocked(); return; }
             if (!ok) { alert(data.error || '削除に失敗しました'); return; }
             loadList();
           })
           .catch(() => alert('通信エラーが発生しました'));
       }
 
+      loginForm.addEventListener('submit', function (e) {
+        e.preventDefault();
+        loginError.hidden = true;
+        const password = loginForm.password.value;
+        const btn = loginForm.querySelector('.auth-form__submit');
+        btn.disabled = true;
+        btn.textContent = '確認中…';
+        fetch('/api/admin-login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ password }),
+        })
+          .then(r => r.json().then(data => ({ ok: r.ok, data })))
+          .then(({ ok, data }) => {
+            btn.disabled = false;
+            btn.textContent = '入室する';
+            if (!ok) { loginError.textContent = data.error || 'パスワードが違います'; loginError.hidden = false; return; }
+            setToken(data.token);
+            loginForm.reset();
+            showContent();
+          })
+          .catch(() => {
+            btn.disabled = false;
+            btn.textContent = '入室する';
+            loginError.textContent = '通信エラーが発生しました';
+            loginError.hidden = false;
+          });
+      });
+
       form.addEventListener('submit', function (e) {
         e.preventDefault();
         formError.hidden = true;
-        const session = window.DCT_AUTH.getSession();
         const title = form.title.value.trim();
         const body = form.body.value.trim();
         const btn = form.querySelector('.auth-form__submit');
@@ -184,12 +218,13 @@
         fetch('/api/admin-announcements', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ title, body, access_token: session.access_token }),
+          body: JSON.stringify({ title, body, token: getToken() }),
         })
-          .then(r => r.json().then(data => ({ ok: r.ok, data })))
-          .then(({ ok, data }) => {
+          .then(r => r.json().then(data => ({ ok: r.ok, status: r.status, data })))
+          .then(({ ok, status, data }) => {
             btn.disabled = false;
             btn.textContent = '投稿する';
+            if (status === 401) { showLocked(); return; }
             if (!ok) { formError.textContent = data.error || '投稿に失敗しました'; formError.hidden = false; return; }
             form.reset();
             loadList();
@@ -202,32 +237,9 @@
           });
       });
 
-      function paint(session) {
-        if (!window.DCT_AUTH.isConfigured()) { show('unconfigured'); return; }
-        if (!session) { show('guest'); return; }
-        document.getElementById('logout-btn').hidden = false;
-        document.getElementById('logout-btn-mobile').hidden = false;
-        const client = window.DCT_AUTH.getClient();
-        client.from('profiles').select('is_admin').eq('id', session.user.id).single().then(res => {
-          if (res.error || !res.data || !res.data.is_admin) { show('forbidden'); return; }
-          show('content');
-          loadList();
-        });
-      }
+      logoutBtns.forEach(b => b.addEventListener('click', showLocked));
 
-      document.getElementById('admin-login-btn').addEventListener('click', function () {
-        window.DCT_AUTH.openModal({ tab: 'signin' });
-      });
-      ['logout-btn', 'logout-btn-mobile'].forEach(id => {
-        document.getElementById(id).addEventListener('click', function () {
-          window.DCT_AUTH.signOut().then(() => { window.location.href = 'index.html'; });
-        });
-      });
-
-      window.addEventListener('load', function () {
-        paint(window.DCT_AUTH.getSession());
-        window.DCT_AUTH.onChange(paint);
-      });
+      if (tokenLooksValid(getToken())) { showContent(); } else { showLocked(); }
     })();
   </script>
 </body>

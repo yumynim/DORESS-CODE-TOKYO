@@ -107,15 +107,25 @@ git log（直近）で確認できた範囲:
   - [`api/admin-announcements.js`](../api/admin-announcements.js): 投稿（POST）成功時に `serviceClient.auth.admin.listUsers()` で全会員を取得し、`lib/mailer.js` 経由で1件ずつメール送信。RESEND未設定なら従来通り静かにスキップ。メール送信に失敗しても投稿自体は成功扱いにする
   - 現状は会員を1人ずつ順番に送信（会員数が増えたらキュー送信等への切り替えを検討、とコード内にコメント済み）
   - Resend未設定のためこの一斉送信自体はまだ実地確認できていない
+- **（2026-07-25）お知らせ投稿ページの認証方式を「Supabase個人アカウント」→「チーム共通パスワード」に変更**:
+  - 背景: ユーザーから「このページを他の人にも共有したい、リンク＋パスワードで済むようにしたい」との要望。個人アカウント方式（`profiles.is_admin`）だと共有する相手ごとにSupabaseアカウント作成が必要で手間だったため
+  - **`supabase/schema_v5_admin.sql`（`profiles.is_admin`）は現在未使用**。今回の変更で認証方式ごと差し替えたため、このマイグレーション自体は残しているが実質使っていない（クリーンアップしたい場合は別途相談）
+  - [`lib/adminAuth.js`](../lib/adminAuth.js)（新規）: 合言葉方式のトークン発行／検証。`有効期限.HMAC署名` 形式、有効期限24時間。**署名鍵は`ADMIN_CONSOLE_PASSWORD`そのもの**なので、パスワードをローテーションすると発行済みトークンは全部自動失効する
+  - [`api/admin-login.js`](../api/admin-login.js)（新規）: POST `{password}` → 合言葉が正しければトークンを発行。比較は`crypto.timingSafeEqual`（タイミング攻撃対策、既存のWebhook署名検証と同じ考え方）
+  - [`api/admin-announcements.js`](../api/admin-announcements.js): 認証をSupabaseセッション検証から`verifyAdminToken`に置き換え。GET（一覧取得）も新規追加、トークンはクエリ文字列で受け取る
+  - [`admin-announcements.html`](../admin-announcements.html): Supabase関連のscriptタグを全部削除（`js/auth.js`等は不要になった）。合言葉フォーム→成功したらトークンを`sessionStorage`（タブを閉じると消える。共有端末での使用も想定して意図的に選択）に保存→投稿フォーム・一覧を表示、という流れ
+  - [`vercel.json`](../vercel.json): `/console` → `/admin-announcements.html` のrewriteを追加。共有用の短いURLとして`https://<本番ドメイン>/console`が使える
+  - `.env.example` に `ADMIN_CONSOLE_PASSWORD` を追加（**未設定**。Vercelの環境変数に値を入れないと投稿ページが機能しない）
+  - ローカルで「合言葉未入力→フォーム表示」「有効そうなトークンあり→投稿画面表示→一覧取得は通信エラー（ローカルにAPIサーバーが無いため想定通り）」まで確認。**実際のログイン/投稿/削除はVercel Functionsが必要なため未確認**
 
 # 現在作業中の内容
 
-Supabase接続・ヘッダーのマイページ/通知UI刷新・お知らせ投稿専用ページまで完了・ローカルで表示確認済み（未コミット）。Google OAuthとSquareはユーザーの意向で一旦後回し。次にpushしてVercel本番へ反映するかはユーザー確認待ち。
+Supabase接続・ヘッダーのマイページ/通知UI刷新・お知らせ投稿ページ（合言葉方式、`/console`）まで完了・ローカルで表示確認済み（未コミット）。Google OAuthとSquareはユーザーの意向で一旦後回し。次にpushしてVercel本番へ反映し、`ADMIN_CONSOLE_PASSWORD`をVercelに設定してから動作確認が必要。
 
 # 未完了の作業（＝ユーザーが各サイトで行う作業）
 
-- ~~Supabase — schema_v5実行~~ **完了**（ユーザーがSQL Editorで実行済み、2026-07-25）
-- **お知らせ投稿ページを使うには誰かを管理者にする必要がある**: Supabaseダッシュボード → Table Editor → `profiles` → 自分の行 → `is_admin` を `true` に変更（未確認：ユーザーが済ませたかは不明）。
+- **（ブロッカー）Vercel — `ADMIN_CONSOLE_PASSWORD`未設定**: これを設定しないと `/console`（お知らせ投稿ページ）のログインが機能しない。Vercelの環境変数に追加してRedeployすること。
+- ~~Supabase — schema_v5実行~~ 実行済みだが**現在は未使用**（認証方式を合言葉に変更したため。上記「完了済みの作業」参照）
 - **Google OAuth**（後回し中）: Google Cloud ConsoleでOAuth同意画面→OAuthクライアントID作成→Client ID/SecretをSupabaseのGoogleプロバイダ設定に登録。リダイレクトURIはSupabaseのGoogleプロバイダ設定画面に表示されるCallback URLを使う。ボタン自体はログインモーダルに表示済み（押しても今はエラーになる想定内の状態）。
 - **Square**（後回し中）: Developer Dashboardへのアクセス権限待ち（現状はSquareアプリのみ利用可）。権限取得後、アプリ作成→Sandbox Access Token/Location ID取得→商品登録してCatalog Object ID取得→`js/data.js`の`catalogObjectId`に設定→Webhook登録→Vercel環境変数設定。
 - **Resend（メール通知）**: 未着手。Square Sandbox完了後に着手予定。アカウント作成→送信ドメイン認証→APIキー発行→Vercel環境変数（`RESEND_API_KEY`/`NOTIFY_FROM_EMAIL`）設定。
@@ -128,8 +138,8 @@ Supabase接続・ヘッダーのマイページ/通知UI刷新・お知らせ投
 - **Idempotency Key 必須**: `api/checkout.js` は Square の Payment Link 作成時に Idempotency Key を付与し、二重注文を防止する。
 - **ログイン再開は sessionStorage 経由**: Google ログインは別ドメインへのフルページ遷移を伴い JS のメモリ状態が消えるため、購入しようとしていたチケット情報は `sessionStorage`（キー: `dct_pending_ticket`）に保存してログイン後に復元する（`js/auth.js`）。
 - **見た目は元デザインを維持**: 分割前の22MB HTMLと同じ見た目を保つ方針（README記載）。
-- **profiles.is_admin はクライアントから変更不可**: `schema_v5_admin.sql` のトリガーで、service role以外からの変更を無視する。理由: 通常のupdateポリシー任せだと誰でも自分を管理者に昇格できてしまうため。管理者にする操作は必ずSupabaseダッシュボードから手動で行う。
 - **announcements への書き込みは `/api/admin-announcements` 経由のみ**: RLSでinsert/deleteポリシーを意図的に作っておらず、サーバー側（service role）でしか書き込めない。理由: `purchases.status` と同じ考え方で、権限確認をクライアント任せにしない。
+- **お知らせ投稿ページ（`/console`）はチーム共通の合言葉方式**: `ADMIN_CONSOLE_PASSWORD` 1つを知っている人なら誰でも会員全員へお知らせ（サイト内通知＋メール）を投稿できる。個人アカウント単位の権限管理ではないため、「誰が投稿したか」の記録は残らない。合言葉が漏れた場合は`ADMIN_CONSOLE_PASSWORD`を変更すれば、発行済みトークンも含めて即座に無効化される。
 
 # 変更時の注意点
 
@@ -145,13 +155,13 @@ Supabase接続・ヘッダーのマイページ/通知UI刷新・お知らせ投
 
 # 次に行うこと
 
-1. コミット・push してVercel本番に反映するかユーザーに確認（このセッションの変更は未push）
-2. `supabase/schema_v5_admin.sql` をSupabase SQL Editorで実行（`schema_v4_announcements.sql` は実行済み）
-3. Supabaseダッシュボードで自分（または担当者）の `profiles.is_admin` を `true` にする
-4. pushしてVercel本番で `admin-announcements.html` からの投稿（POST）を実際に確認（ローカルでは未確認）
+1. `ADMIN_CONSOLE_PASSWORD` をVercelの環境変数に設定（十分に長い合言葉。まだ未設定）
+2. コミット・push してVercel本番に反映（このセッションの変更はユーザー承認済み・push予定）
+3. Vercel本番の `https://<本番ドメイン>/console` で「合言葉入力→投稿→一覧表示→削除」を一通り確認（ローカルでは未確認）
+4. 共有したい相手に `/console` のURLと合言葉を伝える
 5. （後回し中）Google OAuth設定（Cloud Console → OAuthクライアント作成 → SupabaseのGoogleプロバイダに登録）
 6. （後回し中）Square Developer Dashboardへのアクセス権限取得後、Sandbox設定一式（Access Token/Location ID/Catalog Object ID/Webhook）
-7. Resend設定（ドメイン認証→APIキー→Vercel環境変数）
+7. Resend設定（ドメイン認証→APIキー→Vercel環境変数）。設定できれば購入通知とお知らせ投稿の両方でメールが飛ぶようになる
 8. Sandbox環境でログイン・Googleログイン・カート・Square決済・サイト内通知・メール送信を一通り確認
 9. 問題なければ Square を Production に切り替え（Access Token/Location ID/Signature Keyを本番用に総入れ替え）
 
@@ -162,9 +172,11 @@ Supabase接続・ヘッダーのマイページ/通知UI刷新・お知らせ投
 - [js/data.js](../js/data.js) / [js/render.js](../js/render.js) — コンテンツと描画
 - [js/auth.js](../js/auth.js) / [js/auth-config.js](../js/auth-config.js) — 認証・マイページドロワー
 - [js/notifications.js](../js/notifications.js) — 通知ベル（あなたへのお知らせ／ドレスコードからのお知らせ）
-- [admin-announcements.html](../admin-announcements.html) / [api/admin-announcements.js](../api/admin-announcements.js) — お知らせ投稿ページ（管理者専用）
+- [admin-announcements.html](../admin-announcements.html)（`/console`） / [api/admin-announcements.js](../api/admin-announcements.js) / [api/admin-login.js](../api/admin-login.js) / [lib/adminAuth.js](../lib/adminAuth.js) — お知らせ投稿ページ（合言葉方式）
+- [lib/mailer.js](../lib/mailer.js) — Resend送信の共通処理
 - [js/cart.js](../js/cart.js) / [api/checkout.js](../api/checkout.js) / [api/square-webhook.js](../api/square-webhook.js) — 決済フロー＋購入通知（メール／サイト内通知）
-- [supabase/schema.sql](../supabase/schema.sql) 〜 [schema_v5_admin.sql](../supabase/schema_v5_admin.sql) — DBスキーマ（v1〜v5、番号順に実行）
+- [supabase/schema.sql](../supabase/schema.sql) 〜 [schema_v5_admin.sql](../supabase/schema_v5_admin.sql) — DBスキーマ（v1〜v4は使用中、v5は現在未使用）
+- [vercel.json](../vercel.json) — セキュリティヘッダー＋ `/console` のrewrite
 - [.env.example](../.env.example) — 必要な環境変数一覧（実値はVercel側）
 
 # 動作確認方法
@@ -175,4 +187,4 @@ Supabase接続・ヘッダーのマイページ/通知UI刷新・お知らせ投
 
 # 最終更新
 
-2026-07-25 — ヘッダーのマイページ／通知UIをドロワー形式に刷新（ページ遷移せず他ページを離脱しない）。マイページアイコン・通知ベル（本人向け／全体向けタブ分け）を追加し、announcementsテーブルを新設。マイページボタンをアイコン＋テキスト表示に修正、お知らせ投稿専用ページ（`admin-announcements.html`）と管理者権限（`profiles.is_admin`）の仕組みを新規追加。ローカルで一通り動作確認済み（実際の投稿POSTのみVercel環境が必要なため未確認）。未コミット・未push。Google OAuth・Squareはユーザーの意向で後回し中。Resendは未着手。
+2026-07-25 — ヘッダーのマイページ／通知UIをドロワー形式に刷新（ページ遷移せず他ページを離脱しない）。マイページアイコン・通知ベル（本人向け／全体向けタブ分け）を追加し、announcementsテーブルを新設。お知らせ投稿ページ（`/console`）を新規追加、投稿時に会員全員へメールも送信。認証方式は当初`profiles.is_admin`（個人アカウント）で作ったが、「共有しやすくしたい」というユーザー要望を受けて**共通パスワード方式**（`ADMIN_CONSOLE_PASSWORD`）に差し替え済み（`schema_v5_admin.sql`は現在未使用）。push・ユーザー承認済み、コミット/push直前。Vercel側の`ADMIN_CONSOLE_PASSWORD`設定と本番動作確認はこれから。Google OAuth・Squareはユーザーの意向で後回し中。Resendは未着手。
