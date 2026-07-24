@@ -64,6 +64,13 @@
       <p class="mypage__note">購入したチケットはこちらで確認できます。</p>
 
       <section class="mypage__section">
+        <h2>お知らせ</h2>
+        <div id="mypage-notifications" class="mypage__notifications">
+          <p class="cards-empty">読み込み中…</p>
+        </div>
+      </section>
+
+      <section class="mypage__section">
         <h2>購入したチケット</h2>
         <div id="mypage-purchases" class="mypage__purchases">
           <p class="cards-empty">読み込み中…</p>
@@ -118,6 +125,7 @@
 
       const yen = n => (isFinite(n) && n > 0) ? '¥' + Number(n).toLocaleString('ja-JP') : String(n || '');
       const STATUS_LABEL = { initiated: '手続き中', paid: '購入完了', canceled: 'キャンセル' };
+      const esc = s => String(s == null ? '' : s).replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
 
       function renderPurchases(list) {
         const el = document.getElementById('mypage-purchases');
@@ -125,12 +133,12 @@
         el.innerHTML = list.map(p => `
           <div class="mypage__purchase">
             <div class="mypage__purchase-main">
-              <h3>${p.ticket_name}</h3>
+              <h3>${esc(p.ticket_name)}</h3>
               <span class="mypage__purchase-date">${new Date(p.created_at).toLocaleDateString('ja-JP')}</span>
             </div>
             <div class="mypage__purchase-side">
               <span class="mypage__purchase-price">${yen(p.price)}</span>
-              <span class="mypage__purchase-status is-${p.status}">${STATUS_LABEL[p.status] || p.status}</span>
+              <span class="mypage__purchase-status is-${p.status}">${esc(STATUS_LABEL[p.status] || p.status)}</span>
             </div>
           </div>`).join('');
       }
@@ -147,6 +155,40 @@
           });
       }
 
+      /* ---------- お知らせ（決済完了/キャンセル時にWebhookが作る通知） ---------- */
+      function renderNotifications(list) {
+        const el = document.getElementById('mypage-notifications');
+        if (!list.length) { el.innerHTML = '<p class="cards-empty">お知らせはありません。</p>'; return; }
+        el.innerHTML = list.map(n => `
+          <div class="mypage__notification${n.read ? '' : ' is-unread'}">
+            <div class="mypage__notification-head">
+              <h3>${esc(n.title)}</h3>
+              <span class="mypage__notification-date">${new Date(n.created_at).toLocaleDateString('ja-JP')}</span>
+            </div>
+            <p>${esc(n.body)}</p>
+          </div>`).join('');
+      }
+
+      function loadNotifications(session) {
+        const client = window.DCT_AUTH.getClient();
+        client.from('notifications')
+          .select('id, title, body, read, created_at')
+          .eq('user_id', session.user.id)
+          .order('created_at', { ascending: false })
+          .then(res => {
+            if (res.error) { document.getElementById('mypage-notifications').innerHTML = '<p class="cards-empty">読み込みに失敗しました。</p>'; return; }
+            const list = res.data || [];
+            renderNotifications(list);
+            // 開いた時点で未読を既読にする（ヘッダーの赤丸バッジも合わせて消す）
+            const unreadIds = list.filter(n => !n.read).map(n => n.id);
+            if (unreadIds.length) {
+              client.from('notifications').update({ read: true }).in('id', unreadIds).then(() => {
+                if (window.DCT_AUTH.refreshNotifBadge) window.DCT_AUTH.refreshNotifBadge();
+              });
+            }
+          });
+      }
+
       function paint(session) {
         if (!window.DCT_AUTH.isConfigured()) { show('unconfigured'); return; }
         if (!session) { show('guest'); return; }
@@ -155,6 +197,7 @@
         document.getElementById('mypage-greeting').textContent = name + ' さん、こんにちは。';
         document.getElementById('logout-btn').hidden = false;
         document.getElementById('logout-btn-mobile').hidden = false;
+        loadNotifications(session);
         loadPurchases(session);
       }
 

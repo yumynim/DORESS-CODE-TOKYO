@@ -226,6 +226,7 @@
   /* ---------- ヘッダーの「ログイン」ボタンの出し分け ---------- */
   function paintAuthButtons() {
     document.querySelectorAll('[data-auth-trigger]').forEach(function (btn) {
+      var dot = btn.querySelector('.notif-dot'); // textContent= で消えるので後で戻す
       if (!CONFIGURED) { btn.textContent = 'ログイン'; return; }
       if (session) {
         var name = (session.user.user_metadata && session.user.user_metadata.display_name) || session.user.email;
@@ -235,7 +236,29 @@
         btn.textContent = 'ログイン';
         btn.removeAttribute('title');
       }
+      if (dot) btn.appendChild(dot);
     });
+  }
+
+  /* ---------- ヘッダーの未読お知らせバッジ（マイページに未読の通知があるとき赤丸を出す） ---------- */
+  function setNotifDot(show) {
+    document.querySelectorAll('[data-auth-trigger]').forEach(function (btn) {
+      var dot = btn.querySelector('.notif-dot');
+      if (!dot) {
+        dot = document.createElement('span');
+        dot.className = 'notif-dot';
+        btn.appendChild(dot);
+      }
+      dot.hidden = !show;
+    });
+  }
+  function refreshNotifBadge() {
+    if (!CONFIGURED || !client || !session) { setNotifDot(false); return; }
+    client.from('notifications')
+      .select('id', { count: 'exact', head: true })
+      .eq('user_id', session.user.id)
+      .eq('read', false)
+      .then(function (res) { setNotifDot(!res.error && res.count > 0); });
   }
 
   function wireAuthButtons() {
@@ -277,6 +300,7 @@
     client.auth.getSession().then(function (res) {
       session = res.data.session;
       paintAuthButtons();
+      refreshNotifBadge();
       notify();
       // Googleログインからページ遷移して戻ってきた直後もここを通るので、
       // 既にセッションが存在していれば保留中のチケット購入をここで再開する。
@@ -286,6 +310,7 @@
       var wasLoggedOut = !session;
       session = newSession;
       paintAuthButtons();
+      refreshNotifBadge();
       notify();
       if (wasLoggedOut && session) resumePendingTicket();
     });
@@ -304,5 +329,6 @@
     signOut: function () { return client ? client.auth.signOut() : Promise.resolve(); },
     openModal: openModal,
     signInWithGoogle: signInWithGoogle,
+    refreshNotifBadge: refreshNotifBadge,
   };
 })();

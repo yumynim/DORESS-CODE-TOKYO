@@ -8,9 +8,63 @@
    最重要：署名を検証してから処理すること。
    検証しないと、誰でもこのURLに偽の「決済完了しました」を送りつけて、
    お金を払っていないのに購入済み扱いにできてしまう（なりすまし）。
+
+   決済の結果（完了／キャンセル）が確定したら、購入者に2通りの方法で知らせる：
+   1. サイト内通知（notifications テーブルに1件insert → マイページの「お知らせ」欄に出る）
+   2. メール（Resend の API を利用。RESEND_API_KEY / NOTIFY_FROM_EMAIL が未設定の場合は
+      サイト内通知だけ届き、メール送信は静かにスキップされる）
    ========================================================= */
 const crypto = require('crypto');
 const { createClient } = require('@supabase/supabase-js');
+
+function escapeHtml(s) {
+  return String(s == null ? '' : s).replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
+}
+
+async function sendEmail(serviceClient, userId, subject, text) {
+  const apiKey = process.env.RESEND_API_KEY;
+  const from = process.env.NOTIFY_FROM_EMAIL;
+  if (!apiKey || !from) return; // 未設定ならメールはスキップ（サイト内通知は別途届く）
+
+  const { data, error } = await serviceClient.auth.admin.getUserById(userId);
+  const to = data && data.user && data.user.email;
+  if (error || !to) { console.error('email skipped: user email not found', error && error.message); return; }
+
+  try {
+    const res = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        from,
+        to,
+        subject: `【DRESS CODE TOKYO】${subject}`,
+        text,
+        html: `<p>${escapeHtml(text).replace(/\n/g, '<br>')}</p>`,
+      }),
+    });
+    if (!res.ok) console.error('Resend API error:', await res.text());
+  } catch (e) {
+    console.error('email send failed:', e);
+  }
+}
+
+async function notifyPurchaser(serviceClient, purchase, newStatus) {
+  const isPaid = newStatus === 'paid';
+  const title = isPaid ? 'ご購入ありがとうございます' : 'お支払いがキャンセルされました';
+  const body = isPaid
+    ? `${purchase.ticket_name} のお支払いが完了しました。マイページから購入内容を確認できます。`
+    : `${purchase.ticket_name} のお支払いがキャンセル、または失敗しました。お手数ですが再度お手続きください。`;
+
+  const { error: notifErr } = await serviceClient.from('notifications').insert({
+    user_id: purchase.user_id,
+    purchase_id: purchase.id,
+    title,
+    body,
+  });
+  if (notifErr) console.error('notifications insert failed:', notifErr.message);
+
+  await sendEmail(serviceClient, purchase.user_id, title, body);
+}
 
 function readRawBody(req) {
   return new Promise((resolve, reject) => {
@@ -68,11 +122,14 @@ async function handler(req, res) {
         const newStatus = status === 'COMPLETED' ? 'paid' : (status === 'FAILED' || status === 'CANCELED') ? 'canceled' : null;
         if (newStatus) {
           const serviceClient = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
-          const { error } = await serviceClient
+          const { data: purchase, error } = await serviceClient
             .from('purchases')
             .update({ status: newStatus })
-            .eq('square_order_id', orderId);
+            .eq('square_order_id', orderId)
+            .select('id, user_id, ticket_name')
+            .single();
           if (error) console.error('purchases update failed:', error.message);
+          else if (purchase) await notifyPurchaser(serviceClient, purchase, newStatus);
         }
       }
     }

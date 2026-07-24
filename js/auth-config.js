@@ -7,6 +7,6 @@
    4. 貼るまではログイン機能は「準備中」の案内が出るだけで、エラーにはなりません
    ========================================================= */
 window.SUPABASE_CONFIG = {
-  url: '',      // 例: 'https://xxxxxxxxxxxx.supabase.co'
-  anonKey: '',  // 例: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9....'
+  url: 'https://qyqeyinkvofosmcwskwx.supabase.co',
+  anonKey: 'sb_publishable_TOppy3iGQ7QGmvhXM6nH5w_A2QdcpyN',
 };
