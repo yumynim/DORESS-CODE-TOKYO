@@ -118,10 +118,22 @@ git log（直近）で確認できた範囲:
   - [`vercel.json`](../vercel.json): `/console` → `/admin-announcements.html` のrewriteを追加。共有用の短いURLとして`https://<本番ドメイン>/console`が使える
   - `.env.example` に `ADMIN_CONSOLE_PASSWORD` を追加（**未設定**。Vercelの環境変数に値を入れないと投稿ページが機能しない）
   - ローカルで「合言葉未入力→フォーム表示」「有効そうなトークンあり→投稿画面表示→一覧取得は通信エラー（ローカルにAPIサーバーが無いため想定通り）」まで確認。**実際のログイン/投稿/削除はVercel Functionsが必要なため未確認**
+- **（2026-07-25）`ADMIN_CONSOLE_PASSWORD`が反映されない問題の原因判明・解決**:
+  - 長時間のトラブルシューティングの結果、**同じGitHubリポジトリが誤って複数のVercelプロジェクトにインポートされていた**ことが判明（`doress-code-tokyo-cip1` / `doress-code-tokyo` / `doress-code-tokyo-9qjj`）。本番ドメイン`dress-code-tokyo.com`は`-9qjj`にだけ紐づいており、ユーザーはずっと`-cip1`の方の環境変数を編集していたため反映されなかった
+  - 切り分けのため `api/env-check.js`（新規）を追加：必要な環境変数が「設定されているか」を booleanで返す診断用エンドポイント。`VERCEL_URL`/`VERCEL_ENV`/`VERCEL_GIT_COMMIT_SHA` も返し、「どのデプロイ・どのコミットが実際にドメインに紐づいているか」を確認できるようにした（今後も同種のトラブルで使える）
+  - `-9qjj`側に`ADMIN_CONSOLE_PASSWORD`を正しく設定・Redeployして解決。動作確認済み（本番で `/console` にログイン成功）
+  - **後片付け**: 使っていなかった`doress-code-tokyo-cip1`・`doress-code-tokyo`の2プロジェクトはユーザーが削除済み。以後は`doress-code-tokyo-9qjj`のみを使う
+- **（2026-07-25）運営資料フォルダを新設**: `方針/` `事業/` `案件/` `素材/` をリポジトリ直下に作成（すべて`.gitignore`対象、ローカルのみ）。`素材/`は旧`添付資料/`をリネームして中身をそのまま移動。`CLAUDE.md`に参照ルールを追記（詳細は「重要な仕様・決定事項」欄）
+- **（2026-07-25）お知らせ投稿ページに「個人宛て送信」を追加**:
+  - 背景: ユーザーから「Consoleにもっと自由度が欲しい、最低でも個人単体への配信が欲しい」との要望
+  - [`admin-announcements.html`](../admin-announcements.html): 投稿フォームに「会員全員に送る」／「個人宛てに送る」のタブを追加。個人宛てを選ぶと宛先メールアドレス欄が出る。一覧も「全員向け」と「個人宛てに送った履歴」の2セクションに分離（削除ボタンはそれぞれ対応するテーブルを操作）
+  - [`api/admin-announcements.js`](../api/admin-announcements.js): `targetEmail`が指定されていれば個人宛てモード。`serviceClient.auth.admin.listUsers()`をページングしながらメールアドレスで検索し、該当ユーザーが見つかれば`notifications`テーブルに1件insert（`purchase_id`はnull）＋その人だけにメール送信。見つからなければ404エラー。GET（一覧取得）は`announcements`と、`notifications`のうち`purchase_id`がnullなもの（＝Webhookではなくこの画面から送った個人宛て分）の両方を返す。個人宛て一覧の表示用に、各通知の宛先メールアドレスを`getUserById`で解決している
+  - DELETE には `type`（`'announcement'` | `'personal'`）を追加し、どちらのテーブルを操作するか切り替え
+  - ローカルでタブ切り替え（メール入力欄の表示/非表示）の動作確認済み。**実際の個人宛て送信（該当ユーザー検索・insert・メール送信）はVercel Functionsが必要なため未確認**
 
 # 現在作業中の内容
 
-Supabase接続・ヘッダーのマイページ/通知UI刷新・お知らせ投稿ページ（合言葉方式、`/console`）まで完了・ローカルで表示確認済み（未コミット）。Google OAuthとSquareはユーザーの意向で一旦後回し。次にpushしてVercel本番へ反映し、`ADMIN_CONSOLE_PASSWORD`をVercelに設定してから動作確認が必要。
+Supabase接続・ヘッダーのマイページ/通知UI刷新・お知らせ投稿ページ（合言葉方式、`/console`、個人宛て送信対応）まで完了。Vercel側のプロジェクト重複問題も解決し、本番で`/console`のログインまで動作確認済み。運営資料フォルダ（方針/事業/案件/素材）も新設済み。Google OAuthとSquareはユーザーの意向で一旦後回し。次はこのセッションの変更をpushし、本番で個人宛て送信を実地確認すること。
 
 # 未完了の作業（＝ユーザーが各サイトで行う作業）
 
@@ -140,7 +152,8 @@ Supabase接続・ヘッダーのマイページ/通知UI刷新・お知らせ投
 - **ログイン再開は sessionStorage 経由**: Google ログインは別ドメインへのフルページ遷移を伴い JS のメモリ状態が消えるため、購入しようとしていたチケット情報は `sessionStorage`（キー: `dct_pending_ticket`）に保存してログイン後に復元する（`js/auth.js`）。
 - **見た目は元デザインを維持**: 分割前の22MB HTMLと同じ見た目を保つ方針（README記載）。
 - **announcements への書き込みは `/api/admin-announcements` 経由のみ**: RLSでinsert/deleteポリシーを意図的に作っておらず、サーバー側（service role）でしか書き込めない。理由: `purchases.status` と同じ考え方で、権限確認をクライアント任せにしない。
-- **お知らせ投稿ページ（`/console`）はチーム共通の合言葉方式**: `ADMIN_CONSOLE_PASSWORD` 1つを知っている人なら誰でも会員全員へお知らせ（サイト内通知＋メール）を投稿できる。個人アカウント単位の権限管理ではないため、「誰が投稿したか」の記録は残らない。合言葉が漏れた場合は`ADMIN_CONSOLE_PASSWORD`を変更すれば、発行済みトークンも含めて即座に無効化される。
+- **お知らせ投稿ページ（`/console`）はチーム共通の合言葉方式**: `ADMIN_CONSOLE_PASSWORD` 1つを知っている人なら誰でも会員全員／個人宛てにお知らせ（サイト内通知＋メール）を送れる。個人アカウント単位の権限管理ではないため、「誰が送ったか」の記録は残らない。合言葉が漏れた場合は`ADMIN_CONSOLE_PASSWORD`を変更すれば、発行済みトークンも含めて即座に無効化される。
+- **Vercelのプロジェクトは`doress-code-tokyo-9qjj`が唯一の本番**: 過去に同じリポジトリを複数回インポートしてしまい、似た名前の重複プロジェクトができていたことがある（2026-07-25に発見・削除済み）。今後Vercelの環境変数を触るときは、必ずURLの末尾が`-9qjj`のプロジェクトを編集していることを確認する。原因切り分けには`/api/env-check`が使える。
 
 # 変更時の注意点
 
@@ -173,12 +186,14 @@ Supabase接続・ヘッダーのマイページ/通知UI刷新・お知らせ投
 - [js/data.js](../js/data.js) / [js/render.js](../js/render.js) — コンテンツと描画
 - [js/auth.js](../js/auth.js) / [js/auth-config.js](../js/auth-config.js) — 認証・マイページドロワー
 - [js/notifications.js](../js/notifications.js) — 通知ベル（あなたへのお知らせ／ドレスコードからのお知らせ）
-- [admin-announcements.html](../admin-announcements.html)（`/console`） / [api/admin-announcements.js](../api/admin-announcements.js) / [api/admin-login.js](../api/admin-login.js) / [lib/adminAuth.js](../lib/adminAuth.js) — お知らせ投稿ページ（合言葉方式）
+- [admin-announcements.html](../admin-announcements.html)（`/console`） / [api/admin-announcements.js](../api/admin-announcements.js) / [api/admin-login.js](../api/admin-login.js) / [lib/adminAuth.js](../lib/adminAuth.js) — お知らせ投稿ページ（合言葉方式、全員宛て／個人宛て対応）
+- [api/env-check.js](../api/env-check.js) — 環境変数・デプロイ診断用エンドポイント（トラブル時に使う）
 - [lib/mailer.js](../lib/mailer.js) — Resend送信の共通処理
 - [js/cart.js](../js/cart.js) / [api/checkout.js](../api/checkout.js) / [api/square-webhook.js](../api/square-webhook.js) — 決済フロー＋購入通知（メール／サイト内通知）
 - [supabase/schema.sql](../supabase/schema.sql) 〜 [schema_v5_admin.sql](../supabase/schema_v5_admin.sql) — DBスキーマ（v1〜v4は使用中、v5は現在未使用）
 - [vercel.json](../vercel.json) — セキュリティヘッダー＋ `/console` のrewrite
 - [.env.example](../.env.example) — 必要な環境変数一覧（実値はVercel側）
+- `方針/` `事業/` `案件/` `素材/` — 運営資料（gitignore対象、ローカルのみ）
 
 # 動作確認方法
 
@@ -188,4 +203,4 @@ Supabase接続・ヘッダーのマイページ/通知UI刷新・お知らせ投
 
 # 最終更新
 
-2026-07-25 — ヘッダーのマイページ／通知UIをドロワー形式に刷新（ページ遷移せず他ページを離脱しない）。マイページアイコン・通知ベル（本人向け／全体向けタブ分け）を追加し、announcementsテーブルを新設。お知らせ投稿ページ（`/console`）を新規追加、投稿時に会員全員へメールも送信。認証方式は当初`profiles.is_admin`（個人アカウント）で作ったが、「共有しやすくしたい」というユーザー要望を受けて**共通パスワード方式**（`ADMIN_CONSOLE_PASSWORD`）に差し替え済み（`schema_v5_admin.sql`は現在未使用）。push・ユーザー承認済み、コミット/push直前。Vercel側の`ADMIN_CONSOLE_PASSWORD`設定と本番動作確認はこれから。Google OAuth・Squareはユーザーの意向で後回し中。Resendは未着手。
+2026-07-25 — ヘッダーのマイページ／通知UIをドロワー形式に刷新、お知らせ投稿ページ（`/console`、共通パスワード方式）を追加し会員全員／個人宛ての両対応にした。Vercelに同名の重複プロジェクトが3つ存在していた問題を発見・解決し（本番は`doress-code-tokyo-9qjj`のみ）、不要な2つは削除済み。診断用の`/api/env-check`を追加。運営資料フォルダ（`方針/`・`事業/`・`案件/`・`素材/`、いずれもgitignore対象）を新設。本番で`/console`ログインまで動作確認済み、個人宛て送信機能はこれからpush・実地確認。Google OAuth・Squareはユーザーの意向で後回し中。Resendは未着手（設定できればお知らせ・購入通知の両方でメールが飛ぶ）。

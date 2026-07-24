@@ -50,7 +50,12 @@
 
       <section class="mypage__section">
         <h2>新しいお知らせ</h2>
+        <div class="notif-tabs" id="admin-target-tabs">
+          <button type="button" class="notif-tab is-active" data-target-mode="all">会員全員に送る</button>
+          <button type="button" class="notif-tab" data-target-mode="one">個人宛てに送る</button>
+        </div>
         <form id="admin-form" class="auth-form admin-form">
+          <label id="admin-target-email-field" hidden>宛先のメールアドレス<input type="email" name="targetEmail" placeholder="member@example.com"></label>
           <label>タイトル<input type="text" name="title" required maxlength="80"></label>
           <label>本文<textarea name="body" required maxlength="2000" rows="5"></textarea></label>
           <p class="auth-form__error" id="admin-form-error" hidden></p>
@@ -59,8 +64,15 @@
       </section>
 
       <section class="mypage__section">
-        <h2>投稿済みのお知らせ</h2>
+        <h2>投稿済みのお知らせ（全員向け）</h2>
         <div id="admin-list" class="mypage__notifications">
+          <p class="cards-empty">読み込み中…</p>
+        </div>
+      </section>
+
+      <section class="mypage__section">
+        <h2>個人宛てに送った履歴</h2>
+        <div id="admin-list-personal" class="mypage__notifications">
           <p class="cards-empty">読み込み中…</p>
         </div>
       </section>
@@ -106,7 +118,11 @@
       const form = document.getElementById('admin-form');
       const formError = document.getElementById('admin-form-error');
       const listEl = document.getElementById('admin-list');
+      const listPersonalEl = document.getElementById('admin-list-personal');
       const logoutBtns = [document.getElementById('admin-logout-btn'), document.getElementById('admin-logout-btn-mobile')];
+      const targetTabs = document.querySelectorAll('[data-target-mode]');
+      const targetEmailField = document.getElementById('admin-target-email-field');
+      let targetMode = 'all';
 
       const esc = s => String(s == null ? '' : s).replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
 
@@ -135,19 +151,20 @@
         loadList();
       }
 
-      function renderList(list) {
-        if (!list.length) { listEl.innerHTML = '<p class="cards-empty">まだお知らせはありません。</p>'; return; }
-        listEl.innerHTML = list.map(n => `
+      function renderList(el, list, emptyMsg, type) {
+        if (!list.length) { el.innerHTML = `<p class="cards-empty">${emptyMsg}</p>`; return; }
+        el.innerHTML = list.map(n => `
           <div class="mypage__notification" data-id="${esc(n.id)}">
             <div class="mypage__notification-head">
               <h3>${esc(n.title)}</h3>
               <span class="mypage__notification-date">${new Date(n.created_at).toLocaleDateString('ja-JP')}</span>
             </div>
+            ${n.email ? `<p class="mypage__notification-date">宛先: ${esc(n.email)}</p>` : ''}
             <p>${esc(n.body)}</p>
-            <button type="button" class="btn-link admin-form__delete" data-delete-id="${esc(n.id)}">削除する</button>
+            <button type="button" class="btn-link admin-form__delete" data-delete-id="${esc(n.id)}" data-delete-type="${type}">削除する</button>
           </div>`).join('');
-        listEl.querySelectorAll('[data-delete-id]').forEach(btn => {
-          btn.addEventListener('click', () => deleteAnnouncement(btn.getAttribute('data-delete-id')));
+        el.querySelectorAll('[data-delete-id]').forEach(btn => {
+          btn.addEventListener('click', () => deleteItem(btn.getAttribute('data-delete-id'), btn.getAttribute('data-delete-type')));
         });
       }
 
@@ -156,18 +173,26 @@
           .then(r => r.json().then(data => ({ ok: r.ok, status: r.status, data })))
           .then(({ ok, status, data }) => {
             if (status === 401) { showLocked(); return; }
-            if (!ok) { listEl.innerHTML = '<p class="cards-empty">読み込みに失敗しました。</p>'; return; }
-            renderList(data.announcements || []);
+            if (!ok) {
+              listEl.innerHTML = '<p class="cards-empty">読み込みに失敗しました。</p>';
+              listPersonalEl.innerHTML = '<p class="cards-empty">読み込みに失敗しました。</p>';
+              return;
+            }
+            renderList(listEl, data.announcements || [], 'まだお知らせはありません。', 'announcement');
+            renderList(listPersonalEl, data.personal || [], 'まだ個人宛てに送ったお知らせはありません。', 'personal');
           })
-          .catch(() => { listEl.innerHTML = '<p class="cards-empty">通信エラーが発生しました。</p>'; });
+          .catch(() => {
+            listEl.innerHTML = '<p class="cards-empty">通信エラーが発生しました。</p>';
+            listPersonalEl.innerHTML = '<p class="cards-empty">通信エラーが発生しました。</p>';
+          });
       }
 
-      function deleteAnnouncement(id) {
+      function deleteItem(id, type) {
         if (!confirm('このお知らせを削除しますか？')) return;
         fetch('/api/admin-announcements', {
           method: 'DELETE',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ id, token: getToken() }),
+          body: JSON.stringify({ id, type, token: getToken() }),
         })
           .then(r => r.json().then(data => ({ ok: r.ok, status: r.status, data })))
           .then(({ ok, status, data }) => {
@@ -177,6 +202,15 @@
           })
           .catch(() => alert('通信エラーが発生しました'));
       }
+
+      function setTargetMode(mode) {
+        targetMode = mode;
+        targetTabs.forEach(b => b.classList.toggle('is-active', b.getAttribute('data-target-mode') === mode));
+        targetEmailField.hidden = mode !== 'one';
+        form.targetEmail.required = mode === 'one';
+        if (mode === 'all') form.targetEmail.value = '';
+      }
+      targetTabs.forEach(btn => btn.addEventListener('click', () => setTargetMode(btn.getAttribute('data-target-mode'))));
 
       loginForm.addEventListener('submit', function (e) {
         e.preventDefault();
@@ -212,21 +246,28 @@
         formError.hidden = true;
         const title = form.title.value.trim();
         const body = form.body.value.trim();
+        const targetEmail = targetMode === 'one' ? form.targetEmail.value.trim() : '';
+        if (targetMode === 'one' && !targetEmail) {
+          formError.textContent = '宛先のメールアドレスを入力してください';
+          formError.hidden = false;
+          return;
+        }
         const btn = form.querySelector('.auth-form__submit');
         btn.disabled = true;
-        btn.textContent = '投稿中…';
+        btn.textContent = '送信中…';
         fetch('/api/admin-announcements', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ title, body, token: getToken() }),
+          body: JSON.stringify({ title, body, targetEmail, token: getToken() }),
         })
           .then(r => r.json().then(data => ({ ok: r.ok, status: r.status, data })))
           .then(({ ok, status, data }) => {
             btn.disabled = false;
             btn.textContent = '投稿する';
             if (status === 401) { showLocked(); return; }
-            if (!ok) { formError.textContent = data.error || '投稿に失敗しました'; formError.hidden = false; return; }
+            if (!ok) { formError.textContent = data.error || '送信に失敗しました'; formError.hidden = false; return; }
             form.reset();
+            setTargetMode('all');
             loadList();
           })
           .catch(() => {
