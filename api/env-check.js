@@ -25,6 +25,7 @@ module.exports = async function handler(req, res) {
     'RESEND_API_KEY',
     'NOTIFY_FROM_EMAIL',
     'ADMIN_CONSOLE_PASSWORD',
+    'DEBUG_PING', // 切り分け用の使い捨て変数。原因が分かったら削除してよい
   ];
 
   const status = {};
