@@ -63,7 +63,10 @@
 
             <div class="admin-blocks__toolbar">
               <span>ブロックを追加：</span>
+              <button type="button" class="btn-chip" data-add-block="heading">＋ 見出し</button>
               <button type="button" class="btn-chip" data-add-block="paragraph">＋ 段落</button>
+              <button type="button" class="btn-chip" data-add-block="callout">＋ ハイライト</button>
+              <button type="button" class="btn-chip" data-add-block="image">＋ 画像</button>
               <button type="button" class="btn-chip" data-add-block="divider">＋ 区切り線</button>
               <button type="button" class="btn-chip" data-add-block="button">＋ ボタン</button>
             </div>
@@ -147,7 +150,11 @@
       let blockSeq = 0;
       let blocks = [];
 
-      const BLOCK_LABELS = { paragraph: '段落', divider: '区切り線', button: 'ボタン' };
+      const BLOCK_LABELS = { heading: '見出し', paragraph: '段落', callout: 'ハイライト', image: '画像', divider: '区切り線', button: 'ボタン' };
+      const COLOR_LABELS = { default: '標準', ink: '濃い黒', muted: 'グレー', accent: 'えんじ' };
+      const colorOptionsHtml = selected => Object.keys(COLOR_LABELS)
+        .map(key => `<option value="${key}" ${key === (selected || 'default') ? 'selected' : ''}>${COLOR_LABELS[key]}</option>`)
+        .join('');
 
       const esc = s => String(s == null ? '' : s).replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
 
@@ -234,9 +241,13 @@
       // Notionのブロック編集のイメージで、追加・削除・並び替えができる。
       function newBlock(type) {
         blockSeq += 1;
+        if (type === 'heading') return { id: blockSeq, type, text: '', size: 'md', color: 'ink' };
+        if (type === 'paragraph') return { id: blockSeq, type, text: '', color: 'default' };
+        if (type === 'callout') return { id: blockSeq, type, text: '' };
+        if (type === 'image') return { id: blockSeq, type, url: '', alt: '' };
         if (type === 'button') return { id: blockSeq, type, label: '', url: '' };
         if (type === 'divider') return { id: blockSeq, type };
-        return { id: blockSeq, type: 'paragraph', text: '' };
+        return { id: blockSeq, type: 'paragraph', text: '', color: 'default' };
       }
 
       function resetBlocks() {
@@ -246,7 +257,10 @@
 
       function serializeBlocks() {
         return blocks.map(b => {
-          if (b.type === 'paragraph') return { type: 'paragraph', text: b.text || '' };
+          if (b.type === 'heading') return { type: 'heading', text: b.text || '', size: b.size || 'md', color: b.color || 'ink' };
+          if (b.type === 'paragraph') return { type: 'paragraph', text: b.text || '', color: b.color || 'default' };
+          if (b.type === 'callout') return { type: 'callout', text: b.text || '' };
+          if (b.type === 'image') return { type: 'image', url: b.url || '', alt: b.alt || '' };
           if (b.type === 'button') return { type: 'button', label: b.label || '', url: b.url || '' };
           return { type: 'divider' };
         });
@@ -254,14 +268,42 @@
 
       function hasSendableContent() {
         return blocks.some(b =>
-          (b.type === 'paragraph' && (b.text || '').trim()) ||
-          (b.type === 'button' && (b.label || '').trim())
+          ((b.type === 'paragraph' || b.type === 'heading' || b.type === 'callout') && (b.text || '').trim()) ||
+          (b.type === 'button' && (b.label || '').trim()) ||
+          (b.type === 'image' && (b.url || '').trim())
         );
       }
 
       function blockBodyHtml(b) {
+        if (b.type === 'heading') {
+          return `
+            <div class="admin-block__row admin-block__row--inline">
+              <select class="admin-block__select" data-field="size">
+                <option value="lg" ${b.size === 'lg' ? 'selected' : ''}>大見出し</option>
+                <option value="md" ${b.size === 'md' || !b.size ? 'selected' : ''}>中見出し</option>
+                <option value="sm" ${b.size === 'sm' ? 'selected' : ''}>小見出し</option>
+              </select>
+              <select class="admin-block__select" data-field="color">${colorOptionsHtml(b.color || 'ink')}</select>
+            </div>
+            <input type="text" class="admin-block__input" data-field="text" maxlength="120" placeholder="見出しを入力…" value="${esc(b.text || '')}">`;
+        }
         if (b.type === 'paragraph') {
-          return `<textarea class="admin-block__textarea" data-field="text" rows="4" placeholder="本文を入力…（空行で段落を分けたい場合は「＋ 段落」を複数追加してください）">${esc(b.text || '')}</textarea>`;
+          return `
+            <div class="admin-block__row admin-block__row--inline">
+              <select class="admin-block__select" data-field="color">${colorOptionsHtml(b.color)}</select>
+            </div>
+            <textarea class="admin-block__textarea" data-field="text" rows="4" placeholder="本文を入力…（空行で段落を分けたい場合は「＋ 段落」を複数追加してください）">${esc(b.text || '')}</textarea>`;
+        }
+        if (b.type === 'callout') {
+          return `<textarea class="admin-block__textarea" data-field="text" rows="3" placeholder="強調したい内容を入力…（背景付きのボックスで表示されます）">${esc(b.text || '')}</textarea>`;
+        }
+        if (b.type === 'image') {
+          return `
+            <div class="admin-block__row">
+              <input type="url" class="admin-block__input" data-field="url" placeholder="画像のURL（https://...）" value="${esc(b.url || '')}">
+              <input type="text" class="admin-block__input" data-field="alt" maxlength="140" placeholder="画像の説明（alt、任意）" value="${esc(b.alt || '')}">
+            </div>
+            <p class="admin-block__hint">どこかにアップロード済みの画像のURLを貼り付けてください（このページから直接アップロードする機能はまだありません）。</p>`;
         }
         if (b.type === 'button') {
           return `
