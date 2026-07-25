@@ -17,10 +17,10 @@
    （RESEND_API_KEY / NOTIFY_FROM_EMAIL が未設定の場合は静かにスキップされる）。
    ========================================================= */
 const { createClient } = require('@supabase/supabase-js');
-const { sendEmail, SITE_URL } = require('../lib/mailer');
+const { sendEmail, renderBlocks } = require('../lib/mailer');
 const { verifyAdminToken } = require('../lib/adminAuth');
 
-async function sendBroadcastEmail(serviceClient, { subject, text, ctaLabel, ctaUrl }) {
+async function sendBroadcastEmail(serviceClient, { subject, blocks }) {
   // 会員数が多くなってきたら、ここは一括送信APIやキュー経由に切り替えたほうがよい
   // （今は一人ずつ順番に送っている）。
   let page = 1;
@@ -30,7 +30,7 @@ async function sendBroadcastEmail(serviceClient, { subject, text, ctaLabel, ctaU
     if (error) { console.error('listUsers failed:', error.message); return; }
     const users = (data && data.users) || [];
     for (const u of users) {
-      if (u.email) await sendEmail({ to: u.email, subject, text, ctaLabel, ctaUrl });
+      if (u.email) await sendEmail({ to: u.email, subject, blocks });
     }
     if (users.length < perPage) return;
     page += 1;
@@ -90,16 +90,16 @@ module.exports = async function handler(req, res) {
     }
 
     if (req.method === 'POST') {
-      const { title, body, targetEmail, ctaLabel, ctaUrl } = req.body || {};
-      if (!title || !String(title).trim() || !body || !String(body).trim()) {
+      const { title, blocks, targetEmail } = req.body || {};
+      const cleanTitle = title && String(title).trim();
+      // 送信の実体は「ブロック配列」（段落／区切り線／ボタン）。
+      // サイト内通知・プレーンテキストメール用の本文は、ここから自動生成する。
+      const rendered = renderBlocks(blocks);
+      if (!cleanTitle || !rendered.text) {
         res.status(400).json({ error: 'タイトルと本文を入力してください' });
         return;
       }
-      const cleanTitle = String(title).trim();
-      const cleanBody = String(body).trim();
-      // ボタンはConsole側の配信エディタで任意設定（文言未入力ならボタンなしのメールになる）
-      const cleanCtaLabel = ctaLabel && String(ctaLabel).trim() ? String(ctaLabel).trim() : undefined;
-      const cleanCtaUrl = cleanCtaLabel ? (ctaUrl && String(ctaUrl).trim() ? String(ctaUrl).trim() : SITE_URL) : undefined;
+      const cleanBody = rendered.text;
 
       if (targetEmail && String(targetEmail).trim()) {
         // ---------- 個人宛て ----------
@@ -114,7 +114,7 @@ module.exports = async function handler(req, res) {
         if (error) { res.status(500).json({ error: '送信に失敗しました' }); return; }
 
         try {
-          await sendEmail({ to: user.email, subject: cleanTitle, text: cleanBody, ctaLabel: cleanCtaLabel, ctaUrl: cleanCtaUrl });
+          await sendEmail({ to: user.email, subject: cleanTitle, blocks });
         } catch (e) {
           console.error('personal email failed:', e);
         }
@@ -132,7 +132,7 @@ module.exports = async function handler(req, res) {
       if (error) { res.status(500).json({ error: '投稿に失敗しました' }); return; }
 
       try {
-        await sendBroadcastEmail(serviceClient, { subject: data.title, text: data.body, ctaLabel: cleanCtaLabel, ctaUrl: cleanCtaUrl });
+        await sendBroadcastEmail(serviceClient, { subject: cleanTitle, blocks });
       } catch (e) {
         console.error('broadcast email failed:', e); // メール送信に失敗しても投稿自体は成功扱いにする
       }

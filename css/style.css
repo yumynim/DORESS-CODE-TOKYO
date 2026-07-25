@@ -1112,6 +1112,51 @@ a.mcard__sns:hover { transform: translateY(-3px); }
 }
 .admin-preview__frame iframe { display: block; width: 100%; height: 560px; border: none; background: #f4f3f0; }
 
+/* 配信エディタ（ブロック方式：段落／区切り線／ボタンを自由に組み合わせる） */
+.admin-blocks { display: flex; flex-direction: column; gap: 10px; }
+.admin-block {
+  border: 1px solid var(--line-2); border-radius: 8px; background: var(--bg-band);
+  transition: border-color .2s;
+}
+.admin-block:focus-within { border-color: var(--ink); }
+.admin-block__head {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 8px 10px; border-bottom: 1px solid var(--line-2);
+}
+.admin-block__type {
+  font-family: var(--f-sans); font-size: 10.5px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted);
+}
+.admin-block__controls { display: flex; gap: 4px; }
+.admin-block__btn {
+  width: 24px; height: 24px; border-radius: 5px; border: 1px solid transparent; background: none;
+  color: var(--ink-3); font-size: 12px; line-height: 1; cursor: pointer; transition: background .2s, color .2s;
+}
+.admin-block__btn:hover:not(:disabled) { background: #fff; border-color: var(--line-2); color: var(--ink); }
+.admin-block__btn:disabled { opacity: 0.3; cursor: default; }
+.admin-block__btn--danger:hover:not(:disabled) { color: #a1402c; }
+.admin-block__body { padding: 10px; }
+.admin-block__textarea {
+  width: 100%; resize: vertical; border: none; background: none; outline: none;
+  font-family: var(--f-jp); font-size: 14px; color: var(--ink); line-height: 1.8;
+}
+.admin-block__row { display: flex; flex-direction: column; gap: 8px; }
+.admin-block__input {
+  font-family: var(--f-jp); font-size: 13.5px; color: var(--ink); padding: 9px 10px;
+  border: 1px solid var(--line-2); border-radius: 6px; background: #fff;
+}
+.admin-block__input:focus { outline: none; border-color: var(--ink); }
+.admin-block__divider-hint { text-align: center; font-size: 12px; letter-spacing: 0.2em; color: var(--muted); }
+.admin-blocks__toolbar {
+  display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin-top: 4px;
+  font-family: var(--f-sans); font-size: 11.5px; letter-spacing: 0.04em; color: var(--muted);
+}
+.btn-chip {
+  padding: 7px 13px; border: 1px dashed var(--line-2); border-radius: 999px; background: none;
+  font-family: var(--f-sans); font-size: 11.5px; letter-spacing: 0.03em; color: var(--ink-3); cursor: pointer;
+  transition: border-color .2s, color .2s, background .2s;
+}
+.btn-chip:hover { border-color: var(--ink); border-style: solid; color: var(--ink); background: var(--bg-band); }
+
 /* =========================================================
    カート（複数商品まとめてSquare決済）
    ========================================================= */

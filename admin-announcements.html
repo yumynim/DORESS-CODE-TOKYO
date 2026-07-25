@@ -58,9 +58,16 @@
           <form id="admin-form" class="auth-form admin-form">
             <label id="admin-target-email-field" hidden>宛先のメールアドレス<input type="email" name="targetEmail" placeholder="member@example.com"></label>
             <label>タイトル<input type="text" name="title" required maxlength="80" placeholder="例）夏のポップアップストア開催のお知らせ"></label>
-            <label>本文<textarea name="body" required maxlength="2000" rows="6" placeholder="本文を入力してください。空行で段落が分かれます。"></textarea></label>
-            <label>ボタンの文言（空欄ならボタンなしのメールになります）<input type="text" name="ctaLabel" maxlength="20" value="サイトを見る"></label>
-            <label>ボタンのリンク先（空欄ならトップページになります）<input type="url" name="ctaUrl" placeholder="https://dress-code-tokyo.com/..."></label>
+
+            <div class="admin-blocks" id="admin-blocks"></div>
+
+            <div class="admin-blocks__toolbar">
+              <span>ブロックを追加：</span>
+              <button type="button" class="btn-chip" data-add-block="paragraph">＋ 段落</button>
+              <button type="button" class="btn-chip" data-add-block="divider">＋ 区切り線</button>
+              <button type="button" class="btn-chip" data-add-block="button">＋ ボタン</button>
+            </div>
+
             <p class="auth-form__error" id="admin-form-error" hidden></p>
             <button type="submit" class="btn btn--solid auth-form__submit">投稿する</button>
           </form>
@@ -134,8 +141,13 @@
       const targetTabs = document.querySelectorAll('[data-target-mode]');
       const targetEmailField = document.getElementById('admin-target-email-field');
       const previewFrame = document.getElementById('admin-preview-frame');
+      const blocksEl = document.getElementById('admin-blocks');
       let targetMode = 'all';
       let previewTimer = null;
+      let blockSeq = 0;
+      let blocks = [];
+
+      const BLOCK_LABELS = { paragraph: '段落', divider: '区切り線', button: 'ボタン' };
 
       const esc = s => String(s == null ? '' : s).replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
 
@@ -217,6 +229,108 @@
           .catch(() => alert('通信エラーが発生しました'));
       }
 
+      // ---------- 配信エディタ（ブロック方式） ----------
+      // 「段落」「区切り線」「ボタン」を自由に組み合わせてメール本文を組み立てる。
+      // Notionのブロック編集のイメージで、追加・削除・並び替えができる。
+      function newBlock(type) {
+        blockSeq += 1;
+        if (type === 'button') return { id: blockSeq, type, label: '', url: '' };
+        if (type === 'divider') return { id: blockSeq, type };
+        return { id: blockSeq, type: 'paragraph', text: '' };
+      }
+
+      function resetBlocks() {
+        blocks = [newBlock('paragraph')];
+        renderBlocksEditor();
+      }
+
+      function serializeBlocks() {
+        return blocks.map(b => {
+          if (b.type === 'paragraph') return { type: 'paragraph', text: b.text || '' };
+          if (b.type === 'button') return { type: 'button', label: b.label || '', url: b.url || '' };
+          return { type: 'divider' };
+        });
+      }
+
+      function hasSendableContent() {
+        return blocks.some(b =>
+          (b.type === 'paragraph' && (b.text || '').trim()) ||
+          (b.type === 'button' && (b.label || '').trim())
+        );
+      }
+
+      function blockBodyHtml(b) {
+        if (b.type === 'paragraph') {
+          return `<textarea class="admin-block__textarea" data-field="text" rows="4" placeholder="本文を入力…（空行で段落を分けたい場合は「＋ 段落」を複数追加してください）">${esc(b.text || '')}</textarea>`;
+        }
+        if (b.type === 'button') {
+          return `
+            <div class="admin-block__row">
+              <input type="text" class="admin-block__input" data-field="label" maxlength="40" placeholder="ボタンの文言（例：詳しく見る）" value="${esc(b.label || '')}">
+              <input type="url" class="admin-block__input" data-field="url" placeholder="https://dress-code-tokyo.com/...（空欄ならトップページ）" value="${esc(b.url || '')}">
+            </div>`;
+        }
+        return `<div class="admin-block__divider-hint">──────────</div>`;
+      }
+
+      function renderBlocksEditor() {
+        blocksEl.innerHTML = blocks.map((b, i) => `
+          <div class="admin-block" data-id="${b.id}">
+            <div class="admin-block__head">
+              <span class="admin-block__type">${BLOCK_LABELS[b.type] || b.type}</span>
+              <span class="admin-block__controls">
+                <button type="button" class="admin-block__btn" data-move="up" ${i === 0 ? 'disabled' : ''} title="上へ移動">↑</button>
+                <button type="button" class="admin-block__btn" data-move="down" ${i === blocks.length - 1 ? 'disabled' : ''} title="下へ移動">↓</button>
+                <button type="button" class="admin-block__btn admin-block__btn--danger" data-remove title="このブロックを削除">✕</button>
+              </span>
+            </div>
+            <div class="admin-block__body">${blockBodyHtml(b)}</div>
+          </div>`).join('');
+
+        blocksEl.querySelectorAll('.admin-block').forEach(el => {
+          const id = Number(el.getAttribute('data-id'));
+          el.querySelectorAll('[data-field]').forEach(input => {
+            input.addEventListener('input', () => {
+              const block = blocks.find(b => b.id === id);
+              if (block) block[input.getAttribute('data-field')] = input.value;
+              schedulePreview();
+            });
+          });
+          const upBtn = el.querySelector('[data-move="up"]');
+          const downBtn = el.querySelector('[data-move="down"]');
+          const removeBtn = el.querySelector('[data-remove]');
+          if (upBtn) upBtn.addEventListener('click', () => moveBlock(id, -1));
+          if (downBtn) downBtn.addEventListener('click', () => moveBlock(id, 1));
+          if (removeBtn) removeBtn.addEventListener('click', () => removeBlock(id));
+        });
+      }
+
+      function moveBlock(id, delta) {
+        const i = blocks.findIndex(b => b.id === id);
+        const j = i + delta;
+        if (i < 0 || j < 0 || j >= blocks.length) return;
+        [blocks[i], blocks[j]] = [blocks[j], blocks[i]];
+        renderBlocksEditor();
+        schedulePreview();
+      }
+
+      function removeBlock(id) {
+        if (blocks.length <= 1) { blocks = [newBlock('paragraph')]; renderBlocksEditor(); schedulePreview(); return; }
+        blocks = blocks.filter(b => b.id !== id);
+        renderBlocksEditor();
+        schedulePreview();
+      }
+
+      document.querySelectorAll('[data-add-block]').forEach(btn => {
+        btn.addEventListener('click', () => {
+          blocks.push(newBlock(btn.getAttribute('data-add-block')));
+          renderBlocksEditor();
+          schedulePreview();
+        });
+      });
+
+      resetBlocks();
+
       function fetchPreview() {
         const token = getToken();
         if (!token) return;
@@ -226,9 +340,7 @@
           body: JSON.stringify({
             token,
             title: form.title.value,
-            body: form.body.value,
-            ctaLabel: form.ctaLabel.value,
-            ctaUrl: form.ctaUrl.value,
+            blocks: serializeBlocks(),
           }),
         })
           .then(r => r.json().then(data => ({ ok: r.ok, status: r.status, data })))
@@ -243,9 +355,7 @@
         clearTimeout(previewTimer);
         previewTimer = setTimeout(fetchPreview, 350);
       }
-      ['title', 'body', 'ctaLabel', 'ctaUrl'].forEach(name => {
-        form[name].addEventListener('input', schedulePreview);
-      });
+      form.title.addEventListener('input', schedulePreview);
 
       function setTargetMode(mode) {
         targetMode = mode;
@@ -289,8 +399,17 @@
         e.preventDefault();
         formError.hidden = true;
         const title = form.title.value.trim();
-        const body = form.body.value.trim();
         const targetEmail = targetMode === 'one' ? form.targetEmail.value.trim() : '';
+        if (!title) {
+          formError.textContent = 'タイトルを入力してください';
+          formError.hidden = false;
+          return;
+        }
+        if (!hasSendableContent()) {
+          formError.textContent = '本文（段落）かボタンを1つ以上入力してください';
+          formError.hidden = false;
+          return;
+        }
         if (targetMode === 'one' && !targetEmail) {
           formError.textContent = '宛先のメールアドレスを入力してください';
           formError.hidden = false;
@@ -302,7 +421,7 @@
         fetch('/api/admin-announcements', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ title, body, targetEmail, ctaLabel: form.ctaLabel.value.trim(), ctaUrl: form.ctaUrl.value.trim(), token: getToken() }),
+          body: JSON.stringify({ title, blocks: serializeBlocks(), targetEmail, token: getToken() }),
         })
           .then(r => r.json().then(data => ({ ok: r.ok, status: r.status, data })))
           .then(({ ok, status, data }) => {
@@ -311,6 +430,7 @@
             if (status === 401) { showLocked(); return; }
             if (!ok) { formError.textContent = data.error || '送信に失敗しました'; formError.hidden = false; return; }
             form.reset();
+            resetBlocks();
             setTargetMode('all');
             loadList();
             fetchPreview();
