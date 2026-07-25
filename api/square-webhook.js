@@ -16,7 +16,7 @@
    ========================================================= */
 const crypto = require('crypto');
 const { createClient } = require('@supabase/supabase-js');
-const { sendEmail } = require('../lib/mailer');
+const { sendEmail, SITE_URL } = require('../lib/mailer');
 
 async function notifyPurchaser(serviceClient, purchase, newStatus) {
   const isPaid = newStatus === 'paid';
@@ -36,7 +36,13 @@ async function notifyPurchaser(serviceClient, purchase, newStatus) {
   const { data, error } = await serviceClient.auth.admin.getUserById(purchase.user_id);
   const to = data && data.user && data.user.email;
   if (error || !to) { console.error('email skipped: user email not found', error && error.message); return; }
-  await sendEmail({ to, subject: title, text: body });
+  await sendEmail({
+    to,
+    subject: title,
+    text: body,
+    ctaLabel: isPaid ? 'マイページで確認する' : 'サイトに戻る',
+    ctaUrl: SITE_URL,
+  });
 }
 
 function readRawBody(req) {

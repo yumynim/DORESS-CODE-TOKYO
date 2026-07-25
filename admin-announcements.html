@@ -54,13 +54,24 @@
           <button type="button" class="notif-tab is-active" data-target-mode="all">会員全員に送る</button>
           <button type="button" class="notif-tab" data-target-mode="one">個人宛てに送る</button>
         </div>
-        <form id="admin-form" class="auth-form admin-form">
-          <label id="admin-target-email-field" hidden>宛先のメールアドレス<input type="email" name="targetEmail" placeholder="member@example.com"></label>
-          <label>タイトル<input type="text" name="title" required maxlength="80"></label>
-          <label>本文<textarea name="body" required maxlength="2000" rows="5"></textarea></label>
-          <p class="auth-form__error" id="admin-form-error" hidden></p>
-          <button type="submit" class="btn btn--solid auth-form__submit">投稿する</button>
-        </form>
+        <div class="admin-editor">
+          <form id="admin-form" class="auth-form admin-form">
+            <label id="admin-target-email-field" hidden>宛先のメールアドレス<input type="email" name="targetEmail" placeholder="member@example.com"></label>
+            <label>タイトル<input type="text" name="title" required maxlength="80" placeholder="例）夏のポップアップストア開催のお知らせ"></label>
+            <label>本文<textarea name="body" required maxlength="2000" rows="6" placeholder="本文を入力してください。空行で段落が分かれます。"></textarea></label>
+            <label>ボタンの文言（空欄ならボタンなしのメールになります）<input type="text" name="ctaLabel" maxlength="20" value="サイトを見る"></label>
+            <label>ボタンのリンク先（空欄ならトップページになります）<input type="url" name="ctaUrl" placeholder="https://dress-code-tokyo.com/..."></label>
+            <p class="auth-form__error" id="admin-form-error" hidden></p>
+            <button type="submit" class="btn btn--solid auth-form__submit">投稿する</button>
+          </form>
+          <div class="admin-preview">
+            <h3>プレビュー（実際に届くメールの見た目）</h3>
+            <p class="mypage__note">入力すると自動で更新されます。</p>
+            <div class="admin-preview__frame">
+              <iframe id="admin-preview-frame" title="メールプレビュー" sandbox=""></iframe>
+            </div>
+          </div>
+        </div>
       </section>
 
       <section class="mypage__section">
@@ -122,7 +133,9 @@
       const logoutBtns = [document.getElementById('admin-logout-btn'), document.getElementById('admin-logout-btn-mobile')];
       const targetTabs = document.querySelectorAll('[data-target-mode]');
       const targetEmailField = document.getElementById('admin-target-email-field');
+      const previewFrame = document.getElementById('admin-preview-frame');
       let targetMode = 'all';
+      let previewTimer = null;
 
       const esc = s => String(s == null ? '' : s).replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
 
@@ -149,6 +162,7 @@
         content.hidden = false;
         logoutBtns.forEach(b => { b.hidden = false; });
         loadList();
+        fetchPreview();
       }
 
       function renderList(el, list, emptyMsg, type) {
@@ -202,6 +216,36 @@
           })
           .catch(() => alert('通信エラーが発生しました'));
       }
+
+      function fetchPreview() {
+        const token = getToken();
+        if (!token) return;
+        fetch('/api/admin-preview-email', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            token,
+            title: form.title.value,
+            body: form.body.value,
+            ctaLabel: form.ctaLabel.value,
+            ctaUrl: form.ctaUrl.value,
+          }),
+        })
+          .then(r => r.json().then(data => ({ ok: r.ok, status: r.status, data })))
+          .then(({ ok, status, data }) => {
+            if (status === 401) { showLocked(); return; }
+            if (!ok) return;
+            previewFrame.srcdoc = data.html;
+          })
+          .catch(() => {});
+      }
+      function schedulePreview() {
+        clearTimeout(previewTimer);
+        previewTimer = setTimeout(fetchPreview, 350);
+      }
+      ['title', 'body', 'ctaLabel', 'ctaUrl'].forEach(name => {
+        form[name].addEventListener('input', schedulePreview);
+      });
 
       function setTargetMode(mode) {
         targetMode = mode;
@@ -258,7 +302,7 @@
         fetch('/api/admin-announcements', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ title, body, targetEmail, token: getToken() }),
+          body: JSON.stringify({ title, body, targetEmail, ctaLabel: form.ctaLabel.value.trim(), ctaUrl: form.ctaUrl.value.trim(), token: getToken() }),
         })
           .then(r => r.json().then(data => ({ ok: r.ok, status: r.status, data })))
           .then(({ ok, status, data }) => {
@@ -269,6 +313,7 @@
             form.reset();
             setTargetMode('all');
             loadList();
+            fetchPreview();
           })
           .catch(() => {
             btn.disabled = false;

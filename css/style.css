@@ -1099,10 +1099,18 @@ a.mcard__sns:hover { transform: translateY(-3px); }
 .account-drawer__logout { margin-top: 24px; width: 100%; }
 
 /* お知らせ投稿ページ（admin-announcements.html） */
-.admin-form { max-width: 480px; }
+.admin-editor { display: flex; gap: clamp(24px, 4vw, 48px); align-items: flex-start; flex-wrap: wrap; }
+.admin-form { flex: 1 1 380px; max-width: 480px; }
 .admin-form__delete {
   background: none; border: none; padding: 0; cursor: pointer; margin-top: 10px;
 }
+.admin-preview { flex: 1 1 340px; max-width: 420px; position: sticky; top: 24px; }
+.admin-preview h3 { font-family: var(--f-jp); font-weight: 700; font-size: 13.5px; color: var(--ink); }
+.admin-preview .mypage__note { margin-top: 4px; font-size: 12px; }
+.admin-preview__frame {
+  margin-top: 14px; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; background: #f4f3f0;
+}
+.admin-preview__frame iframe { display: block; width: 100%; height: 560px; border: none; background: #f4f3f0; }
 
 /* =========================================================
    カート（複数商品まとめてSquare決済）

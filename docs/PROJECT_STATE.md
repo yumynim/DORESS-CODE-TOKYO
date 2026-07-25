@@ -133,15 +133,13 @@ git log（直近）で確認できた範囲:
 
 # 現在作業中の内容
 
-Supabase接続・ヘッダーのマイページ/通知UI刷新・お知らせ投稿ページ（合言葉方式、`/console`、個人宛て送信対応）まで完了。Vercel側のプロジェクト重複問題も解決し、本番で`/console`のログインまで動作確認済み。運営資料フォルダ（方針/事業/案件/素材）も新設済み。Google OAuthとSquareはユーザーの意向で一旦後回し。次はこのセッションの変更をpushし、本番で個人宛て送信を実地確認すること。
+Supabase接続・ヘッダーのマイページ/通知UI刷新・お知らせ投稿ページ（合言葉方式、`/console`、個人宛て送信対応）・Resendメール通知（テキスト＋HTML）まで完了。Google OAuthとSquareはユーザーの意向で一旦後回し。次はHTMLメールの実地確認（Gmail/Outlook等での表示崩れがないか）と、後回し中のGoogle OAuth・Squareの着手。
 
 # 未完了の作業（＝ユーザーが各サイトで行う作業）
 
-- **（ブロッカー）Vercel — `ADMIN_CONSOLE_PASSWORD`未設定**: これを設定しないと `/console`（お知らせ投稿ページ）のログインが機能しない。Vercelの環境変数に追加してRedeployすること。
 - ~~Supabase — schema_v5実行~~ 実行済みだが**現在は未使用**（認証方式を合言葉に変更したため。上記「完了済みの作業」参照）
 - **Google OAuth**（後回し中）: Google Cloud ConsoleでOAuth同意画面→OAuthクライアントID作成→Client ID/SecretをSupabaseのGoogleプロバイダ設定に登録。リダイレクトURIはSupabaseのGoogleプロバイダ設定画面に表示されるCallback URLを使う。ボタン自体はログインモーダルに表示済み（押しても今はエラーになる想定内の状態）。
 - **Square**（後回し中）: Developer Dashboardへのアクセス権限待ち（現状はSquareアプリのみ利用可）。権限取得後、アプリ作成→Sandbox Access Token/Location ID取得→商品登録してCatalog Object ID取得→`js/data.js`の`catalogObjectId`に設定→Webhook登録→Vercel環境変数設定。
-- **Resend（メール通知）**: 未着手。Square Sandbox完了後に着手予定。アカウント作成→送信ドメイン認証→APIキー発行→Vercel環境変数（`RESEND_API_KEY`/`NOTIFY_FROM_EMAIL`）設定。
 - 全て完了後、Sandboxでの一連の動作確認（ログイン/カート/決済/通知/メール）を経てSquareをProductionへ切替。
 
 # 重要な仕様・決定事項
@@ -154,6 +152,8 @@ Supabase接続・ヘッダーのマイページ/通知UI刷新・お知らせ投
 - **announcements への書き込みは `/api/admin-announcements` 経由のみ**: RLSでinsert/deleteポリシーを意図的に作っておらず、サーバー側（service role）でしか書き込めない。理由: `purchases.status` と同じ考え方で、権限確認をクライアント任せにしない。
 - **お知らせ投稿ページ（`/console`）はチーム共通の合言葉方式**: `ADMIN_CONSOLE_PASSWORD` 1つを知っている人なら誰でも会員全員／個人宛てにお知らせ（サイト内通知＋メール）を送れる。個人アカウント単位の権限管理ではないため、「誰が送ったか」の記録は残らない。合言葉が漏れた場合は`ADMIN_CONSOLE_PASSWORD`を変更すれば、発行済みトークンも含めて即座に無効化される。
 - **Vercelのプロジェクトは`doress-code-tokyo-9qjj`が唯一の本番**: 過去に同じリポジトリを複数回インポートしてしまい、似た名前の重複プロジェクトができていたことがある（2026-07-25に発見・削除済み）。今後Vercelの環境変数を触るときは、必ずURLの末尾が`-9qjj`のプロジェクトを編集していることを確認する。原因切り分けには`/api/env-check`が使える。
+- **Resendは設定済み・動作確認済み**（2026-07-25）: ドメイン認証（SPF/DKIM/DMARC）・APIキー発行・Vercel環境変数（`RESEND_API_KEY`/`NOTIFY_FROM_EMAIL`）設定まで完了し、`/console`からのメール送信を実地確認済み。送信元は`DRESS CODE TOKYO <noreply@dress-code-tokyo.com>`。メールはテキスト版とHTML版を同時送信（`lib/mailer.js`の`sendEmail`が両方生成）。設定直後に送信履歴が0件で「動いていないように見えた」原因は、Resend側ではなく管理画面→`serviceClient.auth.admin.listUsers()`が`SUPABASE_SERVICE_ROLE_KEY`の不整合で`invalid JWT`エラーを起こし、Resendまで処理が到達していなかったこと。最新のSecret Key（`sb_secret_...`形式）を取得してVercelの`SUPABASE_SERVICE_ROLE_KEY`を更新し解決。**教訓**: Supabaseのservice roleキーは形式が変わることがあるため、`invalid JWT`系のエラーが出たらまずこのキーを疑う。
+- **HTMLメールテンプレート**（2026-07-25追加）: `lib/mailer.js`の`buildEmailHtml()`が黒（`#16150f`）×白ベースの共通レイアウト（ロゴ・見出し・区切り線・本文・CTAボタン・フッター、max-width 600px、テーブルベースでインラインCSS）を生成する。`sendEmail({ to, subject, text, ctaLabel, ctaUrl, footerNote })`にCTAボタンの文言・リンク先を渡せば、購入完了/キャンセル通知（`api/square-webhook.js`）・お知らせ投稿の全員/個人宛て（`api/admin-announcements.js`）すべてで同じ見た目のHTMLメールが飛ぶ。リンク先・ロゴ画像URLは`SITE_URL`環境変数（未設定時は`https://dress-code-tokyo.com`）を基準にする。
 
 # 変更時の注意点
 
@@ -169,15 +169,12 @@ Supabase接続・ヘッダーのマイページ/通知UI刷新・お知らせ投
 
 # 次に行うこと
 
-1. `ADMIN_CONSOLE_PASSWORD` をVercelの環境変数に設定（十分に長い合言葉。まだ未設定）
-2. コミット・push してVercel本番に反映（このセッションの変更はユーザー承認済み・push予定）
-3. Vercel本番の `https://<本番ドメイン>/console` で「合言葉入力→投稿→一覧表示→削除」を一通り確認（ローカルでは未確認）
-4. 共有したい相手に `/console` のURLと合言葉を伝える
-5. （後回し中）Google OAuth設定（Cloud Console → OAuthクライアント作成 → SupabaseのGoogleプロバイダに登録）
-6. （後回し中）Square Developer Dashboardへのアクセス権限取得後、Sandbox設定一式（Access Token/Location ID/Catalog Object ID/Webhook）
-7. Resend設定（ドメイン認証→APIキー→Vercel環境変数）。設定できれば購入通知とお知らせ投稿の両方でメールが飛ぶようになる
-8. Sandbox環境でログイン・Googleログイン・カート・Square決済・サイト内通知・メール送信を一通り確認
-9. 問題なければ Square を Production に切り替え（Access Token/Location ID/Signature Keyを本番用に総入れ替え）
+1. HTMLメールテンプレートの追加分（`lib/mailer.js`のCTAボタン対応）をコミット・push してVercel本番に反映
+2. 本番で購入通知メール・`/console`からの一斉/個人宛てメールを実際に受信し、Gmail/Outlook/iPhoneメール等でHTMLの表示崩れがないか確認
+3. （後回し中）Google OAuth設定（Cloud Console → OAuthクライアント作成 → SupabaseのGoogleプロバイダに登録）
+4. （後回し中）Square Developer Dashboardへのアクセス権限取得後、Sandbox設定一式（Access Token/Location ID/Catalog Object ID/Webhook）
+5. Sandbox環境でログイン・Googleログイン・カート・Square決済・サイト内通知・メール送信を一通り確認
+6. 問題なければ Square を Production に切り替え（Access Token/Location ID/Signature Keyを本番用に総入れ替え）
 
 # 関連ファイル
 
@@ -203,4 +200,4 @@ Supabase接続・ヘッダーのマイページ/通知UI刷新・お知らせ投
 
 # 最終更新
 
-2026-07-25 — ヘッダーのマイページ／通知UIをドロワー形式に刷新、お知らせ投稿ページ（`/console`、共通パスワード方式）を追加し会員全員／個人宛ての両対応にした。Vercelに同名の重複プロジェクトが3つ存在していた問題を発見・解決し（本番は`doress-code-tokyo-9qjj`のみ）、不要な2つは削除済み。診断用の`/api/env-check`を追加。運営資料フォルダ（`方針/`・`事業/`・`案件/`・`素材/`、いずれもgitignore対象）を新設。本番で`/console`ログインまで動作確認済み、個人宛て送信機能はこれからpush・実地確認。Google OAuth・Squareはユーザーの意向で後回し中。Resendは未着手（設定できればお知らせ・購入通知の両方でメールが飛ぶ）。
+2026-07-25 — ヘッダーのマイページ／通知UIをドロワー形式に刷新、お知らせ投稿ページ（`/console`、共通パスワード方式）を追加し会員全員／個人宛ての両対応にした。Vercelに同名の重複プロジェクトが3つ存在していた問題を発見・解決し（本番は`doress-code-tokyo-9qjj`のみ）、不要な2つは削除済み。診断用の`/api/env-check`を追加。運営資料フォルダ（`方針/`・`事業/`・`案件/`・`素材/`、いずれもgitignore対象）を新設。Resendのドメイン認証・APIキー・Vercel環境変数設定が完了し、`/console`からのメール送信を実地確認済み（送信失敗の原因は`SUPABASE_SERVICE_ROLE_KEY`の`invalid JWT`で、Resend自体は無関係だった）。さらにHTMLメールテンプレート（黒白ベース・ロゴ・CTAボタン付き、`lib/mailer.js`の`buildEmailHtml`）を追加し、購入通知・お知らせ投稿の全パターンをテキスト＋HTML同時送信に対応。Google OAuth・Squareはユーザーの意向で後回し中。
