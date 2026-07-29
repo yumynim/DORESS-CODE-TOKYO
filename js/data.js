@@ -47,7 +47,7 @@ window.SITE = {
 
   /* ▼ Event：キービジュアル（チラシ）。空ならプレースホルダー表示 */
   eventVisualB: 'assets/images/market-flyer.jpg',  // 出店者向け（toB）チラシ
-  eventVisualC: '',                                // 来場者向け（toC）チラシ。画像が決まったらパスを入れる
+  eventVisualC: 'assets/images/market-flyer-visitor.png',  // 来場者向け（toC）チラシ
 
   /* ▼ 出店者向け（toB）：申し込み・出店料のカード。
      - name           : カードの見出し（例：出店料（1ブース））
@@ -89,9 +89,14 @@ window.SITE = {
       img: '',
       catalogObjectId: '', // ← Squareのアイテムライブラリに登録後、ここに商品IDを貼る
       detail: [
-        { heading: 'このチケットについて', body: 'DRESS CODE MARKET 当日、1日通して入場できるチケットです。前売り・数量限定での販売となります。' },
-        { heading: '購入方法', body: 'ボタンを押すとSquareの決済ページが開きます。購入完了後、確認のご連絡は登録いただいたメールアドレス宛に届きます。' },
-        { heading: '注意事項', body: '購入後のキャンセル・返金は原則承っておりません。開催日時・会場の詳細は決まり次第、本サイトでお知らせします。' },
+        { heading: '開催場所', body: '〒130-0005 東京都墨田区押上2-13-5（錦糸町駅・押上駅より徒歩約5分）' },
+        { heading: '開催日時', body: '2026年9月27日（日）13:00〜16:00' },
+        { heading: '入場料', body: '1,000円' },
+        { heading: 'CONCEPT', body: 'ブランド・インフルエンサー・クリエイターが集まる、1日限定のPOP-UP MARKET。' },
+        { heading: 'LIMITED ITEM（限定商品）', body: 'イベント限定の特別アイテムを数量限定でご用意。' },
+        { heading: 'PHOTO（チェキ会）', body: '憧れのブランド・クリエイター・インフルエンサーと2ショットチェキ撮影！' },
+        { heading: 'ご来場について', body: '・受付にて購入画面をご提示ください。\n・混雑状況により入場をお待ちいただく場合があります。\n・会場内で写真・動画撮影を行う場合があります。\n・最新情報はInstagramをご確認ください。' },
+        { heading: '詳細・お問い合わせ', body: 'Instagram：@dresscodetokyo._tokyo\nイベントの詳細はInstagramまたはチケットページをご確認ください。' },
       ],
     },
     // 例：もう1種類増やすときは下のコメントを外して編集

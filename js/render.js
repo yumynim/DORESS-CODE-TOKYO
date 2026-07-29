@@ -149,10 +149,12 @@
     const drawer = document.getElementById('ticket-drawer');
     if (!drawer) return;
     drawer.querySelector('.drawer__title').textContent = t.name || '';
+    // body の改行（\n）はそのままだと表示されないので <br> に変換する
+    // （箇条書きのような複数行の注意事項を data.js に書けるようにするため）
     drawer.querySelector('.drawer__body').innerHTML = (t.detail || []).map(d =>
       `<div class="drawer__block">
         ${d.heading ? `<h4>${d.heading}</h4>` : ''}
-        ${d.body ? `<p>${d.body}</p>` : ''}
+        ${d.body ? `<p>${String(d.body).replace(/\n/g, '<br>')}</p>` : ''}
       </div>`
     ).join('');
     drawer.classList.add('open');
