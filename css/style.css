@@ -736,17 +736,41 @@ a.mcard__sns:hover { transform: translateY(-3px); }
 .reasons__row .no { font-family: var(--f-serif); font-style: italic; font-size: 18px; color: var(--line-2); width: 28px; }
 .reasons__row .jp { font-size: 14.5px; }
 .reasons__row .en { margin-left: auto; font-family: var(--f-sans); font-size: 10.5px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted); }
-/* ＋で開く項目（出店依頼→Googleフォーム） */
-.reasons__item { display: flex; flex-direction: column; }
-.reasons__row--toggle { width: 100%; background: none; border: 0; border-top: 1px solid var(--line); font: inherit; color: inherit; cursor: pointer; text-align: left; transition: padding-left .3s var(--ease); }
-.reasons__row--toggle:hover { padding-left: 6px; }
-.reasons__plus { margin-left: auto; font-family: var(--f-sans); font-size: 22px; line-height: 1; color: var(--ink); transition: transform .4s var(--ease); }
-.reasons__item.open .reasons__plus { transform: rotate(45deg); }
-.reasons__panel { display: none; }
-.reasons__item.open .reasons__panel { display: block; animation: reasonsIn .4s var(--ease); }
-@keyframes reasonsIn { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: none; } }
-.reasons__panel-in { padding: 6px 0 22px; }
-.reasons__panel-in iframe { width: 100%; height: 78vh; border: 0; display: block; background: #fff; }
+/* ご用件の選択（ラジオ）＋サイト内蔵のお問い合わせフォーム。
+   以前はGoogleフォームのiframeを「＋」で開く方式だったが、サイト内で完結する形に変更。 */
+.reasons__choices { display: flex; flex-direction: column; }
+.reasons__choice {
+  display: flex; align-items: center; gap: 14px; padding: 15px 0;
+  border-top: 1px solid var(--line); cursor: pointer;
+  transition: padding-left .3s var(--ease), color .3s var(--ease);
+}
+.reasons__choice:hover { padding-left: 6px; }
+.reasons__choice input { position: absolute; opacity: 0; width: 0; height: 0; }
+.reasons__choice .no { font-family: var(--f-serif); font-style: italic; font-size: 18px; color: var(--line-2); width: 28px; transition: color .3s var(--ease); }
+.reasons__choice .jp { font-size: 14.5px; }
+.reasons__choice .en { margin-left: auto; font-family: var(--f-sans); font-size: 10.5px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted); }
+.reasons__choice.is-selected .no { color: var(--ink); }
+.reasons__choice.is-selected .jp { font-weight: 600; }
+/* キーボード操作でも選択中の項目がわかるように */
+.reasons__choice input:focus-visible ~ .jp { outline: 2px solid var(--ink); outline-offset: 3px; }
+
+.contact-form { display: flex; flex-direction: column; gap: 18px; margin-top: 28px; }
+.contact-form label { display: flex; flex-direction: column; gap: 7px; font-family: var(--f-sans); font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); }
+.contact-form input,
+.contact-form textarea {
+  font: inherit; font-size: 14.5px; text-transform: none; letter-spacing: normal; color: var(--ink);
+  padding: 12px 14px; border: 1px solid var(--line-2); border-radius: 2px; background: #fff;
+  transition: border-color .25s var(--ease);
+}
+.contact-form input:focus,
+.contact-form textarea:focus { outline: none; border-color: var(--ink); }
+.contact-form textarea { resize: vertical; min-height: 140px; line-height: 1.8; }
+.contact-form button { align-self: flex-start; }
+.contact-form button[disabled] { opacity: .55; cursor: default; }
+/* honeypot（迷惑メール対策）: 人には見せず、スクリーンリーダーにも読ませない */
+.contact-form__hp { position: absolute; left: -9999px; width: 1px; height: 1px; overflow: hidden; }
+.contact-form__msg { font-family: var(--f-sans); font-size: 12.5px; line-height: 1.7; color: var(--ink); margin: 0; }
+.contact-form__msg.is-error { color: #a1402c; }
 .sns-icons { display: flex; flex-wrap: wrap; gap: 20px; align-items: flex-start; }
 .sns-btn {
   display: flex; flex-direction: column; align-items: center; gap: 5px;
@@ -1154,6 +1178,13 @@ a.mcard__sns:hover { transform: translateY(-3px); }
   border: 1px solid var(--line-2); border-radius: 6px; background: #fff; cursor: pointer;
 }
 .admin-block__select:focus { outline: none; border-color: var(--ink); }
+/* 「チケット購入者に送る」の対象チケット選択（フォーム上部の宛先指定欄） */
+#admin-target-segment-field select {
+  font: inherit; font-size: 14px; color: var(--ink); padding: 10px 12px;
+  border: 1px solid var(--line-2); border-radius: 2px; background: #fff; cursor: pointer;
+}
+#admin-target-segment-field select:focus { outline: none; border-color: var(--ink); }
+#admin-target-segment-field .mypage__note { margin-top: 6px; }
 .admin-block__hint { margin-top: 8px; font-family: var(--f-sans); font-size: 11px; line-height: 1.6; color: var(--muted); }
 .admin-block__upload { display: flex; align-items: center; gap: 10px; }
 .admin-block__upload-status { font-family: var(--f-sans); font-size: 11px; color: var(--muted); }

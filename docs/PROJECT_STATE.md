@@ -137,11 +137,21 @@ Supabase接続・ヘッダーのマイページ/通知UI刷新・お知らせ投
 
 # 未完了の作業（＝ユーザーが各サイトで行う作業）
 
+- **（ブロッカー）Vercel環境変数 `CONTACT_TO_EMAIL` 未設定**: サイト内蔵のお問い合わせフォーム（`api/contact.js`）の転送先。未設定の場合は`NOTIFY_FROM_EMAIL`（＝`noreply@dress-code-tokyo.com`）宛てに届いてしまい、運営が気づけない可能性がある。実際に受信できるアドレス（Gmail等でよい）を設定すること。**Resendの追加DNS設定は不要**（宛先にドメイン認証は要らないため）。
 - **（ブロッカー）Supabase Storage — `announcement-images`バケット未作成**: Console配信エディタの画像アップロード機能を使うには、Supabase Dashboard → Storage → New bucket で `announcement-images`（Public bucket: ON）を作成する必要がある。未作成の間はアップロードがエラーになる（URL直接貼り付けの画像ブロックは作成不要で使える）。
 - ~~Supabase — schema_v5実行~~ 実行済みだが**現在は未使用**（認証方式を合言葉に変更したため。上記「完了済みの作業」参照）
 - **Google OAuth**（後回し中）: Google Cloud ConsoleでOAuth同意画面→OAuthクライアントID作成→Client ID/SecretをSupabaseのGoogleプロバイダ設定に登録。リダイレクトURIはSupabaseのGoogleプロバイダ設定画面に表示されるCallback URLを使う。ボタン自体はログインモーダルに表示済み（押しても今はエラーになる想定内の状態）。
 - **Square**（後回し中）: Developer Dashboardへのアクセス権限待ち（現状はSquareアプリのみ利用可）。権限取得後、アプリ作成→Sandbox Access Token/Location ID取得→商品登録してCatalog Object ID取得→`js/data.js`の`catalogObjectId`に設定→Webhook登録→Vercel環境変数設定。
 - 全て完了後、Sandboxでの一連の動作確認（ログイン/カート/決済/通知/メール）を経てSquareをProductionへ切替。
+- **（本番公開前チェックリスト・必須）Supabase Authenticationの「Confirm email」を有効化する**: 現在は開発・テスト効率優先でOFFにしており、メールアドレスを誤入力してもそのままアカウントが作成できてしまう。本番公開前に必ず以下を実施すること。
+  - [ ] Supabase Dashboard → Authentication → Providers（またはEmail設定）で「Confirm email」をON
+  - [ ] Resendの独自ドメイン認証（SPF/DKIM等）が完了していることを確認（[完了済みの作業]参照、2026-07-25に確認済みだが公開直前に再確認）
+  - [ ] 新規登録時に確認メールが送信されることを確認
+  - [ ] 確認メール内のリンクから認証できることを確認
+  - [ ] 認証前はログインできず、認証後のみログインできることを確認
+  - [ ] メールアドレスを誤入力した場合にアカウントを利用できないことを確認
+  - [ ] 実際のユーザー視点で新規登録フローを最後までテストする
+  - 完了するまでは公開しないこと（セキュリティとメールアドレスの正当性を保証するための必須項目）。
 
 # 重要な仕様・決定事項
 
@@ -156,6 +166,8 @@ Supabase接続・ヘッダーのマイページ/通知UI刷新・お知らせ投
 - **Resendは設定済み・動作確認済み**（2026-07-25）: ドメイン認証（SPF/DKIM/DMARC）・APIキー発行・Vercel環境変数（`RESEND_API_KEY`/`NOTIFY_FROM_EMAIL`）設定まで完了し、`/console`からのメール送信を実地確認済み。送信元は`DRESS CODE TOKYO <noreply@dress-code-tokyo.com>`。メールはテキスト版とHTML版を同時送信（`lib/mailer.js`の`sendEmail`が両方生成）。設定直後に送信履歴が0件で「動いていないように見えた」原因は、Resend側ではなく管理画面→`serviceClient.auth.admin.listUsers()`が`SUPABASE_SERVICE_ROLE_KEY`の不整合で`invalid JWT`エラーを起こし、Resendまで処理が到達していなかったこと。最新のSecret Key（`sb_secret_...`形式）を取得してVercelの`SUPABASE_SERVICE_ROLE_KEY`を更新し解決。**教訓**: Supabaseのservice roleキーは形式が変わることがあるため、`invalid JWT`系のエラーが出たらまずこのキーを疑う。
 - **HTMLメールテンプレート**（2026-07-25追加、同日ヘッダーデザイン修正・ブロックエディタ追加）: `lib/mailer.js`の`buildEmailHtml()`が黒×白ベースの共通レイアウト（見出し・本文・CTAボタン・フッター、max-width 600px、テーブルベースでインラインCSS）を生成する。ヘッダーは当初ロゴ画像を黒背景に載せていたが「ダサい」とのフィードバックを受け、白背景＋総称フォントの欧文ワードマーク（"DRESS CODE" / "TOKYO"、下線区切り）に変更済み（メールクライアントはWebフォント・カスタムロゴ画像の見え方が不安定なため、Georgia等の総称フォントで組んでいる）。
 - **配信エディタ（ブロック方式）**（2026-07-25追加、同日ブロック種類を拡張）: `/console`のお知らせ投稿フォームは、Notionのブロック編集のような自由な組み立てができるエディタ（`admin-announcements.html`）。対応ブロックは「見出し（大/中/小、文字色）」「段落（文字色）」「ハイライト（背景付き強調ボックス）」「画像（外部URL指定）」「区切り線」「ボタン」の6種類。追加・並び替え（↑↓）・削除ができ、右側にAPIから取得した実際のメールHTML（`/api/admin-preview-email`、送信は伴わない）をリアルタイムプレビュー表示する。文字色は黒白ベースの世界観を崩さないよう「標準／濃い黒／グレー／えんじ」の4色に絞ってある（`lib/mailer.js`の`TEXT_COLORS`）。画像はURL貼り付けに加え、ファイルを直接アップロードもできる（`api/admin-upload-image.js`がSupabase Storageの`announcement-images`バケットへservice role経由でアップロードし、公開URLを返す。JPEG/PNG/WebP/GIF、3MBまで）。エディタ本体は横並び2カラム（左: エディタ／右: プレビュー、`.mypage--admin`で通常の720px幅制限をこのページだけ1160pxに拡張）。送信時はブロック配列をサーバー（`api/admin-announcements.js`）に渡し、`lib/mailer.js`の`renderBlocks()`でサイト内通知用のプレーンテキストとメールHTMLの両方を同じ処理から生成する（プレビューと実際のメールが常に一致する設計）。購入完了/キャンセル通知（`api/square-webhook.js`）は従来どおりの単純な`text`＋任意の単一CTAボタンの方式のまま（`sendEmail`はblocks指定時とtext指定時の両方に対応、後方互換）。
+- **チケット購入者セグメント配信（購入者タグ）**（2026-07-26追加）: `/console`の宛先タブに「チケット購入者に送る」を追加。チケット単位で購入者を絞り込んで一斉送信できる。**専用のタグ用テーブルは意図的に作っていない** — `purchases.items`（購入内訳のJSON）から毎回集計する方式（`api/admin-announcements.js`の`collectSegments()`）。理由: チケットを増やすたびに管理画面でタグを作り直す手間がなく、`js/data.js`にチケットを足してSquareで売れた瞬間から自動的に絞り込み先として現れるため。セグメントの一意キーは Square の `catalogObjectId`（未設定・単品購入時は商品名で代用）。対象は`status='paid'`の購入のみ。送信先は`announcements`ではなく対象者ひとりひとりの`notifications`に入れる（全員向けに入れると未購入の会員のヘッダー通知にも出てしまうため）。
+- **お問い合わせフォームをサイト内蔵に変更**（2026-07-26）: 以前はContactセクションの「＋」からGoogleフォームのiframeを開く方式だったが、サイト内で完結するフォームに置き換え（`js/render.js`の`contact-reasons`描画部分）。ご用件（`js/data.js`の`contactReasons`）をラジオで選び、お名前・メールアドレス・本文を書いて送信すると、`api/contact.js`がResend経由で運営に転送する。**Resendのドメイン認証が必要なのは「送信元（From）」だけで「宛先（To）」は制約なし**なので、転送先（環境変数`CONTACT_TO_EMAIL`）はGmail等の普通のアドレスでよい。問い合わせ者のアドレスは`Reply-To`に入れてあるので、届いたメールにそのまま返信すれば本人に届く（`lib/mailer.js`の`sendEmail`に`replyTo`オプションを追加）。迷惑メール対策はhoneypot（隠しフィールド`company`）＋同一IPの簡易レート制限（1分3件）。
 - **画像アップロード用のSupabase Storageバケットが未作成（要ユーザー作業）**: `api/admin-upload-image.js`は`announcement-images`という名前の**公開（Public）バケット**がSupabaseに存在する前提で動く。Dashboard → Storage → New bucket → 名前`announcement-images` → Public bucket: ON、で作成すること。書き込みはservice roleで行うためRLSポリシーの追加は不要（バケットをPublicにしておけば読み取りは誰でも可）。バケット未作成の間は画像アップロードがエラーになるが、URL直接貼り付けの画像ブロックは引き続き使える。
 
 # 変更時の注意点

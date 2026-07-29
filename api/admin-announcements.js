@@ -2,10 +2,11 @@
    /api/admin-announcements
    ---------------------------------------------------------
    お知らせの投稿／削除。admin-announcements.html（/console）から呼ばれる。
-   2種類の送り先に対応:
+   3種類の送り先に対応:
      1. 全員宛て（announcements テーブル） … 会員全員のヘッダー通知に届く
      2. 個人宛て（notifications テーブル） … メールアドレスを指定した1人だけに届く
         （購入完了通知などと同じ仕組みを流用）
+     3. チケット購入者宛て（notifications テーブル） … 指定したチケットを買った人だけに届く
 
    認証は個人のSupabaseアカウントではなく、共通パスワード方式
    （api/admin-login.js が発行したトークンを lib/adminAuth.js で検証）。
@@ -35,6 +36,44 @@ async function sendBroadcastEmail(serviceClient, { subject, blocks }) {
     if (users.length < perPage) return;
     page += 1;
   }
+}
+
+/* ---------- チケット単位のセグメント（＝購入者タグ） ----------
+   専用のタグ用テーブルは作らず、既存の purchases.items（購入内訳のJSON）から
+   「どのチケットを買った人か」を毎回集計する方式にしている。
+   理由: チケットを1種類増やすたびに管理画面でタグを作り直す手間がなく、
+   js/data.js にチケットを追加してSquareで売れた瞬間から自動的に絞り込み先として現れるため。
+
+   1つのチケットを一意に表すキー（＝タグID）には Square の catalogObjectId を使う。
+   Square未設定・単品購入などで catalogObjectId が空の場合は商品名で代用する。 */
+function segmentKeyOf(item) {
+  if (!item || typeof item !== 'object') return null;
+  const id = item.catalogObjectId || item.catalog_object_id;
+  if (id) return `id:${String(id)}`;
+  const name = String(item.name || '').trim();
+  return name ? `name:${name}` : null;
+}
+
+// 支払い済みの購入記録だけを対象に、チケットごとの購入者を集計する。
+// 戻り値: Map<segmentKey, { key, name, userIds:Set<string> }>
+async function collectSegments(serviceClient) {
+  const { data, error } = await serviceClient
+    .from('purchases')
+    .select('user_id, items')
+    .eq('status', 'paid');
+  if (error) { console.error('segments query failed:', error.message); return new Map(); }
+
+  const segments = new Map();
+  for (const row of data || []) {
+    const items = Array.isArray(row.items) ? row.items : [];
+    for (const item of items) {
+      const key = segmentKeyOf(item);
+      if (!key) continue;
+      if (!segments.has(key)) segments.set(key, { key, name: String(item.name || '（名称不明）').trim(), userIds: new Set() });
+      if (row.user_id) segments.get(key).userIds.add(row.user_id);
+    }
+  }
+  return segments;
 }
 
 async function findUserByEmail(serviceClient, email) {
@@ -85,12 +124,18 @@ module.exports = async function handler(req, res) {
         }));
       }
 
-      res.status(200).json({ announcements: broadcastRes.data || [], personal });
+      // チケット購入者セグメント（管理画面の「チケット購入者に送る」の選択肢になる）
+      const segmentMap = await collectSegments(serviceClient);
+      const segments = [...segmentMap.values()]
+        .map((s) => ({ key: s.key, name: s.name, count: s.userIds.size }))
+        .sort((a, b) => b.count - a.count);
+
+      res.status(200).json({ announcements: broadcastRes.data || [], personal, segments });
       return;
     }
 
     if (req.method === 'POST') {
-      const { title, blocks, targetEmail } = req.body || {};
+      const { title, blocks, targetEmail, segmentKey } = req.body || {};
       const cleanTitle = title && String(title).trim();
       // 送信の実体は「ブロック配列」（段落／区切り線／ボタン）。
       // サイト内通知・プレーンテキストメール用の本文は、ここから自動生成する。
@@ -100,6 +145,37 @@ module.exports = async function handler(req, res) {
         return;
       }
       const cleanBody = rendered.text;
+
+      if (segmentKey && String(segmentKey).trim()) {
+        // ---------- チケット購入者宛て ----------
+        // 全員宛て（announcements）ではなく、対象者ひとりひとりの notifications に入れる。
+        // そうしないと購入していない会員のヘッダー通知にも出てしまうため。
+        const segmentMap = await collectSegments(serviceClient);
+        const segment = segmentMap.get(String(segmentKey));
+        if (!segment || segment.userIds.size === 0) {
+          res.status(404).json({ error: 'そのチケットの購入者が見つかりませんでした' });
+          return;
+        }
+
+        const userIds = [...segment.userIds];
+        const { error } = await serviceClient
+          .from('notifications')
+          .insert(userIds.map((userId) => ({ user_id: userId, title: cleanTitle, body: cleanBody })));
+        if (error) { console.error('segment notifications insert failed:', error.message); res.status(500).json({ error: '送信に失敗しました' }); return; }
+
+        // メールは1人ずつ順番に送る（会員数が増えたら一括送信APIやキューへの切り替えを検討）
+        let sent = 0;
+        for (const userId of userIds) {
+          const { data: userRes } = await serviceClient.auth.admin.getUserById(userId);
+          const email = userRes && userRes.user && userRes.user.email;
+          if (!email) continue;
+          try { await sendEmail({ to: email, subject: cleanTitle, blocks }); sent += 1; }
+          catch (e) { console.error('segment email failed:', e); }
+        }
+
+        res.status(200).json({ segment: { key: segment.key, name: segment.name, recipients: userIds.length, mailed: sent } });
+        return;
+      }
 
       if (targetEmail && String(targetEmail).trim()) {
         // ---------- 個人宛て ----------

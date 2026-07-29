@@ -291,33 +291,82 @@
 
   /* ---------- 運用メンバーのカードは、下の SNS アイコン定義のあとで描画します ---------- */
 
-  /* ---------- Contact: 理由（embed のある項目は「＋」で開くフォーム） ---------- */
-  fill('contact-reasons', (S.contactReasons || []).map(r => {
-    if (r.embed) {
-      // iframe は開くまで読み込ませない（src → data-src、lazy属性は除去）。
-      // 開いた瞬間に src をセットして確実に表示する（display:none 内の lazy 未読込を回避）。
-      const embed = r.embed.replace(/\sloading="lazy"/i, '').replace(/\ssrc=/i, ' data-src=');
-      return `<div class="reasons__item">
-        <button type="button" class="reasons__row reasons__row--toggle" aria-expanded="false">
-          <span class="no">${r.no}</span><span class="jp">${r.jp}</span>
-          <span class="reasons__plus" aria-hidden="true">＋</span>
-        </button>
-        <div class="reasons__panel"><div class="reasons__panel-in">${embed}</div></div>
-      </div>`;
-    }
-    return `<div class="reasons__row"><span class="no">${r.no}</span><span class="jp">${r.jp}</span><span class="en">${r.en}</span></div>`;
-  }).join(''));
-  document.querySelectorAll('.reasons__row--toggle').forEach(function (btn) {
-    btn.addEventListener('click', function () {
-      const item = btn.closest('.reasons__item');
-      const open = item.classList.toggle('open');
-      btn.setAttribute('aria-expanded', open ? 'true' : 'false');
-      if (open) {
-        const ifr = item.querySelector('iframe[data-src]');
-        if (ifr && !ifr.getAttribute('src')) { ifr.setAttribute('src', ifr.getAttribute('data-src')); }
-      }
+  /* ---------- Contact: ご用件を選んで本文を書く、サイト内蔵のお問い合わせフォーム ----------
+     以前は「＋」でGoogleフォームのiframeを開く方式だったが、サイト内で完結するフォームに変更。
+     送信内容は /api/contact（Vercel Function）がResend経由で運営宛てにメール転送する。 */
+  var reasons = S.contactReasons || [];
+  fill('contact-reasons', `
+    <div class="reasons__choices" role="radiogroup" aria-label="ご用件">
+      ${reasons.map((r, i) => `
+        <label class="reasons__choice${i === 0 ? ' is-selected' : ''}">
+          <input type="radio" name="reason" value="${r.jp}"${i === 0 ? ' checked' : ''}>
+          <span class="no">${r.no}</span><span class="jp">${r.jp}</span><span class="en">${r.en}</span>
+        </label>`).join('')}
+    </div>
+    <form id="contact-form" class="contact-form" novalidate>
+      <label>お名前<input type="text" name="name" required maxlength="80" autocomplete="name" placeholder="山田 太郎"></label>
+      <label>メールアドレス<input type="email" name="email" required maxlength="160" autocomplete="email" placeholder="you@example.com"></label>
+      <label>お問い合わせ内容<textarea name="message" required maxlength="4000" rows="7" placeholder="ご用件の詳細をご記入ください。"></textarea></label>
+      <!-- 迷惑メール対策の隠しフィールド（人には見えないので、入力されていたらbotとみなす） -->
+      <div class="contact-form__hp" aria-hidden="true"><label>この欄は入力しないでください<input type="text" name="company" tabindex="-1" autocomplete="off"></label></div>
+      <p class="contact-form__msg" id="contact-form-msg" hidden></p>
+      <button type="submit" class="btn btn--solid">送信する</button>
+    </form>`);
+
+  var reasonChoices = document.querySelectorAll('.reasons__choice');
+  reasonChoices.forEach(function (label) {
+    label.addEventListener('change', function () {
+      reasonChoices.forEach(function (el) { el.classList.toggle('is-selected', el.querySelector('input').checked); });
     });
   });
+
+  var contactForm = document.getElementById('contact-form');
+  if (contactForm) {
+    contactForm.addEventListener('submit', async function (e) {
+      e.preventDefault();
+      var msgEl = document.getElementById('contact-form-msg');
+      var submitBtn = contactForm.querySelector('button[type="submit"]');
+      var checked = document.querySelector('.reasons__choice input:checked');
+
+      function showMsg(text, isError) {
+        msgEl.textContent = text;
+        msgEl.classList.toggle('is-error', !!isError);
+        msgEl.hidden = false;
+      }
+
+      var payload = {
+        reason: checked ? checked.value : '',
+        name: contactForm.name.value.trim(),
+        email: contactForm.email.value.trim(),
+        message: contactForm.message.value.trim(),
+        company: contactForm.company.value, // honeypot
+      };
+      if (!payload.name || !payload.email || !payload.message) {
+        showMsg('お名前・メールアドレス・お問い合わせ内容をすべてご記入ください。', true);
+        return;
+      }
+
+      submitBtn.disabled = true;
+      var originalLabel = submitBtn.textContent;
+      submitBtn.textContent = '送信中…';
+      try {
+        var res = await fetch('/api/contact', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+        var data = await res.json().catch(function () { return {}; });
+        if (!res.ok) { showMsg(data.error || '送信に失敗しました。時間をおいて再度お試しください。', true); return; }
+        contactForm.reset();
+        showMsg('送信しました。ご連絡ありがとうございます。担当者より折り返しご連絡いたします。', false);
+      } catch (err) {
+        showMsg('送信に失敗しました。通信環境をご確認のうえ、再度お試しください。', true);
+      } finally {
+        submitBtn.disabled = false;
+        submitBtn.textContent = originalLabel;
+      }
+    });
+  }
 
   /* ---------- SNS アイコン ---------- */
   var _SNS = {

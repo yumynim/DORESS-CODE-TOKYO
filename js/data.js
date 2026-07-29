@@ -243,14 +243,13 @@ window.SITE = {
   ],
 
   /* ▼ Contact：お問い合わせ理由の一覧
-     embed を入れた項目は「＋」ボタンになり、タップで Google フォーム等が開きます。 */
+     サイト内に埋め込んだフォーム（旧・Googleフォームiframeから移行）の「ご用件」の選択肢になります。
+     送信すると /api/contact 経由で運営のメールアドレス（環境変数 CONTACT_TO_EMAIL）に届きます。
+     項目を増やしたい場合はここに1行足すだけでOK（no は表示用の通し番号）。 */
   contactReasons: [
-    { no: '01', jp: '掲載依頼', en: 'Feature',
-      embed: '<iframe src="https://docs.google.com/forms/d/e/1FAIpQLSduz_JZXdTsko5iPl8_I7a88sqwvCI_CqMMMeGFP5zYg7CEPA/viewform?embedded=true" width="640" height="1880" frameborder="0" marginheight="0" marginwidth="0" loading="lazy">読み込んでいます…</iframe>' },
-    { no: '02', jp: '出店依頼', en: 'Exhibit',
-      embed: '<iframe src="https://docs.google.com/forms/d/e/1FAIpQLSe3lhnx4As3rE9abt4NnPafZJK7Fp9cw9rdM7G-7vcBz8Ex0w/viewform?embedded=true" width="640" height="2085" frameborder="0" marginheight="0" marginwidth="0" loading="lazy">読み込んでいます…</iframe>' },
-    { no: '03', jp: 'その他お問い合わせ', en: 'Other',
-      embed: '<iframe src="https://docs.google.com/forms/d/e/1FAIpQLSeoWq68aG5KNmWLBjILMKYr-WkK_yISrrfFpoSjbrB0m50iIw/viewform?embedded=true" width="640" height="723" frameborder="0" marginheight="0" marginwidth="0" loading="lazy">読み込んでいます…</iframe>' },
+    { no: '01', jp: '掲載依頼',           en: 'Feature' },
+    { no: '02', jp: '出店依頼',           en: 'Exhibit' },
+    { no: '03', jp: 'その他お問い合わせ', en: 'Other' },
   ],
 
   /* ▼ Contact / Footer：SNSリンク
@@ -261,6 +260,7 @@ window.SITE = {
     { label: 'Instagram', nick: 'study',   sub: 'DRESS CODE TOKYO study',   href: 'https://www.instagram.com/dresscodetokyo_study?igsh=dWU2OWdpMHlvZGtw&utm_source=qr' },
     { label: 'Instagram', nick: 'food',    sub: 'DRESS CODE TOKYO food',    href: 'https://www.instagram.com/dresscodetokyo_food?igsh=MWl3NHo5dWZoeGFtMw%3D%3D&utm_source=qr' },
     { label: 'Instagram', nick: 'beauty',  sub: 'DRESS CODE TOKYO beauty',  href: 'https://www.instagram.com/dresscodetokyo_beauty?igsh=azd5aGJvZ3NzcTZt&utm_source=qr' },
+    { label: 'Instagram', nick: 'market',  sub: 'DRESS CODE TOKYO market',  href: 'https://www.instagram.com/dresscodetokyo_market?igsh=azd5aGJvZ3NzcTZt&utm_source=qr' },
     { label: 'TikTok',    sub: '@dress.code_tokyo',                        href: 'https://www.tiktok.com/@dress.code_tokyo' },
     { label: 'LINE',      sub: 'DRESS CODE TOKYO',                         href: 'https://line.me/R/ti/p/@799fggke' },
   ],
