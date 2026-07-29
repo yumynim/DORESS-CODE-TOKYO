@@ -83,7 +83,7 @@ window.SITE = {
   ticketsC: [
     {
       name: '1日入場チケット',
-      price: 2000,
+      price: 1000,
       note: '前売り / 数量限定',
       url: 'https://square.link/u/cCcEtmx3?src=embed',
       img: '',
@@ -262,9 +262,6 @@ window.SITE = {
   socials: [
     { label: 'Instagram', nick: 'main',    sub: 'DRESS CODE TOKYO',        href: 'https://www.instagram.com/dress.code.tokyo?igsh=MXd3Ymc2cGp6dzc3Yg%3D%3D&utm_source=qr' },
     { label: 'Instagram', nick: 'fashion', sub: 'DRESS CODE TOKYO fashion', href: 'https://www.instagram.com/dresscode.tokyo_fashion?igsh=MWFmejd3NW81djYyaQ%3D%3D&utm_source=qr' },
-    { label: 'Instagram', nick: 'study',   sub: 'DRESS CODE TOKYO study',   href: 'https://www.instagram.com/dresscodetokyo_study?igsh=dWU2OWdpMHlvZGtw&utm_source=qr' },
-    { label: 'Instagram', nick: 'food',    sub: 'DRESS CODE TOKYO food',    href: 'https://www.instagram.com/dresscodetokyo_food?igsh=MWl3NHo5dWZoeGFtMw%3D%3D&utm_source=qr' },
-    { label: 'Instagram', nick: 'beauty',  sub: 'DRESS CODE TOKYO beauty',  href: 'https://www.instagram.com/dresscodetokyo_beauty?igsh=azd5aGJvZ3NzcTZt&utm_source=qr' },
     { label: 'Instagram', nick: 'market',  sub: 'DRESS CODE TOKYO market',  href: 'https://www.instagram.com/dresscodetokyo_market?igsh=azd5aGJvZ3NzcTZt&utm_source=qr' },
     { label: 'TikTok',    sub: '@dress.code_tokyo',                        href: 'https://www.tiktok.com/@dress.code_tokyo' },
     { label: 'LINE',      sub: 'DRESS CODE TOKYO',                         href: 'https://line.me/R/ti/p/@799fggke' },

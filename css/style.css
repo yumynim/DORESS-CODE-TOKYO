@@ -736,34 +736,28 @@ a.mcard__sns:hover { transform: translateY(-3px); }
 .reasons__row .no { font-family: var(--f-serif); font-style: italic; font-size: 18px; color: var(--line-2); width: 28px; }
 .reasons__row .jp { font-size: 14.5px; }
 .reasons__row .en { margin-left: auto; font-family: var(--f-sans); font-size: 10.5px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted); }
-/* ご用件の選択（ラジオ）＋サイト内蔵のお問い合わせフォーム。
-   以前はGoogleフォームのiframeを「＋」で開く方式だったが、サイト内で完結する形に変更。 */
-.reasons__choices { display: flex; flex-direction: column; }
-.reasons__choice {
-  display: flex; align-items: center; gap: 14px; padding: 15px 0;
-  border-top: 1px solid var(--line); cursor: pointer;
-  transition: padding-left .3s var(--ease), color .3s var(--ease);
-}
-.reasons__choice:hover { padding-left: 6px; }
-.reasons__choice input { position: absolute; opacity: 0; width: 0; height: 0; }
-.reasons__choice .no { font-family: var(--f-serif); font-style: italic; font-size: 18px; color: var(--line-2); width: 28px; transition: color .3s var(--ease); }
-.reasons__choice .jp { font-size: 14.5px; }
-.reasons__choice .en { margin-left: auto; font-family: var(--f-sans); font-size: 10.5px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted); }
-.reasons__choice.is-selected .no { color: var(--ink); }
-.reasons__choice.is-selected .jp { font-weight: 600; }
-/* キーボード操作でも選択中の項目がわかるように */
-.reasons__choice input:focus-visible ~ .jp { outline: 2px solid var(--ink); outline-offset: 3px; }
-
-.contact-form { display: flex; flex-direction: column; gap: 18px; margin-top: 28px; }
+/* サイト内蔵のお問い合わせフォーム（以前はGoogleフォームのiframeを「＋」で開く方式だった）。
+   ご用件は選択式のドロップダウン（カテゴリ）にしている。 */
+.contact-form { display: flex; flex-direction: column; gap: 18px; margin-top: 34px; }
 .contact-form label { display: flex; flex-direction: column; gap: 7px; font-family: var(--f-sans); font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); }
+.contact-form__required { color: #a1402c; }
 .contact-form input,
-.contact-form textarea {
+.contact-form textarea,
+.contact-form select {
   font: inherit; font-size: 14.5px; text-transform: none; letter-spacing: normal; color: var(--ink);
   padding: 12px 14px; border: 1px solid var(--line-2); border-radius: 2px; background: #fff;
   transition: border-color .25s var(--ease);
 }
+.contact-form select {
+  appearance: none; cursor: pointer;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2346443c' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: right 14px center; background-size: 16px;
+  padding-right: 40px;
+}
+.contact-form select:invalid { color: var(--muted); }
 .contact-form input:focus,
-.contact-form textarea:focus { outline: none; border-color: var(--ink); }
+.contact-form textarea:focus,
+.contact-form select:focus { outline: none; border-color: var(--ink); }
 .contact-form textarea { resize: vertical; min-height: 140px; line-height: 1.8; }
 .contact-form button { align-self: flex-start; }
 .contact-form button[disabled] { opacity: .55; cursor: default; }

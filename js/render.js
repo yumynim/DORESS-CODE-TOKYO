@@ -298,14 +298,13 @@
      送信内容は /api/contact（Vercel Function）がResend経由で運営宛てにメール転送する。 */
   var reasons = S.contactReasons || [];
   fill('contact-reasons', `
-    <div class="reasons__choices" role="radiogroup" aria-label="ご用件">
-      ${reasons.map((r, i) => `
-        <label class="reasons__choice${i === 0 ? ' is-selected' : ''}">
-          <input type="radio" name="reason" value="${r.jp}"${i === 0 ? ' checked' : ''}>
-          <span class="no">${r.no}</span><span class="jp">${r.jp}</span><span class="en">${r.en}</span>
-        </label>`).join('')}
-    </div>
     <form id="contact-form" class="contact-form" novalidate>
+      <label>カテゴリ <span class="contact-form__required">*</span>
+        <select name="reason" id="contact-reason-select" required>
+          <option value="" disabled selected>選択してください</option>
+          ${reasons.map((r) => `<option value="${r.jp}">${r.jp}</option>`).join('')}
+        </select>
+      </label>
       <label>お名前<input type="text" name="name" required maxlength="80" autocomplete="name" placeholder="山田 太郎"></label>
       <label>メールアドレス<input type="email" name="email" required maxlength="160" autocomplete="email" placeholder="you@example.com"></label>
       <label>お問い合わせ内容<textarea name="message" required maxlength="4000" rows="7" placeholder="ご用件の詳細をご記入ください。"></textarea></label>
@@ -315,20 +314,12 @@
       <button type="submit" class="btn btn--solid">送信する</button>
     </form>`);
 
-  var reasonChoices = document.querySelectorAll('.reasons__choice');
-  reasonChoices.forEach(function (label) {
-    label.addEventListener('change', function () {
-      reasonChoices.forEach(function (el) { el.classList.toggle('is-selected', el.querySelector('input').checked); });
-    });
-  });
-
   var contactForm = document.getElementById('contact-form');
   if (contactForm) {
     contactForm.addEventListener('submit', async function (e) {
       e.preventDefault();
       var msgEl = document.getElementById('contact-form-msg');
       var submitBtn = contactForm.querySelector('button[type="submit"]');
-      var checked = document.querySelector('.reasons__choice input:checked');
 
       function showMsg(text, isError) {
         msgEl.textContent = text;
@@ -337,14 +328,14 @@
       }
 
       var payload = {
-        reason: checked ? checked.value : '',
+        reason: contactForm.reason.value,
         name: contactForm.name.value.trim(),
         email: contactForm.email.value.trim(),
         message: contactForm.message.value.trim(),
         company: contactForm.company.value, // honeypot
       };
-      if (!payload.name || !payload.email || !payload.message) {
-        showMsg('お名前・メールアドレス・お問い合わせ内容をすべてご記入ください。', true);
+      if (!payload.reason || !payload.name || !payload.email || !payload.message) {
+        showMsg('カテゴリ・お名前・メールアドレス・お問い合わせ内容をすべてご記入ください。', true);
         return;
       }
 
