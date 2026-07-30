@@ -150,6 +150,7 @@ Supabase接続・ヘッダーのマイページ/通知UI刷新・お知らせ投
 - **Square**（後回し中）: Developer Dashboardへのアクセス権限待ち（現状はSquareアプリのみ利用可）。権限取得後、アプリ作成→Sandbox Access Token/Location ID取得→商品登録してCatalog Object ID取得→`js/data.js`の`catalogObjectId`に設定→Webhook登録→Vercel環境変数設定。
 - 全て完了後、Sandboxでの一連の動作確認（ログイン/カート/決済/通知/メール）を経てSquareをProductionへ切替。
 - **（本番公開前チェックリスト・必須）Supabase Authenticationの「Confirm email」を有効化する**: 現在は開発・テスト効率優先でOFFにしており、メールアドレスを誤入力してもそのままアカウントが作成できてしまう。本番公開前に必ず以下を実施すること。
+  - [ ] **先に** Supabase Dashboard → Authentication → Emails → SMTP Settings で、カスタムSMTPとしてResendを設定する。理由: SupabaseのデフォルトのメールサービスはカスタムSMTP未設定だと**1時間あたり2通までしか送れない**制限があり（2026-07-30公式ドキュメントで確認、予告なく変更されうる／本番非推奨と明記）、Confirm emailをONにすると新規登録のたびにこの制限に引っかかる。Resendは既にドメイン認証済みなので、SMTPホスト・ポート・APIキーをSupabase側に入力するだけで済み、追加のDNS設定は不要。この設定をしても課金は発生しない（Resendの無料枠＝1日100通・月3,000通が適用されるだけで、今の規模なら十分）。
   - [ ] Supabase Dashboard → Authentication → Providers（またはEmail設定）で「Confirm email」をON
   - [ ] Resendの独自ドメイン認証（SPF/DKIM等）が完了していることを確認（[完了済みの作業]参照、2026-07-25に確認済みだが公開直前に再確認）
   - [ ] 新規登録時に確認メールが送信されることを確認
