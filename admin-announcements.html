@@ -97,25 +97,34 @@
       </section>
 
       <section class="mypage__section" id="section-inquiries">
-        <h2>お問い合わせ</h2>
-        <p class="mypage__note">サイトのお問い合わせフォームから届いた内容です。返信はここから送信してください（届いたメールに直接返信しても本人には届きません）。</p>
-        <div id="admin-inquiries" class="mypage__notifications">
-          <p class="cards-empty">読み込み中…</p>
-        </div>
+        <details class="admin-toggle" id="details-inquiries" open>
+          <summary><h2>お問い合わせ <span class="admin-toggle__count" id="admin-inquiries-count"></span></h2></summary>
+          <p class="mypage__note">サイトのお問い合わせフォームから届いた内容です。返信はここから送信してください（届いたメールに直接返信しても本人には届きません）。</p>
+          <input type="search" class="admin-search" id="admin-inquiries-search" placeholder="お名前・メールアドレス・本文で検索…">
+          <div id="admin-inquiries" class="mypage__notifications">
+            <p class="cards-empty">読み込み中…</p>
+          </div>
+        </details>
       </section>
 
       <section class="mypage__section" id="section-list">
-        <h2>投稿済みのお知らせ（全員向け）</h2>
-        <div id="admin-list" class="mypage__notifications">
-          <p class="cards-empty">読み込み中…</p>
-        </div>
+        <details class="admin-toggle" id="details-list">
+          <summary><h2>投稿済みのお知らせ（全員向け） <span class="admin-toggle__count" id="admin-list-count"></span></h2></summary>
+          <input type="search" class="admin-search" id="admin-list-search" placeholder="タイトル・本文で検索…">
+          <div id="admin-list" class="mypage__notifications">
+            <p class="cards-empty">読み込み中…</p>
+          </div>
+        </details>
       </section>
 
       <section class="mypage__section" id="section-personal">
-        <h2>個人宛てに送った履歴</h2>
-        <div id="admin-list-personal" class="mypage__notifications">
-          <p class="cards-empty">読み込み中…</p>
-        </div>
+        <details class="admin-toggle" id="details-personal">
+          <summary><h2>個人宛てに送った履歴 <span class="admin-toggle__count" id="admin-list-personal-count"></span></h2></summary>
+          <input type="search" class="admin-search" id="admin-list-personal-search" placeholder="メールアドレス・タイトル・本文で検索…">
+          <div id="admin-list-personal" class="mypage__notifications">
+            <p class="cards-empty">読み込み中…</p>
+          </div>
+        </details>
       </section>
     </div>
   </main>
@@ -161,6 +170,15 @@
       const listEl = document.getElementById('admin-list');
       const listPersonalEl = document.getElementById('admin-list-personal');
       const inquiriesEl = document.getElementById('admin-inquiries');
+      const inquiriesCountEl = document.getElementById('admin-inquiries-count');
+      const listCountEl = document.getElementById('admin-list-count');
+      const listPersonalCountEl = document.getElementById('admin-list-personal-count');
+      const inquiriesSearchEl = document.getElementById('admin-inquiries-search');
+      const listSearchEl = document.getElementById('admin-list-search');
+      const listPersonalSearchEl = document.getElementById('admin-list-personal-search');
+      let allInquiries = [];
+      let allAnnouncements = [];
+      let allPersonal = [];
       const logoutBtns = [document.getElementById('admin-logout-btn'), document.getElementById('admin-logout-btn-mobile')];
       const targetTabs = document.querySelectorAll('[data-target-mode]');
       const targetEmailField = document.getElementById('admin-target-email-field');
@@ -211,7 +229,10 @@
 
       /* ---------- お問い合わせ一覧・返信 ---------- */
       function renderInquiries(list) {
-        if (!list.length) { inquiriesEl.innerHTML = '<p class="cards-empty">まだお問い合わせはありません。</p>'; return; }
+        if (!list.length) {
+          inquiriesEl.innerHTML = `<p class="cards-empty">${allInquiries.length ? '検索条件に一致するお問い合わせがありません。' : 'まだお問い合わせはありません。'}</p>`;
+          return;
+        }
         inquiriesEl.innerHTML = list.map(q => `
           <div class="mypage__notification inquiry${q.status === 'replied' ? ' inquiry--replied' : ''}" data-id="${esc(q.id)}">
             <div class="mypage__notification-head">
@@ -275,13 +296,27 @@
           .then(({ ok, status, data }) => {
             if (status === 401) { showLocked(); return; }
             if (!ok) { inquiriesEl.innerHTML = '<p class="cards-empty">読み込みに失敗しました。</p>'; return; }
-            renderInquiries(data.inquiries || []);
+            allInquiries = data.inquiries || [];
+            inquiriesCountEl.textContent = allInquiries.length ? `(${allInquiries.length})` : '';
+            filterInquiries();
           })
           .catch(() => { inquiriesEl.innerHTML = '<p class="cards-empty">通信エラーが発生しました。</p>'; });
       }
 
-      function renderList(el, list, emptyMsg, type) {
-        if (!list.length) { el.innerHTML = `<p class="cards-empty">${emptyMsg}</p>`; return; }
+      // お問い合わせが増えてきたときに、お名前・メールアドレス・本文・カテゴリで絞り込めるようにする
+      function filterInquiries() {
+        const q = (inquiriesSearchEl.value || '').trim().toLowerCase();
+        const filtered = !q ? allInquiries : allInquiries.filter(x =>
+          (x.name || '').toLowerCase().includes(q) ||
+          (x.email || '').toLowerCase().includes(q) ||
+          (x.message || '').toLowerCase().includes(q) ||
+          (x.reason || '').toLowerCase().includes(q));
+        renderInquiries(filtered);
+      }
+      inquiriesSearchEl.addEventListener('input', filterInquiries);
+
+      function renderList(el, list, emptyMsg, type, hasMatches) {
+        if (!list.length) { el.innerHTML = `<p class="cards-empty">${hasMatches === false ? '検索条件に一致するお知らせがありません。' : emptyMsg}</p>`; return; }
         el.innerHTML = list.map(n => `
           <div class="mypage__notification" data-id="${esc(n.id)}">
             <div class="mypage__notification-head">
@@ -307,8 +342,12 @@
               listPersonalEl.innerHTML = '<p class="cards-empty">読み込みに失敗しました。</p>';
               return;
             }
-            renderList(listEl, data.announcements || [], 'まだお知らせはありません。', 'announcement');
-            renderList(listPersonalEl, data.personal || [], 'まだ個人宛てに送ったお知らせはありません。', 'personal');
+            allAnnouncements = data.announcements || [];
+            allPersonal = data.personal || [];
+            listCountEl.textContent = allAnnouncements.length ? `(${allAnnouncements.length})` : '';
+            listPersonalCountEl.textContent = allPersonal.length ? `(${allPersonal.length})` : '';
+            filterList();
+            filterPersonal();
             renderSegments(data.segments || []);
           })
           .catch(() => {
@@ -316,6 +355,22 @@
             listPersonalEl.innerHTML = '<p class="cards-empty">通信エラーが発生しました。</p>';
           });
       }
+
+      // 投稿済みのお知らせ・個人宛て履歴が増えてきたときに絞り込めるようにする
+      function filterList() {
+        const q = (listSearchEl.value || '').trim().toLowerCase();
+        const filtered = !q ? allAnnouncements : allAnnouncements.filter(n =>
+          (n.title || '').toLowerCase().includes(q) || (n.body || '').toLowerCase().includes(q));
+        renderList(listEl, filtered, 'まだお知らせはありません。', 'announcement', !q || filtered.length > 0);
+      }
+      function filterPersonal() {
+        const q = (listPersonalSearchEl.value || '').trim().toLowerCase();
+        const filtered = !q ? allPersonal : allPersonal.filter(n =>
+          (n.title || '').toLowerCase().includes(q) || (n.body || '').toLowerCase().includes(q) || (n.email || '').toLowerCase().includes(q));
+        renderList(listPersonalEl, filtered, 'まだ個人宛てに送ったお知らせはありません。', 'personal', !q || filtered.length > 0);
+      }
+      listSearchEl.addEventListener('input', filterList);
+      listPersonalSearchEl.addEventListener('input', filterPersonal);
 
       function deleteItem(id, type) {
         if (!confirm('このお知らせを削除しますか？')) return;
@@ -658,6 +713,16 @@
       });
 
       logoutBtns.forEach(b => b.addEventListener('click', showLocked));
+
+      // ジャンプナビでリンク先が折りたたまれている（トグルが閉じている）ときは、
+      // ジャンプする前に開く（開いていないとブラウザが正しい位置までスクロールできないため）
+      document.querySelectorAll('.admin-jumpnav a').forEach(a => {
+        a.addEventListener('click', () => {
+          const target = document.querySelector(a.getAttribute('href'));
+          const details = target && target.querySelector('details');
+          if (details) details.open = true;
+        });
+      });
 
       if (tokenLooksValid(getToken())) { showContent(); } else { showLocked(); }
     })();

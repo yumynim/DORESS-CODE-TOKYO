@@ -195,16 +195,27 @@ Supabase接続・ヘッダーのマイページ/通知UI刷新・お知らせ投
 - Square Webhookが同じ決済結果を複数回送ってきた場合（Squareの仕様上リトライがありうる）、`notifications` insertと確認メール送信が重複しうる（購入記録の更新自体は`square_order_id`一致で冪等だが、通知/メールは冪等化していない）。実害が出るようなら「同じ`purchase_id`+`title`の通知が直近にないかチェックしてからinsertする」等の重複排除を追加する。
 - issue管理の有無は未確認（GitHubのIssuesを使っているかは未調査）。
 
+# 2026-07-30 の修正（モバイル不具合2件・console UX改善・Google連携の一時停止）
+
+- **（修正済み）モバイルメニューでログインボタンが画面下に隠れる不具合**: `.mobile-menu.open`が`max-height: 85vh`固定＋`overflow:hidden`だったため、端末の画面が小さい／メニュー項目が多いと最後の「ログイン」ボタンが見切れて操作できなかった（ユーザーがスクリーンショット付きで報告）。`max-height: calc(100dvh - 70px)`＋`overflow-y: auto`に変更し、どの端末でも中身がヘッダー下の残り高さに収まらない場合は内部スクロールで必ず最後まで到達できるようにした（`css/style.css`の`.mobile-menu.open`）。
+- **（修正済み）チケット周辺・EVENT REPORTのギャラリーでスマホの縦スクロールが効かない不具合**: `.carousel__track`（横スワイプのカルーセル、チケットカード・記事ギャラリー・Field Report写真で共用）に`touch-action: pan-x`を指定していたのが原因。これは「横方向のパンだけをブラウザに許可する」指定のため、このトラック上で指を置いた瞬間に縦スワイプの既定動作が丸ごと無効化され、ページ自体がスクロールできなくなっていた（コメントには「縦スクロールをページへ渡すため」と書かれていたが、実際の仕様は逆の効果だった＝過去の実装ミス）。`touch-action`指定を削除し既定値`auto`に戻すことで、ブラウザが指の動きの向きから横（カルーセル）／縦（ページ）を自動判定するようにした。
+- **console（`/console`）のUX改善**（ユーザーからのフィードバック: 「増えてきたら使いづらくなる」への対応）:
+  - 「お問い合わせ」「投稿済みのお知らせ（全員向け）」「個人宛てに送った履歴」の3セクションをNotionのトグルのような開閉式（`<details>`）に変更。お問い合わせは初期状態で開、履歴2つは初期状態で閉にして、ページ全体の縦の長さを抑えた。見出し横に件数バッジ（例:「(12)」）も追加。
+  - 各セクションに検索ボックスを追加（お問い合わせ: お名前／メールアドレス／本文／カテゴリで検索、投稿済み一覧: タイトル／本文、個人宛て履歴: メールアドレス／タイトル／本文）。全件取得済みのデータをクライアント側でフィルタする方式（サーバーへの追加リクエストなし）。
+  - ジャンプナビ（`#section-new`等へのリンク）をクリックしたときに、リンク先のトグルが閉じていれば自動で開いてからスクロールするようにした。
+- **（保留）Googleログインをコードごと無効化**: ユーザーの意向でGoogleログインの実装を一旦保留することになったため、`js/auth.js`に`GOOGLE_LOGIN_ENABLED = false`というフラグを追加し、ログインモーダルからGoogleボタンと区切り線を非表示にした。メール/パスワードでのログイン・新規登録には一切影響しない。`signInWithGoogle()`や関連ロジックは削除せずそのまま残してあるので、再開する際は`GOOGLE_LOGIN_ENABLED`を`true`に戻すだけでよい。
+- **CONTACT_TO_EMAILを本番用アドレスに設定済み**（2026-07-30）: テスト用の自分のメアドから、実運用アドレス（`marrine.michan@gmail.com`）に切り替え済み。
+
 # 次に行うこと
 
 1. ~~`supabase/schema_v6_inquiries.sql` 実行・`CONTACT_TO_EMAIL`設定・Redeploy・お問い合わせ一連の動作確認~~ 2026-07-30完了（ユーザー自身のメアドでテスト済み）
-2. **`CONTACT_TO_EMAIL` をテスト用の自分のメアドから、実運用で使うメアドに切り替える**（テストは自分のメアド宛てで行う方針だったため。現状まだテスト用のままの可能性がある）
+2. ~~`CONTACT_TO_EMAIL` を実運用で使うメアドに切り替える~~ 2026-07-30完了（`marrine.michan@gmail.com`に設定済み）
 3. `announcement-images`バケット未作成の件も合わせて対応（画像アップロード機能を使うなら）
-4. （後回し中）Google OAuth設定（Cloud Console → OAuthクライアント作成 → SupabaseのGoogleプロバイダに登録）
+4. （保留中）Google OAuth — `js/auth.js`の`GOOGLE_LOGIN_ENABLED`を`true`に戻し、Cloud Console → OAuthクライアント作成 → SupabaseのGoogleプロバイダに登録
 5. （後回し中）Square Developer DashboardでSandboxアプリ作成 → Access Token/Location ID取得 → Catalog Object ID発行 → Webhook Subscription登録（`payment.updated`のみ）→ Vercel環境変数4つ設定
 6. Sandbox環境でログイン・カート・Square決済・サイト内通知・メール送信・チケット購入者セグメント配信を一通り確認
 7. 問題なければ Square を Production に切り替え（Access Token/Location ID/Signature Keyを本番用に総入れ替え）
-9. 本番公開の直前に、Supabase Authenticationの「Confirm email」を有効化（上記「本番公開前チェックリスト」参照）
+8. 本番公開の直前に、Supabase Authenticationの「Confirm email」を有効化（上記「本番公開前チェックリスト」参照）
 
 # 関連ファイル
 

@@ -190,7 +190,11 @@ select:focus-visible, textarea:focus-visible {
   transition: max-height .5s var(--ease), opacity .4s ease, padding .5s var(--ease), visibility 0s linear .55s;
 }
 .mobile-menu.open {
-  max-height: 85vh; opacity: 1; visibility: visible;
+  /* 画面の高さは端末ごとにバラつくため、固定の vh 指定だと項目数が多いときに
+     下の方（ログインボタン等）が見切れる端末が出る。ヘッダー分を引いた残り高さを
+     上限にしつつ overflow-y: auto にすることで、どの端末でも中身をスクロールして
+     必ず最後まで到達できるようにする。 */
+  max-height: calc(100dvh - 70px); overflow-y: auto; opacity: 1; visibility: visible;
   border-top: 1px solid var(--line);
   padding: 12px var(--pad) 24px;
   transition: max-height .55s var(--ease), opacity .45s ease .05s, padding .55s var(--ease), visibility 0s;
@@ -461,9 +465,12 @@ select:focus-visible, textarea:focus-visible {
   overflow-x: auto; overflow-y: hidden;
   scroll-snap-type: x proximity; scroll-behavior: smooth;
   -webkit-overflow-scrolling: touch;
-  /* このトラックは横方向の操作だけを受け持つ、と先に伝えておくことで、
-     指の動きが縦か横か毎回判定させず、縦スクロールを即座にページへ渡す（スマホでのカクつき対策） */
-  touch-action: pan-x;
+  /* touch-action は明示的に指定しない（＝ auto のまま）。
+     以前は touch-action: pan-x を指定していたが、これは「横方向のパンだけを許可する」指定のため、
+     このトラック上で指を置いた瞬間に縦スワイプが完全に無効化され、ページ自体がスクロールできなく
+     なるバグを引き起こしていた（チケット横のギャラリーやField Reportの写真カルーセル付近で
+     ページがスライドしない、として報告された）。auto のままにしておけば、ブラウザが横スクロール
+     （このトラック）と縦スクロール（ページ）を指の動きの向きから自動で振り分けてくれる。 */
   scrollbar-width: none; padding: 4px 1px 10px;
 }
 .carousel__track::-webkit-scrollbar { display: none; }
@@ -1054,6 +1061,24 @@ a.mcard__sns:hover { transform: translateY(-3px); }
 .mypage__state > .btn { margin-top: 28px; }
 .mypage__section { margin-top: clamp(40px, 5vw, 64px); scroll-margin-top: 96px; }
 .mypage__section h2 { font-family: var(--f-jp); font-weight: 700; font-size: 16px; color: var(--ink); margin-bottom: 18px; }
+
+/* /console の各リストをNotionのトグルのように開閉できるようにする（増えてきても圧迫しないため） */
+.admin-toggle summary { cursor: pointer; list-style: none; }
+.admin-toggle summary::-webkit-details-marker { display: none; }
+.admin-toggle summary h2 { display: flex; align-items: center; gap: 8px; margin-bottom: 0; }
+.admin-toggle summary h2::before {
+  content: '▸'; display: inline-block; font-size: 12px; color: var(--muted);
+  transition: transform .2s var(--ease);
+}
+.admin-toggle[open] summary h2::before { transform: rotate(90deg); }
+.admin-toggle__count { font-family: var(--f-sans); font-size: 12px; font-weight: 400; color: var(--muted); }
+.admin-toggle > *:not(summary) { margin-top: 18px; }
+.admin-search {
+  display: block; width: 100%; box-sizing: border-box; font: inherit; font-size: 13.5px;
+  padding: 10px 14px; border: 1px solid var(--line-2); border-radius: 2px; background: #fff;
+  margin-bottom: 4px;
+}
+.admin-search:focus { outline: none; border-color: var(--ink); }
 
 /* /console のセクション間ジャンプナビ（お知らせ投稿ページが縦に長くなってきたため追加） */
 .admin-jumpnav {

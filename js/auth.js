@@ -11,6 +11,9 @@
 (function () {
   var CONFIG = window.SUPABASE_CONFIG || { url: '', anonKey: '' };
   var CONFIGURED = !!(CONFIG.url && CONFIG.anonKey);
+  // Googleログインは一旦保留中（ユーザーの意向）。メール/パスワードのログイン・新規登録には影響しない。
+  // 再開するときは true に戻すだけでよい（signInWithGoogle 等のロジックはそのまま残してある）。
+  var GOOGLE_LOGIN_ENABLED = false;
   var client = null;
   if (CONFIGURED && window.supabase && window.supabase.createClient) {
     client = window.supabase.createClient(CONFIG.url, CONFIG.anonKey);
@@ -112,7 +115,13 @@
     } else {
       formSignin.addEventListener('submit', handleSignin);
       formSignup.addEventListener('submit', handleSignup);
-      googleBtn.addEventListener('click', signInWithGoogle);
+      if (GOOGLE_LOGIN_ENABLED) {
+        googleBtn.addEventListener('click', signInWithGoogle);
+      } else {
+        // Googleログイン保留中: ボタンと区切り線（「または」）を隠し、メール/パスワードのみにする
+        googleBtn.hidden = true;
+        modal.querySelector('.auth-modal__or').hidden = true;
+      }
     }
     return modal;
   }
