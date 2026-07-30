@@ -10,6 +10,7 @@
         /console の「お問い合わせ」タブから一覧・返信できる）
      2. 見逃し防止のため、運営の普段のメールアドレス（環境変数 CONTACT_TO_EMAIL、
         未設定なら NOTIFY_FROM_EMAIL）に「届きました」の通知メールを送る（ベストエフォート）
+     3. 問い合わせ者本人に「受け付けました」の自動返信メールを送る（ベストエフォート）
 
    通知メールにはあえて Reply-To を設定していない（＝返信ボタンを押しても
    問い合わせ者には届かない）。理由: Gmail等で直接返信できてしまうと、
@@ -22,7 +23,7 @@
      2. 同一IPからの連投を短時間だけブロック（インスタンス内メモリのみの簡易版）
    ========================================================= */
 const { createClient } = require('@supabase/supabase-js');
-const { sendEmail, SITE_URL } = require('../lib/mailer');
+const { sendEmail, SITE_URL, INQUIRY_FROM_EMAIL } = require('../lib/mailer');
 
 const MAX_NAME = 80;
 const MAX_EMAIL = 160;
@@ -123,6 +124,27 @@ module.exports = async function handler(req, res) {
     }
   } else {
     console.warn('contact: CONTACT_TO_EMAIL / NOTIFY_FROM_EMAIL が未設定のため通知メールは送られません（inquiriesへの保存は成功しています）');
+  }
+
+  // ---------- 3. 問い合わせ者本人への自動返信（ベストエフォート） ----------
+  // info@ から送る。相手がこれに返信した場合はCONTACT_TO_EMAIL（運営の普段のメール）に届く
+  // （info@ 自体は受信箱を持たない送信専用アドレスのため）。
+  try {
+    await sendEmail({
+      to: cleanEmail,
+      subject: `お問い合わせを受け付けました（${cleanReason}）`,
+      from: INQUIRY_FROM_EMAIL,
+      blocks: [
+        { type: 'paragraph', text: `${cleanName} 様` },
+        { type: 'paragraph', text: 'このたびはお問い合わせいただき、誠にありがとうございます。以下の内容で受け付けました。24時間以内にご返信させていただきますので、今しばらくお待ちください。' },
+        { type: 'divider' },
+        { type: 'callout', text: `ご用件: ${cleanReason}\n\nお問い合わせ内容:\n${cleanMessage}` },
+      ],
+      replyTo: process.env.CONTACT_TO_EMAIL || undefined,
+      footerNote: 'このメールは自動送信されています。',
+    });
+  } catch (err) {
+    console.error('contact auto-reply email failed:', err);
   }
 
   res.status(200).json({ ok: true });

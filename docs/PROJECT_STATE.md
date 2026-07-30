@@ -175,6 +175,7 @@ Supabase接続・ヘッダーのマイページ/通知UI刷新・お知らせ投
   - **通知メールは「見逃し防止のオマケ」**: `CONTACT_TO_EMAIL`（未設定なら`NOTIFY_FROM_EMAIL`）宛てに「届きました」メールを送るが、**意図的にReply-Toを設定していない**。理由: Gmail等で直接返信できてしまうと、consoleでの返信と二重に対応してしまう事故が起きるため（ユーザーからの明確な要望）。通知メールには「返信は`/console`から」という案内とconsoleへのボタンリンクを入れている。
   - **返信は`/console`からのみ行う設計**: `api/admin-inquiries.js`のPOSTが、送信元`info@dress-code-tokyo.com`（`lib/mailer.js`の`INQUIRY_FROM_EMAIL`。ドメイン全体がResend認証済みなので追加DNS設定なしで使える）から問い合わせ者本人へ返信メールを送り、`inquiries.status`を`replied`に更新して返信内容・日時を記録する。返信メールの`Reply-To`は`CONTACT_TO_EMAIL`（info@自体は受信箱を持たない送信専用アドレスのため、相手がさらに返信した場合の行き先として設定）。
   - `lib/mailer.js`の`sendEmail()`に`from`オプション（送信元の差し替え）を追加。既存の呼び出し（購入通知・お知らせ配信）は影響なし。
+  - **問い合わせ者本人への自動受付メール**（2026-07-30）: `api/contact.js`が保存・運営通知に加えて、送信元`info@dress-code-tokyo.com`から問い合わせ者本人に「受け付けました。24時間以内にご返信します」の自動返信も送る。この自動返信の`Reply-To`も`CONTACT_TO_EMAIL`（相手が先走って返信してもきちんとあなたのメールに届くようにするため）。
 - **画像アップロード用のSupabase Storageバケットが未作成（要ユーザー作業）**: `api/admin-upload-image.js`は`announcement-images`という名前の**公開（Public）バケット**がSupabaseに存在する前提で動く。Dashboard → Storage → New bucket → 名前`announcement-images` → Public bucket: ON、で作成すること。書き込みはservice roleで行うためRLSポリシーの追加は不要（バケットをPublicにしておけば読み取りは誰でも可）。バケット未作成の間は画像アップロードがエラーになるが、URL直接貼り付けの画像ブロックは引き続き使える。
 
 # 変更時の注意点
