@@ -48,7 +48,14 @@
       <h1 class="mypage__title">お知らせ投稿</h1>
       <p class="mypage__note">ここで投稿すると、会員全員のヘッダー通知アイコン「ドレスコードからのお知らせ」に届き、メールでも送信されます。</p>
 
-      <section class="mypage__section">
+      <nav class="admin-jumpnav" aria-label="セクション">
+        <a href="#section-new">新しいお知らせ</a>
+        <a href="#section-inquiries">お問い合わせ</a>
+        <a href="#section-list">投稿済み一覧</a>
+        <a href="#section-personal">個人宛て履歴</a>
+      </nav>
+
+      <section class="mypage__section" id="section-new">
         <h2>新しいお知らせ</h2>
         <div class="notif-tabs" id="admin-target-tabs">
           <button type="button" class="notif-tab is-active" data-target-mode="all">会員全員に送る</button>
@@ -89,7 +96,7 @@
         </div>
       </section>
 
-      <section class="mypage__section">
+      <section class="mypage__section" id="section-inquiries">
         <h2>お問い合わせ</h2>
         <p class="mypage__note">サイトのお問い合わせフォームから届いた内容です。返信はここから送信してください（届いたメールに直接返信しても本人には届きません）。</p>
         <div id="admin-inquiries" class="mypage__notifications">
@@ -97,14 +104,14 @@
         </div>
       </section>
 
-      <section class="mypage__section">
+      <section class="mypage__section" id="section-list">
         <h2>投稿済みのお知らせ（全員向け）</h2>
         <div id="admin-list" class="mypage__notifications">
           <p class="cards-empty">読み込み中…</p>
         </div>
       </section>
 
-      <section class="mypage__section">
+      <section class="mypage__section" id="section-personal">
         <h2>個人宛てに送った履歴</h2>
         <div id="admin-list-personal" class="mypage__notifications">
           <p class="cards-empty">読み込み中…</p>

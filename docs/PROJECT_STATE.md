@@ -30,15 +30,22 @@ DORESS CODE TOKYO/
 ├── api/
 │   ├── checkout.js               POST /api/checkout（Vercel Function）: カート内容を受け取り Square Payment Link を発行
 │   ├── square-webhook.js         POST /api/square-webhook（Vercel Function）: Square の決済完了通知を検証して purchases.status を更新
-│   └── admin-announcements.js    POST/DELETE /api/admin-announcements（Vercel Function）: 管理者のみannouncementsを投稿/削除（投稿時に全会員へメールも送信）
+│   ├── contact.js                 POST /api/contact: サイト内蔵お問い合わせフォームの送信先。inquiriesへ保存＋運営通知＋自動受付メール
+│   ├── admin-login.js             POST /api/admin-login: /console 共通パスワードを検証しトークン発行
+│   ├── admin-announcements.js    GET/POST/DELETE /api/admin-announcements: お知らせ投稿・削除（全員/個人宛て/チケット購入者宛て、投稿時にメールも送信）
+│   ├── admin-inquiries.js         GET/POST /api/admin-inquiries: /console のお問い合わせ一覧・返信（返信はinfo@から送信しinquiries.statusを更新）
+│   ├── admin-preview-email.js     POST /api/admin-preview-email: /console のブロックエディタのライブプレビュー用（送信は行わない）
+│   ├── admin-upload-image.js      POST /api/admin-upload-image: /console の画像ブロック用、Supabase Storageへアップロード
+│   └── env-check.js               GET /api/env-check: 環境変数が設定されているか（値は返さず真偽値のみ）を確認する診断用
 ├── lib/
-│   └── mailer.js                 Resend経由のメール送信の共通処理（api/square-webhook.js・api/admin-announcements.js から利用）
+│   └── mailer.js                 Resend経由のメール送信の共通処理（購入通知・お知らせ配信・お問い合わせ対応で共用）。ブロック配列→HTML/テキスト変換、送信元アドレスの差し替えにも対応
 ├── supabase/
 │   ├── schema.sql                 profiles / purchases テーブルの初期スキーマ
 │   ├── schema_v2_cart.sql         purchases にカート対応カラム（square_order_id 等）を追加
 │   ├── schema_v3_notifications.sql  notifications テーブル（本人だけに届くお知らせ、Webhookのみinsert可）
 │   ├── schema_v4_announcements.sql  announcements テーブル（会員全員向けのお知らせ）
-│   └── schema_v5_admin.sql          profiles.is_admin カラム＋本人が自分では変更できないようにするガード
+│   ├── schema_v5_admin.sql          profiles.is_admin カラム＋本人が自分では変更できないようにするガード（現在は未使用。合言葉方式に変更したため）
+│   └── schema_v6_inquiries.sql      inquiries テーブル（サイトのお問い合わせフォームの内容・返信記録）
 ├── assets/images/                 画像
 ├── vercel.json                    セキュリティヘッダー設定
 ├── .env.example                   環境変数テンプレート（実値は Vercel の環境変数に設定する想定）
@@ -133,7 +140,7 @@ git log（直近）で確認できた範囲:
 
 # 現在作業中の内容
 
-Supabase接続・ヘッダーのマイページ/通知UI刷新・お知らせ投稿ページ（合言葉方式、`/console`、個人宛て送信対応）・Resendメール通知（テキスト＋HTML）まで完了。Google OAuthとSquareはユーザーの意向で一旦後回し。次はHTMLメールの実地確認（Gmail/Outlook等での表示崩れがないか）と、後回し中のGoogle OAuth・Squareの着手。
+Supabase接続・ヘッダーのマイページ/通知UI刷新・お知らせ投稿ページ（合言葉方式、`/console`、全員/個人/チケット購入者宛て送信対応、Notion風ブロックエディタ）・Resendメール通知（テキスト＋HTML）・サイト内蔵お問い合わせフォーム（DB保存＋console返信、info@からの自動受付メール）まで完了。コードは書き終わっているが、**Supabaseでのテーブル作成とVercel環境変数の設定がまだユーザー側で未実施**（下記「未完了の作業」参照）ため、お問い合わせ機能はまだ本番で動いていない。Google OAuthとSquareはユーザーの意向で一旦後回し。
 
 # 未完了の作業（＝ユーザーが各サイトで行う作業）
 
@@ -192,12 +199,15 @@ Supabase接続・ヘッダーのマイページ/通知UI刷新・お知らせ投
 
 # 次に行うこと
 
-1. HTMLメールテンプレートの追加分（`lib/mailer.js`のCTAボタン対応）をコミット・push してVercel本番に反映
-2. 本番で購入通知メール・`/console`からの一斉/個人宛てメールを実際に受信し、Gmail/Outlook/iPhoneメール等でHTMLの表示崩れがないか確認
-3. （後回し中）Google OAuth設定（Cloud Console → OAuthクライアント作成 → SupabaseのGoogleプロバイダに登録）
-4. （後回し中）Square Developer Dashboardへのアクセス権限取得後、Sandbox設定一式（Access Token/Location ID/Catalog Object ID/Webhook）
-5. Sandbox環境でログイン・Googleログイン・カート・Square決済・サイト内通知・メール送信を一通り確認
-6. 問題なければ Square を Production に切り替え（Access Token/Location ID/Signature Keyを本番用に総入れ替え）
+1. （ユーザー作業中）`supabase/schema_v6_inquiries.sql` をSupabase SQL Editorで実行
+2. （ユーザー作業中）Vercel環境変数 `CONTACT_TO_EMAIL` を設定 → Redeploy（まずは自分のメアドでテストしてから、実運用のメアドに切り替える方針）
+3. お問い合わせフォーム→通知メール→自動受付メール→console返信→本人への返信、の一連の流れを実際に動かして確認
+4. `announcement-images`バケット未作成の件も合わせて対応（画像アップロード機能を使うなら）
+5. （後回し中）Google OAuth設定（Cloud Console → OAuthクライアント作成 → SupabaseのGoogleプロバイダに登録）
+6. （後回し中）Square Developer DashboardでSandboxアプリ作成 → Access Token/Location ID取得 → Catalog Object ID発行 → Webhook Subscription登録（`payment.updated`のみ）→ Vercel環境変数4つ設定
+7. Sandbox環境でログイン・カート・Square決済・サイト内通知・メール送信・チケット購入者セグメント配信を一通り確認
+8. 問題なければ Square を Production に切り替え（Access Token/Location ID/Signature Keyを本番用に総入れ替え）
+9. 本番公開の直前に、Supabase Authenticationの「Confirm email」を有効化（上記「本番公開前チェックリスト」参照）
 
 # 関連ファイル
 
@@ -206,11 +216,12 @@ Supabase接続・ヘッダーのマイページ/通知UI刷新・お知らせ投
 - [js/data.js](../js/data.js) / [js/render.js](../js/render.js) — コンテンツと描画
 - [js/auth.js](../js/auth.js) / [js/auth-config.js](../js/auth-config.js) — 認証・マイページドロワー
 - [js/notifications.js](../js/notifications.js) — 通知ベル（あなたへのお知らせ／ドレスコードからのお知らせ）
-- [admin-announcements.html](../admin-announcements.html)（`/console`） / [api/admin-announcements.js](../api/admin-announcements.js) / [api/admin-login.js](../api/admin-login.js) / [lib/adminAuth.js](../lib/adminAuth.js) — お知らせ投稿ページ（合言葉方式、全員宛て／個人宛て対応）
+- [admin-announcements.html](../admin-announcements.html)（`/console`） / [api/admin-announcements.js](../api/admin-announcements.js) / [api/admin-login.js](../api/admin-login.js) / [lib/adminAuth.js](../lib/adminAuth.js) — お知らせ投稿ページ（合言葉方式、全員宛て／個人宛て／チケット購入者宛て対応）
+- [api/admin-inquiries.js](../api/admin-inquiries.js) / [api/contact.js](../api/contact.js) — サイト内蔵お問い合わせフォームの保存・console一覧・返信
 - [api/env-check.js](../api/env-check.js) — 環境変数・デプロイ診断用エンドポイント（トラブル時に使う）
 - [lib/mailer.js](../lib/mailer.js) — Resend送信の共通処理
 - [js/cart.js](../js/cart.js) / [api/checkout.js](../api/checkout.js) / [api/square-webhook.js](../api/square-webhook.js) — 決済フロー＋購入通知（メール／サイト内通知）
-- [supabase/schema.sql](../supabase/schema.sql) 〜 [schema_v5_admin.sql](../supabase/schema_v5_admin.sql) — DBスキーマ（v1〜v4は使用中、v5は現在未使用）
+- [supabase/schema.sql](../supabase/schema.sql) 〜 [schema_v6_inquiries.sql](../supabase/schema_v6_inquiries.sql) — DBスキーマ（v1〜v4・v6は使用中、v5は現在未使用）
 - [vercel.json](../vercel.json) — セキュリティヘッダー＋ `/console` のrewrite
 - [.env.example](../.env.example) — 必要な環境変数一覧（実値はVercel側）
 - `方針/` `事業/` `案件/` `素材/` — 運営資料（gitignore対象、ローカルのみ）
@@ -221,6 +232,11 @@ Supabase接続・ヘッダーのマイページ/通知UI刷新・お知らせ投
 - Vercel Functions（`api/checkout.js` 等）を試す場合はローカルの簡易サーバーでは動かないため、Vercel CLI（`vercel dev`）または実デプロイでの確認が必要（未確認: このプロジェクトで Vercel CLI を使ったローカル実行が想定されているか）。
 - 決済まわりは Square Sandbox 環境での動作確認を想定（`.env.example` の `SQUARE_ENVIRONMENT=sandbox`）。
 
-# 最終更新
+2026-07-30 — お問い合わせ機能一式（DB保存・console返信・info@からの自動受付メール）を追加。あわせて全体の整理・点検を実施:
+- **（修正）SEOメタデータが削除済みのVercelプロジェクトを指していた**: `index.html`ほか全ページのcanonical/og:url/構造化データ・`sitemap.xml`・`robots.txt`が`doress-code-tokyo-cip1.vercel.app`（2026-07-25に削除済みの重複プロジェクト、404確認済み）を指したままだった。すべて`https://dress-code-tokyo.com`に修正。
+- **（修正）`/console`が縦に長くなり目的のセクションまで辿り着きにくくなっていた**: 新しいお知らせ／お問い合わせ／投稿済み一覧／個人宛て履歴の4セクションへのジャンプナビ（`.admin-jumpnav`）を追加。
+- **（清掃）死んでいたCSS**: 旧ラジオ形式のお問い合わせUI（`.reasons__row`系）がドロップダウン化後も残っていたため削除。
+- 確認したが問題なし: `console.log`等のデバッグ残骸なし、TODO類なし、`.env`系の誤コミットなし、`community-creator.html`/`community-exhibitor.html`は意図的に非表示中（`js/data.js`にコメントあり、事故ではない）。
+- **（清掃）`api/env-check.js`の`DEBUG_PING`を削除**: 原因究明（`SUPABASE_SERVICE_ROLE_KEY`問題）済みの使い捨て変数で、コメント自体に「原因が分かったら削除してよい」とあったため削除した。
 
 2026-07-25 — ヘッダーのマイページ／通知UIをドロワー形式に刷新、お知らせ投稿ページ（`/console`、共通パスワード方式）を追加し会員全員／個人宛ての両対応にした。Vercelに同名の重複プロジェクトが3つ存在していた問題を発見・解決し（本番は`doress-code-tokyo-9qjj`のみ）、不要な2つは削除済み。診断用の`/api/env-check`を追加。運営資料フォルダ（`方針/`・`事業/`・`案件/`・`素材/`、いずれもgitignore対象）を新設。Resendのドメイン認証・APIキー・Vercel環境変数設定が完了し、`/console`からのメール送信を実地確認済み（送信失敗の原因は`SUPABASE_SERVICE_ROLE_KEY`の`invalid JWT`で、Resend自体は無関係だった）。さらにHTMLメールテンプレート（黒白ベース・ロゴ・CTAボタン付き、`lib/mailer.js`の`buildEmailHtml`）を追加し、購入通知・お知らせ投稿の全パターンをテキスト＋HTML同時送信に対応。Google OAuth・Squareはユーザーの意向で後回し中。
