@@ -1084,6 +1084,20 @@ a.mcard__sns:hover { transform: translateY(-3px); }
 .mypage__notification-date { flex: none; font-family: var(--f-sans); font-size: 11px; letter-spacing: 0.06em; color: var(--muted); }
 .mypage__notification p { margin-top: 6px; font-family: var(--f-sans); font-size: 13px; line-height: 1.7; color: var(--ink-3); }
 
+/* お問い合わせカード（/console） */
+.inquiry__status {
+  display: inline-block; margin-top: 10px; font-family: var(--f-sans); font-size: 10.5px;
+  letter-spacing: 0.08em; padding: 3px 10px; border-radius: 20px; background: #f4f3f0; color: var(--muted);
+}
+.inquiry--replied .inquiry__status { background: #eef2ea; color: #3d5c33; }
+.inquiry__reply-sent { margin-top: 12px; padding: 12px 14px; border-radius: 6px; background: #fff; border: 1px solid var(--line); }
+.inquiry__reply-label { font-family: var(--f-sans); font-size: 11px; color: var(--muted); margin: 0; }
+.inquiry__reply-form { margin-top: 12px; }
+.inquiry__reply-form summary { cursor: pointer; }
+.inquiry__reply-form textarea { width: 100%; margin-top: 10px; box-sizing: border-box; }
+.inquiry__reply-form [data-reply-send] { margin-top: 10px; }
+.inquiry__reply-form [data-reply-error] { margin-top: 8px; }
+
 /* ヘッダーのアイコン型ボタン共通土台（マイページアイコン・通知アイコンで使用） */
 .icon-btn {
   position: relative; flex: none; display: flex; align-items: center; justify-content: center;

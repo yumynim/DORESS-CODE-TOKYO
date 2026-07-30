@@ -5,16 +5,24 @@
    お問い合わせフォームの送信先。Googleフォームのiframe埋め込みから
    サイト内フォームに移行したことで追加された。
 
-   受け取った内容を Resend 経由で運営のメールアドレスに転送する。
-   宛先は環境変数 CONTACT_TO_EMAIL（未設定なら NOTIFY_FROM_EMAIL に届く）。
-   送信元（From）はResendでドメイン認証済みのアドレス（NOTIFY_FROM_EMAIL）を使う必要があるため、
-   問い合わせ者のアドレスは Reply-To に入れる（＝そのまま「返信」で本人に返せる）。
+   やること:
+     1. 内容を inquiries テーブルに保存する（これが正式な記録。
+        /console の「お問い合わせ」タブから一覧・返信できる）
+     2. 見逃し防止のため、運営の普段のメールアドレス（環境変数 CONTACT_TO_EMAIL、
+        未設定なら NOTIFY_FROM_EMAIL）に「届きました」の通知メールを送る（ベストエフォート）
+
+   通知メールにはあえて Reply-To を設定していない（＝返信ボタンを押しても
+   問い合わせ者には届かない）。理由: Gmail等で直接返信できてしまうと、
+   consoleでの返信と二重に返事をしてしまう事故が起きるため。
+   返信は必ず /console から行う運用にすることで、どのやり取りが「対応済み」かを
+   inquiries.status で一元管理できるようにしている。
 
    迷惑メール対策:
      1. honeypot（人には見えない company フィールド）に入力があれば無言で破棄
      2. 同一IPからの連投を短時間だけブロック（インスタンス内メモリのみの簡易版）
    ========================================================= */
-const { sendEmail } = require('../lib/mailer');
+const { createClient } = require('@supabase/supabase-js');
+const { sendEmail, SITE_URL } = require('../lib/mailer');
 
 const MAX_NAME = 80;
 const MAX_EMAIL = 160;
@@ -78,32 +86,44 @@ module.exports = async function handler(req, res) {
     return;
   }
 
-  const to = process.env.CONTACT_TO_EMAIL || process.env.NOTIFY_FROM_EMAIL;
-  if (!to) {
-    console.error('contact: CONTACT_TO_EMAIL / NOTIFY_FROM_EMAIL が未設定のため転送できません');
-    res.status(500).json({ error: '現在お問い合わせを受け付けられません。お手数ですがSNSのDMからご連絡ください。' });
+  // ---------- 1. inquiries テーブルへ保存（これが正式な記録） ----------
+  const serviceClient = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
+  const { error: insertErr } = await serviceClient.from('inquiries').insert({
+    reason: cleanReason,
+    name: cleanName,
+    email: cleanEmail,
+    message: cleanMessage,
+  });
+  if (insertErr) {
+    console.error('inquiries insert failed:', insertErr.message);
+    res.status(500).json({ error: '送信に失敗しました。時間をおいて再度お試しください。' });
     return;
   }
 
-  // 運営向けの通知メール。Reply-To に問い合わせ者を入れているので、
-  // 受け取ったメールにそのまま「返信」すれば本人に届く。
-  const blocks = [
-    { type: 'heading', text: `【${cleanReason}】${cleanName} 様よりお問い合わせ`, size: 'md' },
-    { type: 'callout', text: `お名前: ${cleanName}\nメールアドレス: ${cleanEmail}\nご用件: ${cleanReason}` },
-    { type: 'paragraph', text: cleanMessage },
-  ];
-
-  try {
-    await sendEmail({
-      to,
-      subject: `お問い合わせ（${cleanReason}）`,
-      blocks,
-      replyTo: cleanEmail,
-      footerNote: 'このメールはサイトのお問い合わせフォームから自動送信されています。そのまま返信すると送信者本人に届きます。',
-    });
-    res.status(200).json({ ok: true });
-  } catch (err) {
-    console.error('contact handler error:', err);
-    res.status(500).json({ error: '送信に失敗しました。時間をおいて再度お試しください。' });
+  // ---------- 2. 運営への通知メール（ベストエフォート。失敗しても保存自体は成功扱い） ----------
+  const to = process.env.CONTACT_TO_EMAIL || process.env.NOTIFY_FROM_EMAIL;
+  if (to) {
+    const blocks = [
+      { type: 'heading', text: `【${cleanReason}】${cleanName} 様よりお問い合わせ`, size: 'md' },
+      { type: 'callout', text: `お名前: ${cleanName}\nメールアドレス: ${cleanEmail}\nご用件: ${cleanReason}` },
+      { type: 'paragraph', text: cleanMessage },
+      { type: 'button', label: 'コンソールで確認・返信する', url: `${SITE_URL}/admin-announcements.html` },
+    ];
+    try {
+      await sendEmail({
+        to,
+        subject: `お問い合わせ（${cleanReason}）`,
+        blocks,
+        // 意図的にReply-Toを設定しない。ここに返信しても問い合わせ者には届かない
+        // （consoleでの返信と二重対応になる事故を防ぐため）。
+        footerNote: 'このメールに返信しても送信者には届きません。対応は「/console」の「お問い合わせ」から行ってください。',
+      });
+    } catch (err) {
+      console.error('contact notification email failed:', err);
+    }
+  } else {
+    console.warn('contact: CONTACT_TO_EMAIL / NOTIFY_FROM_EMAIL が未設定のため通知メールは送られません（inquiriesへの保存は成功しています）');
   }
+
+  res.status(200).json({ ok: true });
 };

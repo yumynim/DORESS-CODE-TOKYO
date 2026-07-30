@@ -137,7 +137,8 @@ Supabase接続・ヘッダーのマイページ/通知UI刷新・お知らせ投
 
 # 未完了の作業（＝ユーザーが各サイトで行う作業）
 
-- **（ブロッカー）Vercel環境変数 `CONTACT_TO_EMAIL` 未設定**: サイト内蔵のお問い合わせフォーム（`api/contact.js`）の転送先。未設定の場合は`NOTIFY_FROM_EMAIL`（＝`noreply@dress-code-tokyo.com`）宛てに届いてしまい、運営が気づけない可能性がある。実際に受信できるアドレス（Gmail等でよい）を設定すること。**Resendの追加DNS設定は不要**（宛先にドメイン認証は要らないため）。
+- **（ブロッカー）Vercel環境変数 `CONTACT_TO_EMAIL` 未設定**: サイト内蔵のお問い合わせフォーム（`api/contact.js`）の「届きました」通知メールの宛先。2026-07-30に`/api/env-check`で確認したところ未設定のままだった。未設定でも`inquiries`テーブルへの保存自体は行われる（`/console`で見られる）ため機能は止まらないが、能動的にconsoleを見ないと新着に気づけない。実際に受信できるアドレス（Gmail等でよい）を設定すること。**Resendの追加DNS設定は不要**（宛先にドメイン認証は要らないため）。
+- **（ブロッカー）Supabase — `schema_v6_inquiries.sql` 未実行**: お問い合わせのDB保存・console返信機能に必要な`inquiries`テーブルがまだ存在しない。Supabase Dashboard → SQL Editor に[`supabase/schema_v6_inquiries.sql`](../supabase/schema_v6_inquiries.sql)の中身を貼ってRunするだけ。未実行の間は`/api/contact`が500エラーを返す（テーブルが無いため）。
 - **（ブロッカー）Supabase Storage — `announcement-images`バケット未作成**: Console配信エディタの画像アップロード機能を使うには、Supabase Dashboard → Storage → New bucket で `announcement-images`（Public bucket: ON）を作成する必要がある。未作成の間はアップロードがエラーになる（URL直接貼り付けの画像ブロックは作成不要で使える）。
 - ~~Supabase — schema_v5実行~~ 実行済みだが**現在は未使用**（認証方式を合言葉に変更したため。上記「完了済みの作業」参照）
 - **Google OAuth**（後回し中）: Google Cloud ConsoleでOAuth同意画面→OAuthクライアントID作成→Client ID/SecretをSupabaseのGoogleプロバイダ設定に登録。リダイレクトURIはSupabaseのGoogleプロバイダ設定画面に表示されるCallback URLを使う。ボタン自体はログインモーダルに表示済み（押しても今はエラーになる想定内の状態）。
@@ -169,7 +170,11 @@ Supabase接続・ヘッダーのマイページ/通知UI刷新・お知らせ投
 - **POP-UP MARKET（2026年9月27日）の開催情報を掲載**（2026-07-26）: 来場者向けチケットの「もっと見る」（`js/data.js`の`ticketsC[0].detail`）に開催場所・日時・入場料・CONCEPT・LIMITED ITEM・チェキ会・ご来場について・問い合わせ先を掲載。来場者向けチラシ（`assets/images/market-flyer-visitor.png`、元は`素材/マーケット一般.png`）を`eventVisualC`に設定し、出店者向けチラシ（`eventVisualB`）と同じ拡大表示の仕組みで表示している。あわせて`js/render.js`の`openTicketDrawer()`で`detail.body`の改行（`\n`）を`<br>`に変換するようにした（複数行の注意事項を書けるようにするため）。
   - 2026-07-29: 入場料を`¥1,000`に修正（ユーザー確認済み）。
 - **チケット購入者セグメント配信（購入者タグ）**（2026-07-26追加）: `/console`の宛先タブに「チケット購入者に送る」を追加。チケット単位で購入者を絞り込んで一斉送信できる。**専用のタグ用テーブルは意図的に作っていない** — `purchases.items`（購入内訳のJSON）から毎回集計する方式（`api/admin-announcements.js`の`collectSegments()`）。理由: チケットを増やすたびに管理画面でタグを作り直す手間がなく、`js/data.js`にチケットを足してSquareで売れた瞬間から自動的に絞り込み先として現れるため。セグメントの一意キーは Square の `catalogObjectId`（未設定・単品購入時は商品名で代用）。対象は`status='paid'`の購入のみ。送信先は`announcements`ではなく対象者ひとりひとりの`notifications`に入れる（全員向けに入れると未購入の会員のヘッダー通知にも出てしまうため）。
-- **お問い合わせフォームをサイト内蔵に変更**（2026-07-26、2026-07-29にご用件をラジオ→ドロップダウンに変更）: 以前はContactセクションの「＋」からGoogleフォームのiframeを開く方式だったが、サイト内で完結するフォームに置き換え（`js/render.js`の`contact-reasons`描画部分）。ご用件（`js/data.js`の`contactReasons`）は「カテゴリ *」ラベル付きのドロップダウン（`<select name="reason">`、プレースホルダー「選択してください」）で選び、お名前・メールアドレス・本文を書いて送信すると、`api/contact.js`がResend経由で運営に転送する。**Resendのドメイン認証が必要なのは「送信元（From）」だけで「宛先（To）」は制約なし**なので、転送先（環境変数`CONTACT_TO_EMAIL`）はGmail等の普通のアドレスでよい。問い合わせ者のアドレスは`Reply-To`に入れてあるので、届いたメールにそのまま返信すれば本人に届く（`lib/mailer.js`の`sendEmail`に`replyTo`オプションを追加）。迷惑メール対策はhoneypot（隠しフィールド`company`）＋同一IPの簡易レート制限（1分3件）。
+- **お問い合わせフォームをサイト内蔵に変更**（2026-07-26、2026-07-29にご用件をラジオ→ドロップダウンに変更、2026-07-30にDB保存＋console返信機能を追加）: 以前はContactセクションの「＋」からGoogleフォームのiframeを開く方式だったが、サイト内で完結するフォームに置き換え（`js/render.js`の`contact-reasons`描画部分）。ご用件（`js/data.js`の`contactReasons`）は「カテゴリ *」ラベル付きのドロップダウン（`<select name="reason">`、プレースホルダー「選択してください」）で選び、お名前・メールアドレス・本文を書いて送信する。迷惑メール対策はhoneypot（隠しフィールド`company`）＋同一IPの簡易レート制限（1分3件）。
+  - **正式な記録はDB（`inquiries`テーブル、`supabase/schema_v6_inquiries.sql`）**: `api/contact.js`が送信内容を保存し、`/console`の「お問い合わせ」セクション（`api/admin-inquiries.js`のGET）から一覧・本文を確認できる。
+  - **通知メールは「見逃し防止のオマケ」**: `CONTACT_TO_EMAIL`（未設定なら`NOTIFY_FROM_EMAIL`）宛てに「届きました」メールを送るが、**意図的にReply-Toを設定していない**。理由: Gmail等で直接返信できてしまうと、consoleでの返信と二重に対応してしまう事故が起きるため（ユーザーからの明確な要望）。通知メールには「返信は`/console`から」という案内とconsoleへのボタンリンクを入れている。
+  - **返信は`/console`からのみ行う設計**: `api/admin-inquiries.js`のPOSTが、送信元`info@dress-code-tokyo.com`（`lib/mailer.js`の`INQUIRY_FROM_EMAIL`。ドメイン全体がResend認証済みなので追加DNS設定なしで使える）から問い合わせ者本人へ返信メールを送り、`inquiries.status`を`replied`に更新して返信内容・日時を記録する。返信メールの`Reply-To`は`CONTACT_TO_EMAIL`（info@自体は受信箱を持たない送信専用アドレスのため、相手がさらに返信した場合の行き先として設定）。
+  - `lib/mailer.js`の`sendEmail()`に`from`オプション（送信元の差し替え）を追加。既存の呼び出し（購入通知・お知らせ配信）は影響なし。
 - **画像アップロード用のSupabase Storageバケットが未作成（要ユーザー作業）**: `api/admin-upload-image.js`は`announcement-images`という名前の**公開（Public）バケット**がSupabaseに存在する前提で動く。Dashboard → Storage → New bucket → 名前`announcement-images` → Public bucket: ON、で作成すること。書き込みはservice roleで行うためRLSポリシーの追加は不要（バケットをPublicにしておけば読み取りは誰でも可）。バケット未作成の間は画像アップロードがエラーになるが、URL直接貼り付けの画像ブロックは引き続き使える。
 
 # 変更時の注意点
