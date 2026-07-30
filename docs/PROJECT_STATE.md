@@ -140,12 +140,10 @@ git log（直近）で確認できた範囲:
 
 # 現在作業中の内容
 
-Supabase接続・ヘッダーのマイページ/通知UI刷新・お知らせ投稿ページ（合言葉方式、`/console`、全員/個人/チケット購入者宛て送信対応、Notion風ブロックエディタ）・Resendメール通知（テキスト＋HTML）・サイト内蔵お問い合わせフォーム（DB保存＋console返信、info@からの自動受付メール）まで完了。コードは書き終わっているが、**Supabaseでのテーブル作成とVercel環境変数の設定がまだユーザー側で未実施**（下記「未完了の作業」参照）ため、お問い合わせ機能はまだ本番で動いていない。Google OAuthとSquareはユーザーの意向で一旦後回し。
+Supabase接続・ヘッダーのマイページ/通知UI刷新・お知らせ投稿ページ（合言葉方式、`/console`、全員/個人/チケット購入者宛て送信対応、Notion風ブロックエディタ）・Resendメール通知（テキスト＋HTML）・サイト内蔵お問い合わせフォーム（DB保存＋console返信、info@からの自動受付メール）まで完了。**2026-07-30、お問い合わせ機能一式を本番で実地確認済み**（`schema_v6_inquiries.sql`実行・`CONTACT_TO_EMAIL`設定・Redeploy後、フォーム送信→自動受付メール→管理者通知メール→Supabase保存→`/console`表示→console返信→返信メール受信、の一連の流れをユーザー自身がテストし、全て正常動作を確認）。Google OAuthとSquareはユーザーの意向で一旦後回し。
 
 # 未完了の作業（＝ユーザーが各サイトで行う作業）
 
-- **（ブロッカー）Vercel環境変数 `CONTACT_TO_EMAIL` 未設定**: サイト内蔵のお問い合わせフォーム（`api/contact.js`）の「届きました」通知メールの宛先。2026-07-30に`/api/env-check`で確認したところ未設定のままだった。未設定でも`inquiries`テーブルへの保存自体は行われる（`/console`で見られる）ため機能は止まらないが、能動的にconsoleを見ないと新着に気づけない。実際に受信できるアドレス（Gmail等でよい）を設定すること。**Resendの追加DNS設定は不要**（宛先にドメイン認証は要らないため）。
-- **（ブロッカー）Supabase — `schema_v6_inquiries.sql` 未実行**: お問い合わせのDB保存・console返信機能に必要な`inquiries`テーブルがまだ存在しない。Supabase Dashboard → SQL Editor に[`supabase/schema_v6_inquiries.sql`](../supabase/schema_v6_inquiries.sql)の中身を貼ってRunするだけ。未実行の間は`/api/contact`が500エラーを返す（テーブルが無いため）。
 - **（ブロッカー）Supabase Storage — `announcement-images`バケット未作成**: Console配信エディタの画像アップロード機能を使うには、Supabase Dashboard → Storage → New bucket で `announcement-images`（Public bucket: ON）を作成する必要がある。未作成の間はアップロードがエラーになる（URL直接貼り付けの画像ブロックは作成不要で使える）。
 - ~~Supabase — schema_v5実行~~ 実行済みだが**現在は未使用**（認証方式を合言葉に変更したため。上記「完了済みの作業」参照）
 - **Google OAuth**（後回し中）: Google Cloud ConsoleでOAuth同意画面→OAuthクライアントID作成→Client ID/SecretをSupabaseのGoogleプロバイダ設定に登録。リダイレクトURIはSupabaseのGoogleプロバイダ設定画面に表示されるCallback URLを使う。ボタン自体はログインモーダルに表示済み（押しても今はエラーになる想定内の状態）。
@@ -199,14 +197,13 @@ Supabase接続・ヘッダーのマイページ/通知UI刷新・お知らせ投
 
 # 次に行うこと
 
-1. （ユーザー作業中）`supabase/schema_v6_inquiries.sql` をSupabase SQL Editorで実行
-2. （ユーザー作業中）Vercel環境変数 `CONTACT_TO_EMAIL` を設定 → Redeploy（まずは自分のメアドでテストしてから、実運用のメアドに切り替える方針）
-3. お問い合わせフォーム→通知メール→自動受付メール→console返信→本人への返信、の一連の流れを実際に動かして確認
-4. `announcement-images`バケット未作成の件も合わせて対応（画像アップロード機能を使うなら）
-5. （後回し中）Google OAuth設定（Cloud Console → OAuthクライアント作成 → SupabaseのGoogleプロバイダに登録）
-6. （後回し中）Square Developer DashboardでSandboxアプリ作成 → Access Token/Location ID取得 → Catalog Object ID発行 → Webhook Subscription登録（`payment.updated`のみ）→ Vercel環境変数4つ設定
-7. Sandbox環境でログイン・カート・Square決済・サイト内通知・メール送信・チケット購入者セグメント配信を一通り確認
-8. 問題なければ Square を Production に切り替え（Access Token/Location ID/Signature Keyを本番用に総入れ替え）
+1. ~~`supabase/schema_v6_inquiries.sql` 実行・`CONTACT_TO_EMAIL`設定・Redeploy・お問い合わせ一連の動作確認~~ 2026-07-30完了（ユーザー自身のメアドでテスト済み）
+2. **`CONTACT_TO_EMAIL` をテスト用の自分のメアドから、実運用で使うメアドに切り替える**（テストは自分のメアド宛てで行う方針だったため。現状まだテスト用のままの可能性がある）
+3. `announcement-images`バケット未作成の件も合わせて対応（画像アップロード機能を使うなら）
+4. （後回し中）Google OAuth設定（Cloud Console → OAuthクライアント作成 → SupabaseのGoogleプロバイダに登録）
+5. （後回し中）Square Developer DashboardでSandboxアプリ作成 → Access Token/Location ID取得 → Catalog Object ID発行 → Webhook Subscription登録（`payment.updated`のみ）→ Vercel環境変数4つ設定
+6. Sandbox環境でログイン・カート・Square決済・サイト内通知・メール送信・チケット購入者セグメント配信を一通り確認
+7. 問題なければ Square を Production に切り替え（Access Token/Location ID/Signature Keyを本番用に総入れ替え）
 9. 本番公開の直前に、Supabase Authenticationの「Confirm email」を有効化（上記「本番公開前チェックリスト」参照）
 
 # 関連ファイル
