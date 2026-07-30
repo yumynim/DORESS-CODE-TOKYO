@@ -324,7 +324,7 @@
               <span class="mypage__notification-date">${new Date(n.created_at).toLocaleDateString('ja-JP')}</span>
             </div>
             ${n.email ? `<p class="mypage__notification-date">宛先: ${esc(n.email)}</p>` : ''}
-            <p>${esc(n.body)}</p>
+            <div class="mypage__notification-body">${n.body_html || `<p>${esc(n.body)}</p>`}</div>
             <button type="button" class="btn-link admin-form__delete" data-delete-id="${esc(n.id)}" data-delete-type="${type}">削除する</button>
           </div>`).join('');
         el.querySelectorAll('[data-delete-id]').forEach(btn => {

@@ -1116,6 +1116,12 @@ a.mcard__sns:hover { transform: translateY(-3px); }
 .mypage__notification-head h3 { font-family: var(--f-jp); font-weight: 700; font-size: 14.5px; color: var(--ink); }
 .mypage__notification-date { flex: none; font-family: var(--f-sans); font-size: 11px; letter-spacing: 0.06em; color: var(--muted); }
 .mypage__notification p { margin-top: 6px; font-family: var(--f-sans); font-size: 13px; line-height: 1.7; color: var(--ink-3); }
+/* 配信エディタのブロックHTML（見出し・画像・ボタン等）をそのまま差し込む本文枠。
+   通知カードの横幅は狭いことが多いので、画像・ボタンがはみ出さないようにしておく。 */
+.mypage__notification-body { margin-top: 6px; font-family: var(--f-sans); font-size: 13px; line-height: 1.7; color: var(--ink-3); }
+.mypage__notification-body img { max-width: 100%; height: auto; border-radius: 4px; }
+.mypage__notification-body table { max-width: 100%; }
+.mypage__notification-body h2 { font-size: 15px; }
 
 /* お問い合わせカード（/console） */
 .inquiry__status {

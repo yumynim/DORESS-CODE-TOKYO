@@ -48,24 +48,27 @@
   function renderList(el, items, emptyMsg) {
     if (!items.length) { el.innerHTML = '<p class="cards-empty">' + emptyMsg + '</p>'; return; }
     el.innerHTML = items.map(function (n) {
+      // body_html があれば（配信エディタの画像・見出し・ボタン等を含むHTML）それを表示する。
+      // 無い場合（過去のお知らせ／購入完了通知など）はプレーンテキストのbodyにフォールバック。
+      var body = n.body_html ? n.body_html : '<p>' + esc(n.body) + '</p>';
       return '<div class="mypage__notification' + (n.unread ? ' is-unread' : '') + '">' +
         '<div class="mypage__notification-head"><h3>' + esc(n.title) + '</h3>' +
         '<span class="mypage__notification-date">' + new Date(n.created_at).toLocaleDateString('ja-JP') + '</span></div>' +
-        '<p>' + esc(n.body) + '</p></div>';
+        '<div class="mypage__notification-body">' + body + '</div></div>';
     }).join('');
   }
 
   function loadPersonal(session) {
     var client = window.DCT_AUTH.getClient();
     client.from('notifications')
-      .select('id, title, body, read, created_at')
+      .select('id, title, body, body_html, read, created_at')
       .eq('user_id', session.user.id)
       .order('created_at', { ascending: false })
       .then(function (res) {
         if (res.error) { listPersonalEl.innerHTML = '<p class="cards-empty">読み込みに失敗しました。</p>'; return; }
         var list = res.data || [];
         renderList(listPersonalEl, list.map(function (n) {
-          return { title: n.title, body: n.body, created_at: n.created_at, unread: !n.read };
+          return { title: n.title, body: n.body, body_html: n.body_html, created_at: n.created_at, unread: !n.read };
         }), 'お知らせはありません。');
         var unreadIds = list.filter(function (n) { return !n.read; }).map(function (n) { return n.id; });
         if (unreadIds.length) {
@@ -77,7 +80,7 @@
   function loadBroadcast() {
     var client = window.DCT_AUTH.getClient();
     client.from('announcements')
-      .select('id, title, body, created_at')
+      .select('id, title, body, body_html, created_at')
       .order('created_at', { ascending: false })
       .limit(30)
       .then(function (res) {
@@ -85,7 +88,7 @@
         var list = res.data || [];
         var lastSeen = localStorage.getItem(LAST_SEEN_KEY);
         renderList(listBroadcastEl, list.map(function (n) {
-          return { title: n.title, body: n.body, created_at: n.created_at, unread: !lastSeen || new Date(n.created_at) > new Date(lastSeen) };
+          return { title: n.title, body: n.body, body_html: n.body_html, created_at: n.created_at, unread: !lastSeen || new Date(n.created_at) > new Date(lastSeen) };
         }), 'お知らせはありません。');
         if (list.length) { localStorage.setItem(LAST_SEEN_KEY, list[0].created_at); }
         refreshBadge();

@@ -109,10 +109,10 @@ module.exports = async function handler(req, res) {
   try {
     if (req.method === 'GET') {
       const [broadcastRes, personalRes] = await Promise.all([
-        serviceClient.from('announcements').select('id, title, body, created_at').order('created_at', { ascending: false }).limit(100),
+        serviceClient.from('announcements').select('id, title, body, body_html, created_at').order('created_at', { ascending: false }).limit(100),
         // 個人宛て送信の履歴として表示するのは、購入通知等ではなくConsoleから送った分だけ
         // （purchase_id が付いていない = Webhookではなく管理者が手動で送ったもの、という区別）
-        serviceClient.from('notifications').select('id, title, body, created_at, user_id').is('purchase_id', null).order('created_at', { ascending: false }).limit(50),
+        serviceClient.from('notifications').select('id, title, body, body_html, created_at, user_id').is('purchase_id', null).order('created_at', { ascending: false }).limit(50),
       ]);
       if (broadcastRes.error) { res.status(500).json({ error: '読み込みに失敗しました' }); return; }
 
@@ -120,7 +120,7 @@ module.exports = async function handler(req, res) {
       if (!personalRes.error && personalRes.data) {
         personal = await Promise.all(personalRes.data.map(async (n) => {
           const { data } = await serviceClient.auth.admin.getUserById(n.user_id);
-          return { id: n.id, title: n.title, body: n.body, created_at: n.created_at, email: (data && data.user && data.user.email) || '（不明）' };
+          return { id: n.id, title: n.title, body: n.body, body_html: n.body_html, created_at: n.created_at, email: (data && data.user && data.user.email) || '（不明）' };
         }));
       }
 
@@ -160,7 +160,7 @@ module.exports = async function handler(req, res) {
         const userIds = [...segment.userIds];
         const { error } = await serviceClient
           .from('notifications')
-          .insert(userIds.map((userId) => ({ user_id: userId, title: cleanTitle, body: cleanBody })));
+          .insert(userIds.map((userId) => ({ user_id: userId, title: cleanTitle, body: cleanBody, body_html: rendered.html })));
         if (error) { console.error('segment notifications insert failed:', error.message); res.status(500).json({ error: '送信に失敗しました' }); return; }
 
         // メールは1人ずつ順番に送る（会員数が増えたら一括送信APIやキューへの切り替えを検討）
@@ -184,7 +184,7 @@ module.exports = async function handler(req, res) {
 
         const { data, error } = await serviceClient
           .from('notifications')
-          .insert({ user_id: user.id, title: cleanTitle, body: cleanBody })
+          .insert({ user_id: user.id, title: cleanTitle, body: cleanBody, body_html: rendered.html })
           .select()
           .single();
         if (error) { res.status(500).json({ error: '送信に失敗しました' }); return; }
@@ -202,7 +202,7 @@ module.exports = async function handler(req, res) {
       // ---------- 全員宛て ----------
       const { data, error } = await serviceClient
         .from('announcements')
-        .insert({ title: cleanTitle, body: cleanBody })
+        .insert({ title: cleanTitle, body: cleanBody, body_html: rendered.html })
         .select()
         .single();
       if (error) { res.status(500).json({ error: '投稿に失敗しました' }); return; }
