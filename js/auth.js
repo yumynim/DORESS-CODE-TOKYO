@@ -239,16 +239,25 @@
 
   function paintAuthButtons() {
     document.querySelectorAll('[data-auth-trigger]').forEach(function (btn) {
+      // コンパクトなヘッダー（.header__cta-icon）はアイコンのみの丸ボタンなので、
+      // テキストで上書きせず常にアイコンを保つ（状態はtitle/aria-labelだけで示す）。
+      var isIconOnly = btn.classList.contains('icon-btn');
       if (!CONFIGURED || !session) {
-        btn.removeAttribute('title');
-        btn.removeAttribute('aria-label');
-        btn.textContent = 'ログイン';
+        if (isIconOnly) {
+          btn.innerHTML = ACCOUNT_ICON_SVG;
+          btn.setAttribute('title', 'ログイン');
+          btn.setAttribute('aria-label', 'ログイン');
+        } else {
+          btn.removeAttribute('title');
+          btn.removeAttribute('aria-label');
+          btn.textContent = 'ログイン';
+        }
         return;
       }
       var name = (session.user.user_metadata && session.user.user_metadata.display_name) || session.user.email;
       btn.setAttribute('title', name + ' としてログイン中');
       btn.setAttribute('aria-label', 'マイページを開く');
-      btn.innerHTML = ACCOUNT_ICON_SVG + '<span>マイページ</span>';
+      btn.innerHTML = isIconOnly ? ACCOUNT_ICON_SVG : (ACCOUNT_ICON_SVG + '<span>マイページ</span>');
     });
   }
 

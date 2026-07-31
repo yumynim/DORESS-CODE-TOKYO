@@ -172,6 +172,13 @@ select:focus-visible, textarea:focus-visible {
 .nav a.active { opacity: 1; }
 .nav a.active::after { width: 100%; }
 .header__cta { flex: none; }
+/* コンパクトなヘッダー（ハンバーガーメニューに切り替わる幅）専用のログイン/マイページアイコン。
+   カート・お知らせのアイコンと同じ並びに常時表示し、ハンバーガーを開かなくても
+   ログイン導線に到達できるようにする（.header__cta のテキスト版はこの幅で隠れるため）。 */
+/* .header__inner を付けて .icon-btn（後方で display:flex を定義）より詳細度を上げる。
+   単純に .header__cta-icon だけだと、後方の .icon-btn に負けて常に表示されてしまう
+   （同じ理由の注意書きが .header__cta の非表示ルールにもある）。 */
+.header__inner .header__cta-icon { display: none; }
 .menu-btn {
   display: none; flex: none; width: 44px; height: 44px; align-items: center; justify-content: center;
   background: none; border: none; cursor: pointer; color: var(--ink); font-size: 0;
@@ -889,6 +896,7 @@ a.mcard__sns:hover { transform: translateY(-3px); }
      こうしないと、後方で定義されている .icon-btn { display:flex } に負けて隠れなくなる。 */
   .nav, .header__inner .header__cta { display: none; }
   .menu-btn { display: inline-flex; }
+  .header__inner .header__cta-icon { display: inline-flex; }
 }
 @media (max-width: 860px) {
   .hero__grid, .about__grid, .event__top, .event__feature, .contact__grid { grid-template-columns: 1fr; }

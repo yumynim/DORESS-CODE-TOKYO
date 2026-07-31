@@ -205,15 +205,18 @@ Supabase接続・ヘッダーのマイページ/通知UI刷新・お知らせ投
   - 各セクションに検索ボックスを追加（お問い合わせ: お名前／メールアドレス／本文／カテゴリで検索、投稿済み一覧: タイトル／本文、個人宛て履歴: メールアドレス／タイトル／本文）。全件取得済みのデータをクライアント側でフィルタする方式（サーバーへの追加リクエストなし）。
   - ジャンプナビ（`#section-new`等へのリンク）をクリックしたときに、リンク先のトグルが閉じていれば自動で開いてからスクロールするようにした。
 - **（保留）Googleログインをコードごと無効化**: ユーザーの意向でGoogleログインの実装を一旦保留することになったため、`js/auth.js`に`GOOGLE_LOGIN_ENABLED = false`というフラグを追加し、ログインモーダルからGoogleボタンと区切り線を非表示にした。メール/パスワードでのログイン・新規登録には一切影響しない。`signInWithGoogle()`や関連ロジックは削除せずそのまま残してあるので、再開する際は`GOOGLE_LOGIN_ENABLED`を`true`に戻すだけでよい。
-- **（ブロッカー）Supabase — `schema_v7_notification_html.sql` 未実行 / 通知に画像が表示されない不具合を修正**: ユーザーから「個人宛てに送った履歴・サイトの通知ドロワーで画像が見れない（メールには届くのに）」と報告。原因は、`notifications`/`announcements`テーブルには`renderBlocks()`の**プレーンテキスト版**（`body`列）しか保存しておらず、画像ブロックはテキスト上`[画像: alt]`としてしか残らなかったため。メールは別途HTML版を都度生成して送っていたので画像が正しく表示されていた。対応として`body_html`列を追加し（[`supabase/schema_v7_notification_html.sql`](../supabase/schema_v7_notification_html.sql)）、`api/admin-announcements.js`の3つのinsert（全員/個人/チケット購入者宛て）すべてで`renderBlocks().html`も一緒に保存するように変更。表示側（`js/notifications.js`のヘッダー通知ドロワー、`admin-announcements.html`のconsole履歴一覧）は`body_html`があればそれを、無ければ従来通り`body`（プレーンテキスト）にフォールバックする（`body_html`が null になるのは、このマイグレーション以前の過去のお知らせと、購入完了/キャンセル通知のようにブロックを使わない単純なテキスト通知）。**要ユーザー作業**: Supabase SQL Editorで`schema_v7_notification_html.sql`を実行するまでは`body_html`列が存在せず、投稿時にエラーになる。
-- **CONTACT_TO_EMAILを本番用アドレスに設定済み**（2026-07-30）: テスト用の自分のメアドから、実運用アドレス（`marrine.michan@gmail.com`）に切り替え済み。
+- **（修正済み）通知に画像が表示されない不具合**: ユーザーから「個人宛てに送った履歴・サイトの通知ドロワーで画像が見れない（メールには届くのに）」と報告。原因は、`notifications`/`announcements`テーブルには`renderBlocks()`の**プレーンテキスト版**（`body`列）しか保存しておらず、画像ブロックはテキスト上`[画像: alt]`としてしか残らなかったため。メールは別途HTML版を都度生成して送っていたので画像が正しく表示されていた。対応として`body_html`列を追加し（[`supabase/schema_v7_notification_html.sql`](../supabase/schema_v7_notification_html.sql)、2026-07-31にユーザーが実行済み）、`api/admin-announcements.js`の3つのinsert（全員/個人/チケット購入者宛て）すべてで`renderBlocks().html`も一緒に保存するように変更。表示側（`js/notifications.js`のヘッダー通知ドロワー、`admin-announcements.html`のconsole履歴一覧）は`body_html`があればそれを、無ければ従来通り`body`（プレーンテキスト）にフォールバックする（`body_html`が null になるのは、このマイグレーション以前の過去のお知らせと、購入完了/キャンセル通知のようにブロックを使わない単純なテキスト通知）。
+- **CONTACT_TO_EMAILを本番用アドレスに設定済み**（2026-07-30）: テスト用の自分のメアドから、実運用アドレス（`marrine.michan@gmail.com`）に切り替え済み。届いたテスト通知が迷惑メールフォルダに入っていただけで、コード・Supabaseとも問題なしと確認済み（2026-07-31）。
+- **複数宛先対応**（2026-07-31）: `lib/mailer.js`の`sendEmail()`で、`to`にカンマ区切り文字列（例:`"a@x.com, b@y.com"`）を渡すと配列に変換してResendに渡すようにした。`CONTACT_TO_EMAIL`にテスト用・本番用のメアドを両方カンマ区切りで入れる、といった運用ができる。
+- **モバイルのコンパクトヘッダーにログイン導線を追加**（2026-07-31）: これまでハンバーガーメニューを開かないと「ログイン」ボタンに到達できなかった（カート・お知らせアイコンは常時表示なのに、ログインだけ`.header__cta`が`max-width:1240px`で非表示になり、`.mobile-menu`内にしか出ていなかった）。カート・お知らせと同じ丸いアイコンボタン（`.header__cta-icon`、中身は人型アイコン）を追加し、コンパクトヘッダーでも常時ログイン/マイページに到達できるようにした（対象: `index.html`/`article.html`/`member.html`/`community-creator.html`/`community-exhibitor.html`の5ページ）。ログイン中は同じボタンがマイページアイコンとして機能する（`js/auth.js`の`paintAuthButtons()`が`.icon-btn`クラスかどうかで表示を出し分け）。
+  - **実装上のハマりどころ**: `.header__cta-icon { display:none }` を単純なクラス指定だけで書くと、CSSファイル後方で定義されている`.icon-btn { display:flex }`（同じ詳細度）に負けて常に表示されてしまう。`.header__cta`の非表示ルールに既にあった同じ問題の回避策（`.header__inner`を付けて詳細度を上げる）を踏襲して解決した。
 
 # 次に行うこと
 
 1. ~~`supabase/schema_v6_inquiries.sql` 実行・`CONTACT_TO_EMAIL`設定・Redeploy・お問い合わせ一連の動作確認~~ 2026-07-30完了（ユーザー自身のメアドでテスト済み）
 2. ~~`CONTACT_TO_EMAIL` を実運用で使うメアドに切り替える~~ 2026-07-30完了（`marrine.michan@gmail.com`に設定済み）
 3. ~~`announcement-images`バケット作成~~ 2026-07-30完了
-4. **（新規・要ユーザー作業）`supabase/schema_v7_notification_html.sql` をSupabase SQL Editorで実行** — 個人宛て履歴・サイト通知ドロワーで画像が表示されない不具合の修正に必要（詳細は上記「2026-07-30の修正」参照）。未実行の間はconsoleからの投稿（全員/個人/チケット購入者宛てすべて）が`body_html`列が無くエラーになるので、他の作業より先に対応すること。
+4. ~~`supabase/schema_v7_notification_html.sql` をSupabase SQL Editorで実行~~ 2026-07-31完了
 5. （保留中）Google OAuth — `js/auth.js`の`GOOGLE_LOGIN_ENABLED`を`true`に戻し、Cloud Console → OAuthクライアント作成 → SupabaseのGoogleプロバイダに登録
 6. （後回し中）Square Developer DashboardでSandboxアプリ作成 → Access Token/Location ID取得 → Catalog Object ID発行 → Webhook Subscription登録（`payment.updated`のみ）→ Vercel環境変数4つ設定
 7. Sandbox環境でログイン・カート・Square決済・サイト内通知・メール送信・チケット購入者セグメント配信を一通り確認
