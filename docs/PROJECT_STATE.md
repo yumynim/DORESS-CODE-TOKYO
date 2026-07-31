@@ -165,7 +165,11 @@ Supabase接続・ヘッダーのマイページ/通知UI刷新・お知らせ投
 
 # 未完了の作業（＝ユーザーが各サイトで行う作業）
 
-- **特定商取引法に基づく表記（[`tokutei-shotorihiki.html`](../tokutei-shotorihiki.html)）の中身を埋める**: 事業者名・運営責任者・所在地・電話番号・メールアドレス・支払い方法・引渡し時期・返品/キャンセル規定など、実際の情報をユーザーが用意して差し替える。埋め終わったら`<meta name="robots">`の`noindex`を外す。
+- **特定商取引法に基づく表記（[`tokutei-shotorihiki.html`](../tokutei-shotorihiki.html)）の残り3項目を埋める**（2026-08-01、支払い方法・引渡し時期・返品ポリシー等は記入済み。個人事業主の場合は住所・電話番号を「ご請求があれば遅滞なく開示します」に置き換えて省略できる、という消費者庁の扱いに沿って先に埋めた）:
+  - **販売事業者名**（本名または屋号。省略不可）
+  - **運営統括責任者**（同上、省略不可）
+  - **メールアドレス**（2022年の法改正で追加された必須項目。実際に使えるアドレスが必要、省略不可）
+  - 上記3つが揃い次第、`<meta name="robots">`の`noindex`を外す。正式公開前に一度、行政書士等の専門家に内容を確認してもらうことを推奨（このAIは法律専門家ではないため）。
 - **（ブロッカー）Supabase Storage — `announcement-images`バケット未作成**: Console配信エディタの画像アップロード機能を使うには、Supabase Dashboard → Storage → New bucket で `announcement-images`（Public bucket: ON）を作成する必要がある。未作成の間はアップロードがエラーになる（URL直接貼り付けの画像ブロックは作成不要で使える）。
 - ~~Supabase — schema_v5実行~~ 実行済みだが**現在は未使用**（認証方式を合言葉に変更したため。上記「完了済みの作業」参照）
 - **Google OAuth**（後回し中）: Google Cloud ConsoleでOAuth同意画面→OAuthクライアントID作成→Client ID/SecretをSupabaseのGoogleプロバイダ設定に登録。リダイレクトURIはSupabaseのGoogleプロバイダ設定画面に表示されるCallback URLを使う。ボタン自体はログインモーダルに表示済み（押しても今はエラーになる想定内の状態）。
