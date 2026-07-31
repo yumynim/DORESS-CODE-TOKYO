@@ -149,8 +149,14 @@ Supabase接続・ヘッダーのマイページ/通知UI刷新・お知らせ投
 - **バグ修正**: [`api/checkout.js`](../api/checkout.js) の `SQUARE_API_BASE` が常に本番ホスト（`connect.squareup.com`）固定になっており、`.env.example`にある`SQUARE_ENVIRONMENT`もどこからも参照されていなかった。SquareはSandbox/Productionでホストが別（Sandbox: `connect.squareupsandbox.com`）なので、このままだとSandboxトークンで本番ホストに投げて401になっていたはず。`SQUARE_ENVIRONMENT === 'production'` のときだけ本番ホスト、それ以外はSandboxホストを使うよう修正。
 - ユーザーがVercel環境変数（`SQUARE_ACCESS_TOKEN`/`SQUARE_LOCATION_ID`/`SQUARE_WEBHOOK_URL`/`SQUARE_WEBHOOK_SIGNATURE_KEY`/`SQUARE_APPLICATION_ID`/`SQUARE_ENVIRONMENT`）を設定済み（本人確認、スクリーンショットあり）。
 - 上記2つのコード変更（`js/data.js`・`api/checkout.js`）はコミット・push済み（`de05648`）。Vercelへ自動デプロイ後、ユーザーが実機でカート追加→Sandboxチェックアウト→テスト決済まで実施し、Squareのテストパネルで「注文更新済み／支払い更新済み（webhookトリガー成功）」を確認。
-- **（発見・修正済み）webhook重複による二重通知**: 上記の実地テストで、通知ドロワーに同じ「ご購入ありがとうございます」が2件（メールは1件のみ受信）現れた。原因はSquareのwebhook仕様上、こちらの応答（署名検証→Supabase更新→admin.getUserById→Resend送信、と処理が重い）が遅れるとSquareが同じイベントを再送してくること。[`docs/PROJECT_STATE.md`](#既知の問題不具合)に書いていた既知の懸念が実際に発生した形。[`api/square-webhook.js`](../api/square-webhook.js)の`notifyPurchaser`に、同じ`purchase_id`+`title`の通知が既にあればinsert・メール送信ともスキップする重複排除を追加（コミット待ち→ユーザー承認済みでpush予定）。
-- **未確認**: 上記の重複排除修正後、実際にもう一度Sandbox決済を試して通知が1件だけになるか（Squareの再送は毎回起きるとは限らないため、次回何もしなくても問題ない可能性はある。念のための修正）。
+- **（発見・修正済み）webhook重複による二重通知**: 上記の実地テストで、通知ドロワーに同じ「ご購入ありがとうございます」が2件（メールは1件のみ受信）現れた。原因はSquareのwebhook仕様上、こちらの応答（署名検証→Supabase更新→admin.getUserById→Resend送信、と処理が重い）が遅れるとSquareが同じイベントを再送してくること。[`docs/PROJECT_STATE.md`](#既知の問題不具合)に書いていた既知の懸念が実際に発生した形。[`api/square-webhook.js`](../api/square-webhook.js)の`notifyPurchaser`に、同じ`purchase_id`+`title`の通知が既にあればinsert・メール送信ともスキップする重複排除を追加（コミット`1c5d9ba`でpush済み）。**修正後にもう一度決済し直し、通知が1件になったことをユーザーが確認済み**（2026-08-01）。
+- **（2026-08-01・コミット`f05bfff`でpush済み）チケットカードのUI/文言整理**:
+  - `catalogObjectId`設定済み（＝カート決済対応済み）の商品は、単品リンク（「今すぐ支払う」「出店を申し込む」）や「準備中」表示を出さず「カートに追加」のみにするよう[`js/render.js`](../js/render.js)を変更。理由: カート決済がSandboxで動作確認できたため、旧経路のボタンが並ぶと分かりにくいだけになった。
+  - [`js/data.js`](../js/data.js) `ticketsB[0]`（出店料）の`detail`を再構成: 1日入場チケット（`ticketsC[0]`）と重複していた会場・日時等の内容を揃え、出店固有の情報は「出店者注意点」として1つにまとめて強調表示。
+  - 出店申し込みの流れを「Googleフォーム提出→お支払い」から**「カートでお支払い→お支払い確認後にGoogleフォームをお送りして詳細入力してもらう」**（支払い先行）に変更。ユーザーの意向（決済を先に済ませてから出店内容を確認する運用にしたい）による。
+  - 出店料カードのnote欄に「※必ず詳細をご確認のうえお申し込みください」を追加。
+  - **未実装**: 「お支払い確認後にGoogleフォームを送る」部分は現状まだ手動（Webhookで自動送信する仕組みは無い）。運営側が`purchases`テーブルや通知を見て都度Googleフォームのリンクを送る運用を想定。自動化するかは今後の相談。
+- **（要注意・未解決）本番ドメインでSquare Sandboxが露出している**: `dress-code-tokyo.com`は実際に一般公開されているが、`SQUARE_ACCESS_TOKEN`等はまだSandbox設定のまま。今の状態で一般来場者が「カートに追加」→「レジに進む」まで進むと、実際の決済画面ではなくSquareの「APIサンドボックステストパネル」（開発者向けテスト画面）が表示されてしまう。実害（誤課金等）は無いが、お客様から見ると壊れているように見える。2026-08-01時点でユーザーに一時非表示（`catalogObjectId`を空に戻す）等の対応案を提示したが、ユーザーからは明確な選択の返答はまだ無く、現状維持のまま次のSandbox動作確認を優先している。**Square本番切り替えの目処が立つまでは、この露出リスクを踏まえて次のセッションでも都度状況を確認すること**。
 
 # 未完了の作業（＝ユーザーが各サイトで行う作業）
 
