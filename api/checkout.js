@@ -15,7 +15,11 @@
 const crypto = require('crypto');
 const { createClient } = require('@supabase/supabase-js');
 
-const SQUARE_API_BASE = 'https://connect.squareup.com'; // sandbox/productionともに同一ホスト。トークンの環境で自動的に振り分けられる
+// SandboxとProductionでAPIホストが異なる（トークンの種類では自動判別されない）。
+// SQUARE_ENVIRONMENT=production のときだけ本番ホストを使い、それ以外（未設定含む）はSandboxホストを使う。
+const SQUARE_API_BASE = process.env.SQUARE_ENVIRONMENT === 'production'
+  ? 'https://connect.squareup.com'
+  : 'https://connect.squareupsandbox.com';
 const SQUARE_VERSION = '2026-07-15';
 
 module.exports = async function handler(req, res) {

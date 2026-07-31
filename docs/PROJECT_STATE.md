@@ -140,7 +140,15 @@ git log（直近）で確認できた範囲:
 
 # 現在作業中の内容
 
-Supabase接続・ヘッダーのマイページ/通知UI刷新・お知らせ投稿ページ（合言葉方式、`/console`、全員/個人/チケット購入者宛て送信対応、Notion風ブロックエディタ）・Resendメール通知（テキスト＋HTML）・サイト内蔵お問い合わせフォーム（DB保存＋console返信、info@からの自動受付メール）まで完了。**2026-07-30、お問い合わせ機能一式を本番で実地確認済み**（`schema_v6_inquiries.sql`実行・`CONTACT_TO_EMAIL`設定・Redeploy後、フォーム送信→自動受付メール→管理者通知メール→Supabase保存→`/console`表示→console返信→返信メール受信、の一連の流れをユーザー自身がテストし、全て正常動作を確認）。Google OAuthとSquareはユーザーの意向で一旦後回し。
+Supabase接続・ヘッダーのマイページ/通知UI刷新・お知らせ投稿ページ（合言葉方式、`/console`、全員/個人/チケット購入者宛て送信対応、Notion風ブロックエディタ）・Resendメール通知（テキスト＋HTML）・サイト内蔵お問い合わせフォーム（DB保存＋console返信、info@からの自動受付メール）まで完了。**2026-07-30、お問い合わせ機能一式を本番で実地確認済み**（`schema_v6_inquiries.sql`実行・`CONTACT_TO_EMAIL`設定・Redeploy後、フォーム送信→自動受付メール→管理者通知メール→Supabase保存→`/console`表示→console返信→返信メール受信、の一連の流れをユーザー自身がテストし、全て正常動作を確認）。Google OAuthはユーザーの意向で一旦後回し。
+
+**（2026-08-01・未コミット）Square Sandboxテストを開始**:
+- ユーザーがSquare Sandboxで商品登録し、Item Variation ID を取得（Item IDではなくVariation IDを使う。理由: Orders APIの`line_items.catalog_object_id`はバリエーション単位を指す仕様のため）。
+  - 1日入場チケット: `YFNRXOVTBA3L2NVJCHQXHJDB` → [`js/data.js`](../js/data.js) `ticketsC[0].catalogObjectId` に設定済み
+  - 出店料: `J5FMYZYMXHOIGS3VXE6V6AUO` → [`js/data.js`](../js/data.js) `ticketsB[0].catalogObjectId` に設定済み
+- **バグ修正**: [`api/checkout.js`](../api/checkout.js) の `SQUARE_API_BASE` が常に本番ホスト（`connect.squareup.com`）固定になっており、`.env.example`にある`SQUARE_ENVIRONMENT`もどこからも参照されていなかった。SquareはSandbox/Productionでホストが別（Sandbox: `connect.squareupsandbox.com`）なので、このままだとSandboxトークンで本番ホストに投げて401になっていたはず。`SQUARE_ENVIRONMENT === 'production'` のときだけ本番ホスト、それ以外はSandboxホストを使うよう修正。
+- ユーザーがVercel環境変数（`SQUARE_ACCESS_TOKEN`/`SQUARE_LOCATION_ID`/`SQUARE_WEBHOOK_URL`/`SQUARE_WEBHOOK_SIGNATURE_KEY`/`SQUARE_APPLICATION_ID`/`SQUARE_ENVIRONMENT`）を設定済み（本人確認、スクリーンショットあり）。
+- **注意：上記2つのコード変更（`js/data.js`・`api/checkout.js`）はこの時点でまだコミット・push前**。Vercel上の本番/プレビューには未反映のため、実機で試すとまだ「カートに追加」ボタンが出ない／来場者チケットが「準備中」のままに見える。次のセッションでまずコミット・pushが必要（ユーザーへ確認済み、pushして良いとの返答待ち）。
 
 # 未完了の作業（＝ユーザーが各サイトで行う作業）
 
