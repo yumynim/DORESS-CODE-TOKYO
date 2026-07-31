@@ -85,7 +85,7 @@ window.SITE = {
       name: '1日入場チケット',
       price: 1000,
       note: '前売り / 数量限定',
-      url: 'https://square.link/u/cCcEtmx3?src=embed',
+      url: '', // ← Sandboxテスト完了まで意図的に空欄（本番Payment Linkの可能性があるURLを一時退避中。カート経由のapi/checkout.jsのテストを優先するため）
       img: '',
       catalogObjectId: '', // ← Squareのアイテムライブラリに登録後、ここに商品IDを貼る
       detail: [
