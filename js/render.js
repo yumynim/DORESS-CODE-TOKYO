@@ -119,9 +119,10 @@
     return isFinite(num) && num > 0 ? '¥' + num.toLocaleString('ja-JP') : String(n || '');
   }
   function ticketCard(t, i) {
+    // 写真が無い商品は、プレースホルダーの箱を出さずカードを文字だけにする（写真無しのほうが馴染む）。
     const media = t.img
-      ? `<img src="${t.img}" alt="${t.name || ''}" loading="lazy" decoding="async">`
-      : `<span class="tcard__ph" aria-hidden="true">${(t.name || 'T').trim().charAt(0)}</span>`;
+      ? `<div class="tcard__media"><img src="${t.img}" alt="${t.name || ''}" loading="lazy" decoding="async"></div>`
+      : '';
     // catalogObjectId設定済み（＝カート決済に対応済み）の商品は、単品リンク／「準備中」表示を出さず
     // 「カートに追加」だけにする（両方出ると分かりにくいため）。未登録の商品は従来通り単品リンクのみ。
     const buy = t.catalogObjectId
@@ -136,10 +137,11 @@
       ? `<button type="button" class="tcard__cart-add" data-catalog-id="${t.catalogObjectId}" data-name="${t.name || ''}" data-price="${t.price || 0}">カートに追加</button>`
       : '';
     return `<div class="tcard reveal">
-      <div class="tcard__media">${media}</div>
+      ${media}
       <div class="tcard__body">
         <h4 class="tcard__name">${t.name || ''}</h4>
         ${t.note ? `<p class="tcard__note">${t.note}</p>` : ''}
+        ${t.caution ? `<p class="tcard__caution">${t.caution}</p>` : ''}
         <div class="tcard__price"><span class="tcard__price-k">価格</span><span class="tcard__price-v">${yen(t.price)}</span><span class="tcard__tax">税込</span></div>
         <div class="tcard__actions">${buy}${cartAdd}${more}</div>
       </div>
