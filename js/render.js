@@ -122,14 +122,16 @@
     const media = t.img
       ? `<img src="${t.img}" alt="${t.name || ''}" loading="lazy" decoding="async">`
       : `<span class="tcard__ph" aria-hidden="true">${(t.name || 'T').trim().charAt(0)}</span>`;
-    const buy = t.url
-      ? `<a class="tcard__buy" href="${t.url}" target="_blank" rel="noopener" data-ticket-name="${t.name || ''}" data-ticket-price="${t.price || 0}">${t.buyLabel || '今すぐ支払う'}</a>`
-      : `<span class="tcard__buy is-disabled" aria-disabled="true">準備中</span>`;
+    // catalogObjectId設定済み（＝カート決済に対応済み）の商品は、単品リンク／「準備中」表示を出さず
+    // 「カートに追加」だけにする（両方出ると分かりにくいため）。未登録の商品は従来通り単品リンクのみ。
+    const buy = t.catalogObjectId
+      ? ''
+      : (t.url
+        ? `<a class="tcard__buy" href="${t.url}" target="_blank" rel="noopener" data-ticket-name="${t.name || ''}" data-ticket-price="${t.price || 0}">${t.buyLabel || '今すぐ支払う'}</a>`
+        : `<span class="tcard__buy is-disabled" aria-disabled="true">準備中</span>`);
     const more = (t.detail && t.detail.length)
       ? `<button type="button" class="tcard__more" data-ticket-index="${i}">もっと見る</button>`
       : '';
-    // Squareのアイテムライブラリに登録済み（catalogObjectIdあり）の商品だけ、カート追加ができる
-    // （複数商品をまとめて1回で決済したい時用。未登録の商品は単品購入のみ）
     const cartAdd = t.catalogObjectId
       ? `<button type="button" class="tcard__cart-add" data-catalog-id="${t.catalogObjectId}" data-name="${t.name || ''}" data-price="${t.price || 0}">カートに追加</button>`
       : '';

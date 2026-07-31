@@ -66,15 +66,19 @@ window.SITE = {
     {
       name: '出店料（1ブース）',
       price: 5000,
-      note: '約2m×2m / 現金・PayPay・口座振込',
-      url: 'index.html#contact',
+      note: '約2m×2m / 現金・PayPay・口座振込　※必ず詳細をご確認のうえお申し込みください',
+      url: 'index.html#contact', // catalogObjectId設定済みのため実際は使われない（js/render.js参照）。従来の問い合わせ導線として残置
       buyLabel: '出店を申し込む',
       img: '',
       catalogObjectId: 'J5FMYZYMXHOIGS3VXE6V6AUO', // Square Sandbox: 出店料 Item Variation ID
       detail: [
-        { heading: '出店について', body: '古着・オリジナルブランド、アクセサリー、雑貨、ZINE、ハンドメイドなど幅広く出店いただけます。' },
-        { heading: '出店決定後の流れ', body: 'Googleフォーム提出 → お支払い（現金・PayPay・口座振込）→ 当アカウントのフォロー・リツイート等 → イベント当日。' },
-        { heading: '注意事項', body: '出店可否の詳細審査後にご連絡します。開催日時・会場は決まり次第お知らせします。' },
+        { heading: '開催場所', body: '〒130-0005 東京都墨田区押上2-13-5（錦糸町駅・押上駅より徒歩約5分）' },
+        { heading: '開催日時', body: '2026年9月27日（日）13:00〜16:00' },
+        { heading: 'CONCEPT', body: 'ブランド・インフルエンサー・クリエイターが集まる、1日限定のPOP-UP MARKET。' },
+        { heading: 'LIMITED ITEM（限定商品）', body: 'イベント限定の特別アイテムを数量限定でご用意。' },
+        { heading: 'PHOTO（チェキ会）', body: '憧れのブランド・クリエイター・インフルエンサーと2ショットチェキ撮影！' },
+        { heading: '出店者注意点', body: '・出店スペースは約2m×2m。\n・出店可能ジャンル：古着／オリジナルブランド／アクセサリー／雑貨／ZINE／ハンドメイド等。\n・お申し込みの流れ：まず「カートに追加」よりお支払いください → お支払い確認後、出店内容ご入力用のGoogleフォームをお送りします → フォームをご提出ください → 当アカウントのフォロー・リツイート等にご協力ください → イベント当日。\n・屋内開催、雨天決行（会場内に試着室のご用意はございません）。' },
+        { heading: '詳細・お問い合わせ', body: 'Instagram：@dresscodetokyo._tokyo\nイベントの詳細はInstagramまたはチケットページをご確認ください。' },
       ],
     },
   ],
