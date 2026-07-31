@@ -65,7 +65,7 @@ window.SITE = {
                          Square Developer Dashboard → API Explorer → Catalog API → ListCatalog で確認できる。 */
   ticketsB: [
     {
-      name: '出店料（1ブース）',
+      name: '出店料（1ブース・2026.9.27）',
       price: 5000,
       note: '約2m×2m / 現金・PayPay・口座振込',
       caution: '※必ず「もっと見る」の詳細をご確認のうえお申し込みください',
@@ -88,7 +88,7 @@ window.SITE = {
   /* ▼ 来場者向け（toC）：Square 決済リンクのチケットカード。項目の意味は上の ticketsB と同じ。 */
   ticketsC: [
     {
-      name: '1日入場チケット',
+      name: '1日入場チケット（2026.9.27）',
       price: 1000,
       note: '前売り / 数量限定',
       url: '', // ← Sandboxテスト完了まで意図的に空欄（本番Payment Linkの可能性があるURLを一時退避中。カート経由のapi/checkout.jsのテストを優先するため）

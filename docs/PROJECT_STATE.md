@@ -161,7 +161,14 @@ Supabase接続・ヘッダーのマイページ/通知UI刷新・お知らせ投
   - 出店料カードの`caution`（注意書き）を`note`から独立させ、赤字太字で目立つように変更（[`css/style.css`](../css/style.css)の`.tcard__caution`、[`js/data.js`](../js/data.js)の新フィールド`caution`、[`js/render.js`](../js/render.js)）。
   - チケットカードの「詳細・お問い合わせ」文言で「Instagramのみ」だった案内に、「ホームページ下部のお問い合わせフォームからでも承っております」を追記（出店料・1日入場チケット両方）。理由: 問い合わせ先がInstagramしか書かれていない箇所が複数あり、ユーザーが「信用が無さそうに見える」と懸念したため。
   - チケットカードの写真プレースホルダー（`.tcard__ph`、写真未設定時に出ていた大きな頭文字アイコンの灰色ボックス）を廃止。写真が無い商品は`.tcard__media`ごと出さず、カードを文字だけにするよう[`js/render.js`](../js/render.js)を変更（該当CSSも削除）。
-  - **新規ページ [`tokutei-shotorihiki.html`](../tokutei-shotorihiki.html)（特定商取引法に基づく表記）を追加**。事業者名・所在地・連絡先・支払い方法等はすべて「（後日記載）」のプレースホルダーで、`<meta name="robots" content="noindex,follow">`にしてある。全ページのフッター（`footer__bar`）に目立たない小さいリンクとして追加済み（index/article/member/members-only/community-creator/community-exhibitor/admin-announcements）。**ユーザーが実際の事業者情報を用意し次第、本文を差し替えてnoindexを外す必要あり**。Squareで決済を受け付けている以上、特定商取引法上の表示義務がある可能性が高いことをユーザーに説明済み（要専門家確認）。
+  - **新規ページ [`tokutei-shotorihiki.html`](../tokutei-shotorihiki.html)（特定商取引法に基づく表記）を追加**、その後の会話で必須項目を記入済み（詳細は上記「特定商取引法に基づく表記は必須項目を記入済み」の項目を参照）。
+- **（2026-08-01・未コミット→ユーザー承認後push予定）「決済未完了者」向け一斉送信タブを追加**:
+  - 背景: マイページの購入履歴に「手続き中」（`purchases.status='initiated'`のまま、決済ページまで進んだが支払いを完了していない）状態が残ることがあり、ユーザー本人が気づいていない可能性があるため、運営から一声かけられるようにしたいという要望。
+  - [`api/admin-announcements.js`](../api/admin-announcements.js)に`collectPendingUserIds()`を追加（`purchases.status='initiated'`のuser_idを重複排除して集計）。POSTボディに`targetPending: true`が来た場合、対象者の`notifications`にinsert＋1人ずつメール送信（既存の「チケット購入者宛て」セグメント送信と同じパターン）。GETレスポンスに`pendingCount`（該当人数）を追加。
+  - [`admin-announcements.html`](../admin-announcements.html)の宛先タブに「手続き中の人に送る」を追加（4つ目のタブ）。選択すると対象人数を表示するだけで、個別選択は不要（チケット単位の絞り込みはしていない＝ステータスが`initiated`の人全員が対象）。
+  - **未確認**: 実際にSandboxで「手続き中」状態を作ってから、このタブで送信→対象者に通知・メールが届くかの実地テストはまだ。
+- **（2026-08-01・未コミット→ユーザー承認後push予定）チケット名に日程を追加**:
+  - [`js/data.js`](../js/data.js)の`ticketsB[0].name`を「出店料（1ブース・2026.9.27）」、`ticketsC[0].name`を「1日入場チケット（2026.9.27）」に変更。理由: ユーザーから「販売中のチケット名を見ただけでいつの開催分か分かるようにしたい」との要望。`name`は`purchases.ticket_name`としてそのまま保存されるため、マイページの購入履歴・購入完了/キャンセル通知・メール本文にも自動的に日付入りで反映される（コード変更は`js/data.js`のみで済んだ）。
 
 # 未完了の作業（＝ユーザーが各サイトで行う作業）
 

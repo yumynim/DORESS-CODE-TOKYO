@@ -61,6 +61,7 @@
           <button type="button" class="notif-tab is-active" data-target-mode="all">会員全員に送る</button>
           <button type="button" class="notif-tab" data-target-mode="one">個人宛てに送る</button>
           <button type="button" class="notif-tab" data-target-mode="segment">チケット購入者に送る</button>
+          <button type="button" class="notif-tab" data-target-mode="pending">手続き中の人に送る</button>
         </div>
         <div class="admin-editor">
           <form id="admin-form" class="auth-form admin-form">
@@ -69,6 +70,7 @@
               <select name="segmentKey" id="admin-segment-select"><option value="">読み込み中…</option></select>
               <span class="mypage__note">支払いが完了した購入だけが対象です。チケットを追加すると、売れた時点で自動的にここに表示されます。</span>
             </label>
+            <p id="admin-target-pending-field" class="mypage__note" hidden>対象: 決済ページまでは進んだが支払いが完了していない会員 <strong id="admin-pending-count">0</strong>名</p>
             <label>タイトル<input type="text" name="title" required maxlength="80" placeholder="例）夏のポップアップストア開催のお知らせ"></label>
 
             <div class="admin-blocks" id="admin-blocks"></div>
@@ -185,6 +187,8 @@
       const targetEmailField = document.getElementById('admin-target-email-field');
       const targetSegmentField = document.getElementById('admin-target-segment-field');
       const segmentSelect = document.getElementById('admin-segment-select');
+      const targetPendingField = document.getElementById('admin-target-pending-field');
+      const pendingCountEl = document.getElementById('admin-pending-count');
       const previewFrame = document.getElementById('admin-preview-frame');
       const blocksEl = document.getElementById('admin-blocks');
       let targetMode = 'all';
@@ -350,6 +354,7 @@
             filterList();
             filterPersonal();
             renderSegments(data.segments || []);
+            pendingCountEl.textContent = String(data.pendingCount || 0);
           })
           .catch(() => {
             listEl.innerHTML = '<p class="cards-empty">通信エラーが発生しました。</p>';
@@ -612,6 +617,7 @@
         targetSegmentField.hidden = mode !== 'segment';
         form.segmentKey.required = mode === 'segment';
         if (mode !== 'segment') form.segmentKey.value = '';
+        targetPendingField.hidden = mode !== 'pending';
       }
 
       // チケットごとの購入者セグメント（＝購入者タグ）の選択肢を作る。
@@ -682,13 +688,14 @@
           formError.hidden = false;
           return;
         }
+        const targetPending = targetMode === 'pending';
         const btn = form.querySelector('.auth-form__submit');
         btn.disabled = true;
         btn.textContent = '送信中…';
         fetch('/api/admin-announcements', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ title, blocks: serializeBlocks(), targetEmail, segmentKey, token: getToken() }),
+          body: JSON.stringify({ title, blocks: serializeBlocks(), targetEmail, segmentKey, targetPending, token: getToken() }),
         })
           .then(r => r.json().then(data => ({ ok: r.ok, status: r.status, data })))
           .then(({ ok, status, data }) => {
@@ -698,6 +705,9 @@
             if (!ok) { formError.textContent = data.error || '送信に失敗しました'; formError.hidden = false; return; }
             if (data.segment) {
               alert(`「${data.segment.name}」の購入者 ${data.segment.recipients} 名に送信しました（メール送信 ${data.segment.mailed} 件）。`);
+            }
+            if (data.pending) {
+              alert(`決済未完了の会員 ${data.pending.recipients} 名に送信しました（メール送信 ${data.pending.mailed} 件）。`);
             }
             form.reset();
             resetBlocks();

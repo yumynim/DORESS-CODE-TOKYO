@@ -2,11 +2,13 @@
    /api/admin-announcements
    ---------------------------------------------------------
    お知らせの投稿／削除。admin-announcements.html（/console）から呼ばれる。
-   3種類の送り先に対応:
+   4種類の送り先に対応:
      1. 全員宛て（announcements テーブル） … 会員全員のヘッダー通知に届く
      2. 個人宛て（notifications テーブル） … メールアドレスを指定した1人だけに届く
         （購入完了通知などと同じ仕組みを流用）
      3. チケット購入者宛て（notifications テーブル） … 指定したチケットを買った人だけに届く
+     4. 決済未完了者宛て（notifications テーブル） … purchases.status='initiated'のまま
+        止まっている人だけに届く（気づかず放置している可能性があるため）
 
    認証は個人のSupabaseアカウントではなく、共通パスワード方式
    （api/admin-login.js が発行したトークンを lib/adminAuth.js で検証）。
@@ -76,6 +78,18 @@ async function collectSegments(serviceClient) {
   return segments;
 }
 
+/* ---------- 決済未完了者（status='initiated'のまま止まっている人） ----------
+   チケット単位のセグメントとは別に、「カートまでは進んだが支払いが完了していない」
+   会員だけを対象にした一斉送信。気づかず放置しているだけの可能性があるため、
+   運営側から一声かけられるようにする。 */
+async function collectPendingUserIds(serviceClient) {
+  const { data, error } = await serviceClient.from('purchases').select('user_id').eq('status', 'initiated');
+  if (error) { console.error('pending query failed:', error.message); return new Set(); }
+  const ids = new Set();
+  for (const row of data || []) { if (row.user_id) ids.add(row.user_id); }
+  return ids;
+}
+
 async function findUserByEmail(serviceClient, email) {
   const target = email.trim().toLowerCase();
   let page = 1;
@@ -130,12 +144,14 @@ module.exports = async function handler(req, res) {
         .map((s) => ({ key: s.key, name: s.name, count: s.userIds.size }))
         .sort((a, b) => b.count - a.count);
 
-      res.status(200).json({ announcements: broadcastRes.data || [], personal, segments });
+      const pendingCount = (await collectPendingUserIds(serviceClient)).size;
+
+      res.status(200).json({ announcements: broadcastRes.data || [], personal, segments, pendingCount });
       return;
     }
 
     if (req.method === 'POST') {
-      const { title, blocks, targetEmail, segmentKey } = req.body || {};
+      const { title, blocks, targetEmail, segmentKey, targetPending } = req.body || {};
       const cleanTitle = title && String(title).trim();
       // 送信の実体は「ブロック配列」（段落／区切り線／ボタン）。
       // サイト内通知・プレーンテキストメール用の本文は、ここから自動生成する。
@@ -145,6 +161,32 @@ module.exports = async function handler(req, res) {
         return;
       }
       const cleanBody = rendered.text;
+
+      if (targetPending) {
+        // ---------- 決済未完了者宛て ----------
+        const userIds = [...(await collectPendingUserIds(serviceClient))];
+        if (!userIds.length) {
+          res.status(404).json({ error: '決済が完了していない購入は見つかりませんでした' });
+          return;
+        }
+
+        const { error } = await serviceClient
+          .from('notifications')
+          .insert(userIds.map((userId) => ({ user_id: userId, title: cleanTitle, body: cleanBody, body_html: rendered.html })));
+        if (error) { console.error('pending notifications insert failed:', error.message); res.status(500).json({ error: '送信に失敗しました' }); return; }
+
+        let sent = 0;
+        for (const userId of userIds) {
+          const { data: userRes } = await serviceClient.auth.admin.getUserById(userId);
+          const email = userRes && userRes.user && userRes.user.email;
+          if (!email) continue;
+          try { await sendEmail({ to: email, subject: cleanTitle, blocks }); sent += 1; }
+          catch (e) { console.error('pending email failed:', e); }
+        }
+
+        res.status(200).json({ pending: { recipients: userIds.length, mailed: sent } });
+        return;
+      }
 
       if (segmentKey && String(segmentKey).trim()) {
         // ---------- チケット購入者宛て ----------
