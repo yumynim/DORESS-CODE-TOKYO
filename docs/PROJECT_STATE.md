@@ -178,7 +178,6 @@ Supabase接続・ヘッダーのマイページ/通知UI刷新・お知らせ投
   - 所在地・電話番号: 個人事業主に認められている「ご請求があれば遅滞なく開示します」の書き方のまま伏せてある。
   - 支払い方法・引渡し時期・返品ポリシー等も記入済み。
   - **法律上必須の項目はこれで揃った**が、本名が検索エンジンに載る状態になるため、`<meta name="robots">`の`noindex`を外すかはユーザーに確認してから。正式公開前に一度、行政書士等の専門家に内容を確認してもらうことも推奨（このAIは法律専門家ではないため）。
-- **（ブロッカー）Supabase Storage — `announcement-images`バケット未作成**: Console配信エディタの画像アップロード機能を使うには、Supabase Dashboard → Storage → New bucket で `announcement-images`（Public bucket: ON）を作成する必要がある。未作成の間はアップロードがエラーになる（URL直接貼り付けの画像ブロックは作成不要で使える）。
 - ~~Supabase — schema_v5実行~~ 実行済みだが**現在は未使用**（認証方式を合言葉に変更したため。上記「完了済みの作業」参照）
 - **Google OAuth**（後回し中）: Google Cloud ConsoleでOAuth同意画面→OAuthクライアントID作成→Client ID/SecretをSupabaseのGoogleプロバイダ設定に登録。リダイレクトURIはSupabaseのGoogleプロバイダ設定画面に表示されるCallback URLを使う。ボタン自体はログインモーダルに表示済み（押しても今はエラーになる想定内の状態）。
 - **Square**（後回し中）: Developer Dashboardへのアクセス権限待ち（現状はSquareアプリのみ利用可）。権限取得後、アプリ作成→Sandbox Access Token/Location ID取得→商品登録してCatalog Object ID取得→`js/data.js`の`catalogObjectId`に設定→Webhook登録→Vercel環境変数設定。
@@ -216,7 +215,7 @@ Supabase接続・ヘッダーのマイページ/通知UI刷新・お知らせ投
   - **返信は`/console`からのみ行う設計**: `api/admin-inquiries.js`のPOSTが、送信元`info@dress-code-tokyo.com`（`lib/mailer.js`の`INQUIRY_FROM_EMAIL`。ドメイン全体がResend認証済みなので追加DNS設定なしで使える）から問い合わせ者本人へ返信メールを送り、`inquiries.status`を`replied`に更新して返信内容・日時を記録する。返信メールの`Reply-To`は`CONTACT_TO_EMAIL`（info@自体は受信箱を持たない送信専用アドレスのため、相手がさらに返信した場合の行き先として設定）。
   - `lib/mailer.js`の`sendEmail()`に`from`オプション（送信元の差し替え）を追加。既存の呼び出し（購入通知・お知らせ配信）は影響なし。
   - **問い合わせ者本人への自動受付メール**（2026-07-30）: `api/contact.js`が保存・運営通知に加えて、送信元`info@dress-code-tokyo.com`から問い合わせ者本人に「受け付けました。24時間以内にご返信します」の自動返信も送る。この自動返信の`Reply-To`も`CONTACT_TO_EMAIL`（相手が先走って返信してもきちんとあなたのメールに届くようにするため）。
-- **画像アップロード用のSupabase Storageバケットが未作成（要ユーザー作業）**: `api/admin-upload-image.js`は`announcement-images`という名前の**公開（Public）バケット**がSupabaseに存在する前提で動く。Dashboard → Storage → New bucket → 名前`announcement-images` → Public bucket: ON、で作成すること。書き込みはservice roleで行うためRLSポリシーの追加は不要（バケットをPublicにしておけば読み取りは誰でも可）。バケット未作成の間は画像アップロードがエラーになるが、URL直接貼り付けの画像ブロックは引き続き使える。
+- ~~画像アップロード用のSupabase Storageバケットが未作成~~ 2026-07-30に`announcement-images`（Public bucket）作成済み・完了。
 
 # 変更時の注意点
 
