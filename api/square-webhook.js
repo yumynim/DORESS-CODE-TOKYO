@@ -25,6 +25,20 @@ async function notifyPurchaser(serviceClient, purchase, newStatus) {
     ? `${purchase.ticket_name} のお支払いが完了しました。マイページから購入内容を確認できます。`
     : `${purchase.ticket_name} のお支払いがキャンセル、または失敗しました。お手数ですが再度お手続きください。`;
 
+  // Squareはこちらの応答が遅いと同じ通知を再送してくることがある。
+  // 同じ購入について同じ内容の通知が既にあれば、二重通知・二重メール送信を避けてここで打ち切る。
+  const { data: existing, error: existingErr } = await serviceClient
+    .from('notifications')
+    .select('id')
+    .eq('purchase_id', purchase.id)
+    .eq('title', title)
+    .limit(1);
+  if (existingErr) console.error('duplicate check failed (続行して通知は送る):', existingErr.message);
+  else if (existing && existing.length) {
+    console.warn('重複したwebhook通知を検知、スキップします。purchase_id=', purchase.id);
+    return;
+  }
+
   const { error: notifErr } = await serviceClient.from('notifications').insert({
     user_id: purchase.user_id,
     purchase_id: purchase.id,

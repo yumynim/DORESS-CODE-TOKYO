@@ -148,7 +148,9 @@ Supabase接続・ヘッダーのマイページ/通知UI刷新・お知らせ投
   - 出店料: `J5FMYZYMXHOIGS3VXE6V6AUO` → [`js/data.js`](../js/data.js) `ticketsB[0].catalogObjectId` に設定済み
 - **バグ修正**: [`api/checkout.js`](../api/checkout.js) の `SQUARE_API_BASE` が常に本番ホスト（`connect.squareup.com`）固定になっており、`.env.example`にある`SQUARE_ENVIRONMENT`もどこからも参照されていなかった。SquareはSandbox/Productionでホストが別（Sandbox: `connect.squareupsandbox.com`）なので、このままだとSandboxトークンで本番ホストに投げて401になっていたはず。`SQUARE_ENVIRONMENT === 'production'` のときだけ本番ホスト、それ以外はSandboxホストを使うよう修正。
 - ユーザーがVercel環境変数（`SQUARE_ACCESS_TOKEN`/`SQUARE_LOCATION_ID`/`SQUARE_WEBHOOK_URL`/`SQUARE_WEBHOOK_SIGNATURE_KEY`/`SQUARE_APPLICATION_ID`/`SQUARE_ENVIRONMENT`）を設定済み（本人確認、スクリーンショットあり）。
-- **注意：上記2つのコード変更（`js/data.js`・`api/checkout.js`）はこの時点でまだコミット・push前**。Vercel上の本番/プレビューには未反映のため、実機で試すとまだ「カートに追加」ボタンが出ない／来場者チケットが「準備中」のままに見える。次のセッションでまずコミット・pushが必要（ユーザーへ確認済み、pushして良いとの返答待ち）。
+- 上記2つのコード変更（`js/data.js`・`api/checkout.js`）はコミット・push済み（`de05648`）。Vercelへ自動デプロイ後、ユーザーが実機でカート追加→Sandboxチェックアウト→テスト決済まで実施し、Squareのテストパネルで「注文更新済み／支払い更新済み（webhookトリガー成功）」を確認。
+- **（発見・修正済み）webhook重複による二重通知**: 上記の実地テストで、通知ドロワーに同じ「ご購入ありがとうございます」が2件（メールは1件のみ受信）現れた。原因はSquareのwebhook仕様上、こちらの応答（署名検証→Supabase更新→admin.getUserById→Resend送信、と処理が重い）が遅れるとSquareが同じイベントを再送してくること。[`docs/PROJECT_STATE.md`](#既知の問題不具合)に書いていた既知の懸念が実際に発生した形。[`api/square-webhook.js`](../api/square-webhook.js)の`notifyPurchaser`に、同じ`purchase_id`+`title`の通知が既にあればinsert・メール送信ともスキップする重複排除を追加（コミット待ち→ユーザー承認済みでpush予定）。
+- **未確認**: 上記の重複排除修正後、実際にもう一度Sandbox決済を試して通知が1件だけになるか（Squareの再送は毎回起きるとは限らないため、次回何もしなくても問題ない可能性はある。念のための修正）。
 
 # 未完了の作業（＝ユーザーが各サイトで行う作業）
 
@@ -201,7 +203,7 @@ Supabase接続・ヘッダーのマイページ/通知UI刷新・お知らせ投
 
 # 既知の問題・不具合
 
-- Square Webhookが同じ決済結果を複数回送ってきた場合（Squareの仕様上リトライがありうる）、`notifications` insertと確認メール送信が重複しうる（購入記録の更新自体は`square_order_id`一致で冪等だが、通知/メールは冪等化していない）。実害が出るようなら「同じ`purchase_id`+`title`の通知が直近にないかチェックしてからinsertする」等の重複排除を追加する。
+- ~~Square Webhookが同じ決済結果を複数回送ってきた場合、`notifications` insertと確認メール送信が重複しうる~~ **（2026-08-01修正済み）**: Sandboxテストで実際に二重通知が発生したのを確認。`api/square-webhook.js`の`notifyPurchaser`に、同じ`purchase_id`+`title`の通知が既にあればinsert・メール送信ともスキップする重複排除を追加。
 - issue管理の有無は未確認（GitHubのIssuesを使っているかは未調査）。
 
 # 2026-07-30 の修正（モバイル不具合2件・console UX改善・Google連携の一時停止）
