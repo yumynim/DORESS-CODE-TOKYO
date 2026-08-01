@@ -114,6 +114,7 @@
         <details class="admin-toggle" id="details-purchasers">
           <summary><h2>購入者一覧 <span class="admin-toggle__count" id="admin-purchasers-count"></span></h2></summary>
           <p class="mypage__note">「支払い済み」（受付コード付き）と「手続き未完了」（決済ページまでは進んだがまだ支払っていない人）を分けて表示します。チケットごとに開閉できます。</p>
+          <input type="search" class="admin-search" id="admin-purchasers-search" placeholder="メールアドレス・受付コードで検索…">
           <div id="admin-purchasers"><p class="cards-empty">読み込み中…</p></div>
         </details>
       </section>
@@ -190,9 +191,12 @@
       const listPersonalSearchEl = document.getElementById('admin-list-personal-search');
       const purchasersEl = document.getElementById('admin-purchasers');
       const purchasersCountEl = document.getElementById('admin-purchasers-count');
+      const purchasersSearchEl = document.getElementById('admin-purchasers-search');
       let allInquiries = [];
       let allAnnouncements = [];
       let allPersonal = [];
+      let allSegments = [];
+      let allPendingSegments = [];
       const logoutBtns = [document.getElementById('admin-logout-btn'), document.getElementById('admin-logout-btn-mobile')];
       const targetTabs = document.querySelectorAll('[data-target-mode]');
       const targetEmailField = document.getElementById('admin-target-email-field');
@@ -250,26 +254,31 @@
           return;
         }
         inquiriesEl.innerHTML = list.map(q => `
-          <div class="mypage__notification inquiry${q.status === 'replied' ? ' inquiry--replied' : ''}" data-id="${esc(q.id)}">
-            <div class="mypage__notification-head">
-              <h3>【${esc(q.reason)}】${esc(q.name)} 様</h3>
-              <span class="mypage__notification-date">${new Date(q.created_at).toLocaleString('ja-JP')}</span>
+          <details class="mypage__notification admin-item inquiry${q.status === 'replied' ? ' inquiry--replied' : ''}" data-id="${esc(q.id)}">
+            <summary>
+              <span class="admin-item__arrow" aria-hidden="true">▸</span>
+              <span class="mypage__notification-head">
+                <h3>【${esc(q.reason)}】${esc(q.name)} 様</h3>
+                <span class="mypage__notification-date">${new Date(q.created_at).toLocaleString('ja-JP')}</span>
+              </span>
+              <span class="inquiry__status">${q.status === 'replied' ? '✓ 対応済み' : '未対応'}</span>
+            </summary>
+            <div class="admin-item__body">
+              <p class="mypage__notification-date">差出人: ${esc(q.email)}</p>
+              <p>${esc(q.message).replace(/\n/g, '<br>')}</p>
+              ${q.status === 'replied' ? `
+                <div class="inquiry__reply-sent">
+                  <p class="inquiry__reply-label">送信済みの返信（${new Date(q.replied_at).toLocaleString('ja-JP')}）</p>
+                  <p>${esc(q.reply_body || '').replace(/\n/g, '<br>')}</p>
+                </div>` : ''}
+              <details class="inquiry__reply-form">
+                <summary class="btn-link">${q.status === 'replied' ? '再度返信する' : '返信する'}</summary>
+                <textarea class="admin-block__textarea" rows="5" placeholder="返信内容を入力…" data-reply-input></textarea>
+                <p class="auth-form__error" data-reply-error hidden></p>
+                <button type="button" class="btn btn--solid" data-reply-send>返信を送信</button>
+              </details>
             </div>
-            <p class="mypage__notification-date">差出人: ${esc(q.email)}</p>
-            <p>${esc(q.message).replace(/\n/g, '<br>')}</p>
-            <span class="inquiry__status">${q.status === 'replied' ? '✓ 対応済み' : '未対応'}</span>
-            ${q.status === 'replied' ? `
-              <div class="inquiry__reply-sent">
-                <p class="inquiry__reply-label">送信済みの返信（${new Date(q.replied_at).toLocaleString('ja-JP')}）</p>
-                <p>${esc(q.reply_body || '').replace(/\n/g, '<br>')}</p>
-              </div>` : ''}
-            <details class="inquiry__reply-form">
-              <summary class="btn-link">${q.status === 'replied' ? '再度返信する' : '返信する'}</summary>
-              <textarea class="admin-block__textarea" rows="5" placeholder="返信内容を入力…" data-reply-input></textarea>
-              <p class="auth-form__error" data-reply-error hidden></p>
-              <button type="button" class="btn btn--solid" data-reply-send>返信を送信</button>
-            </details>
-          </div>`).join('');
+          </details>`).join('');
 
         inquiriesEl.querySelectorAll('[data-reply-send]').forEach(btn => {
           btn.addEventListener('click', () => {
@@ -334,15 +343,20 @@
       function renderList(el, list, emptyMsg, type, hasMatches) {
         if (!list.length) { el.innerHTML = `<p class="cards-empty">${hasMatches === false ? '検索条件に一致するお知らせがありません。' : emptyMsg}</p>`; return; }
         el.innerHTML = list.map(n => `
-          <div class="mypage__notification" data-id="${esc(n.id)}">
-            <div class="mypage__notification-head">
-              <h3>${esc(n.title)}</h3>
-              <span class="mypage__notification-date">${new Date(n.created_at).toLocaleDateString('ja-JP')}</span>
+          <details class="mypage__notification admin-item" data-id="${esc(n.id)}">
+            <summary>
+              <span class="admin-item__arrow" aria-hidden="true">▸</span>
+              <span class="mypage__notification-head">
+                <h3>${esc(n.title)}</h3>
+                <span class="mypage__notification-date">${new Date(n.created_at).toLocaleDateString('ja-JP')}</span>
+              </span>
+            </summary>
+            <div class="admin-item__body">
+              ${n.email ? `<p class="mypage__notification-date">宛先: ${esc(n.email)}</p>` : ''}
+              <div class="mypage__notification-body">${n.body_html || `<p>${esc(n.body)}</p>`}</div>
+              <button type="button" class="btn-link admin-form__delete" data-delete-id="${esc(n.id)}" data-delete-type="${type}">削除する</button>
             </div>
-            ${n.email ? `<p class="mypage__notification-date">宛先: ${esc(n.email)}</p>` : ''}
-            <div class="mypage__notification-body">${n.body_html || `<p>${esc(n.body)}</p>`}</div>
-            <button type="button" class="btn-link admin-form__delete" data-delete-id="${esc(n.id)}" data-delete-type="${type}">削除する</button>
-          </div>`).join('');
+          </details>`).join('');
         el.querySelectorAll('[data-delete-id]').forEach(btn => {
           btn.addEventListener('click', () => deleteItem(btn.getAttribute('data-delete-id'), btn.getAttribute('data-delete-type')));
         });
@@ -365,7 +379,9 @@
             filterList();
             filterPersonal();
             renderSegments(data.segments || []);
-            renderPurchasers(data.segments || [], data.pendingSegments || []);
+            allSegments = data.segments || [];
+            allPendingSegments = data.pendingSegments || [];
+            filterPurchasers();
             pendingCountEl.textContent = String(data.pendingCount || 0);
           })
           .catch(() => {
@@ -656,27 +672,45 @@
             ${b.entryCode ? `<p class="mypage__notification-date">受付コード: <strong>${esc(b.entryCode)}</strong></p>` : ''}
           </div>`;
       }
-      function segmentGroupHtml(segments) {
+      function segmentGroupHtml(segments, forceOpen) {
         if (!segments || !segments.length) return '<p class="cards-empty">対象者はいません。</p>';
         return segments.map(s => `
-          <details class="admin-toggle admin-toggle--nested">
+          <details class="admin-toggle admin-toggle--nested"${forceOpen ? ' open' : ''}>
             <summary><h3>${esc(s.name)} <span class="admin-toggle__count">(${s.count}名)</span></h3></summary>
             <div class="mypage__notifications">
               ${(s.buyers || []).map(buyerRow).join('') || '<p class="cards-empty">購入者情報を取得できませんでした。</p>'}
             </div>
           </details>`).join('');
       }
-      function renderPurchasers(segments, pendingSegments) {
-        const paidTotal = (segments || []).length;
-        const pendingTotal = (pendingSegments || []).length;
+      function renderPurchasers(segments, pendingSegments, forceOpen) {
+        const paidTotal = (segments || []).reduce((n, s) => n + s.count, 0);
+        const pendingTotal = (pendingSegments || []).reduce((n, s) => n + s.count, 0);
         purchasersCountEl.textContent = (paidTotal || pendingTotal) ? `(${paidTotal + pendingTotal})` : '';
         purchasersEl.innerHTML = `
           <h3 class="admin-purchasers__group-title">支払い済み</h3>
-          ${segmentGroupHtml(segments)}
+          ${segmentGroupHtml(segments, forceOpen)}
           <h3 class="admin-purchasers__group-title">手続き未完了（決済ページまでは進んだが支払い未完了）</h3>
-          ${segmentGroupHtml(pendingSegments)}
+          ${segmentGroupHtml(pendingSegments, forceOpen)}
         `;
       }
+
+      // メールアドレス・受付コードでチケット購入者を検索できるようにする（当日の入場確認で使う想定）。
+      // 検索中はヒットしたチケットのトグルを自動で開く。
+      function filterSegmentsBuyers(segments, q) {
+        if (!q) return segments;
+        return segments
+          .map(s => {
+            const buyers = (s.buyers || []).filter(b =>
+              (b.email || '').toLowerCase().includes(q) || (b.entryCode || '').includes(q));
+            return { ...s, buyers, count: buyers.length };
+          })
+          .filter(s => s.buyers.length);
+      }
+      function filterPurchasers() {
+        const q = (purchasersSearchEl.value || '').trim().toLowerCase();
+        renderPurchasers(filterSegmentsBuyers(allSegments, q), filterSegmentsBuyers(allPendingSegments, q), !!q);
+      }
+      purchasersSearchEl.addEventListener('input', filterPurchasers);
       targetTabs.forEach(btn => btn.addEventListener('click', () => setTargetMode(btn.getAttribute('data-target-mode'))));
 
       loginForm.addEventListener('submit', function (e) {
