@@ -72,7 +72,7 @@ window.SITE = {
       url: 'index.html#contact', // catalogObjectId設定済みのため実際は使われない（js/render.js参照）。従来の問い合わせ導線として残置
       buyLabel: '出店を申し込む',
       img: '',
-      catalogObjectId: 'J5FMYZYMXHOIGS3VXE6V6AUO', // Square Sandbox: 出店料 Item Variation ID
+      catalogObjectId: 'HHMIQQDFKFPB3BOK6VB2CGSQ', // Square Production: 出店料 Item Variation ID
       detail: [
         { heading: '開催場所', body: '〒130-0005 東京都墨田区押上2-13-5（錦糸町駅・押上駅より徒歩約5分）' },
         { heading: '開催日時', body: '2026年9月27日（日）13:00〜16:00' },
@@ -91,9 +91,9 @@ window.SITE = {
       name: '1日入場チケット（2026.9.27）',
       price: 1000,
       note: '前売り / 数量限定',
-      url: '', // ← Sandboxテスト完了まで意図的に空欄（本番Payment Linkの可能性があるURLを一時退避中。カート経由のapi/checkout.jsのテストを優先するため）
+      url: '', // catalogObjectId設定済みのため実際は使われない（js/render.js参照）。単品Payment Linkの動線は使わずカート経由に統一
       img: '',
-      catalogObjectId: 'YFNRXOVTBA3L2NVJCHQXHJDB', // Square Sandbox: 1日入場チケット Item Variation ID
+      catalogObjectId: 'NIZFJLDR6HEA7ML765JFBAS2', // Square Production: 1日入場チケット Item Variation ID
       detail: [
         { heading: '開催場所', body: '〒130-0005 東京都墨田区押上2-13-5（錦糸町駅・押上駅より徒歩約5分）' },
         { heading: '開催日時', body: '2026年9月27日（日）13:00〜16:00' },
