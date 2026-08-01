@@ -45,7 +45,8 @@ DORESS CODE TOKYO/
 │   ├── schema_v3_notifications.sql  notifications テーブル（本人だけに届くお知らせ、Webhookのみinsert可）
 │   ├── schema_v4_announcements.sql  announcements テーブル（会員全員向けのお知らせ）
 │   ├── schema_v5_admin.sql          profiles.is_admin カラム＋本人が自分では変更できないようにするガード（現在は未使用。合言葉方式に変更したため）
-│   └── schema_v6_inquiries.sql      inquiries テーブル（サイトのお問い合わせフォームの内容・返信記録）
+│   ├── schema_v6_inquiries.sql      inquiries テーブル（サイトのお問い合わせフォームの内容・返信記録）
+│   └── schema_v7_notification_html.sql  notifications/announcements に body_html カラムを追加（画像付きお知らせをサイト内でも正しく表示するため）
 ├── assets/images/                 画像
 ├── vercel.json                    セキュリティヘッダー設定
 ├── .env.example                   環境変数テンプレート（実値は Vercel の環境変数に設定する想定）
@@ -58,7 +59,7 @@ DORESS CODE TOKYO/
 
 - フロントエンド: 素の HTML/CSS/JS。ビルドステップなし。フォントは Google Fonts を `<link>` で読み込み（Cormorant Garamond / Jost / Zen Kaku Gothic New / Zen Old Mincho）。
 - 認証: Supabase Auth（メール/パスワード + Google OAuth）。プロジェクト作成済み（`dresscode-tokyo`, Tokyo region, Free）。`js/auth-config.js` に Project URL / Publishable Key を設定済み（2026-07-24、ローカルサーバーでログインモーダルが「準備中」ではなく実フォームで表示されることを確認済み）。Vercel環境変数（`SUPABASE_URL`/`SUPABASE_ANON_KEY`/`SUPABASE_SERVICE_ROLE_KEY`）も設定・Redeploy済み。Secret Keyはローテーション済み・Vercel側も更新済み。Google OAuthプロバイダ（Client ID/Secret）は未設定。
-- 決済: Square API（Create Payment Link）。`SQUARE_ENVIRONMENT`（sandbox/production）等は `.env.example` にテンプレートあり、実値は未確認。
+- 決済: Square API（Create Payment Link、Orders APIのline_items経由）。Vercel環境変数（`SQUARE_ACCESS_TOKEN`/`SQUARE_LOCATION_ID`/`SQUARE_WEBHOOK_URL`/`SQUARE_WEBHOOK_SIGNATURE_KEY`/`SQUARE_APPLICATION_ID`/`SQUARE_ENVIRONMENT`）は全てSandbox用の値を設定済み（2026-08-01）。Sandboxでの実購入テスト（カート追加→決済→webhook→通知）まで成功済み。**現状`SQUARE_ENVIRONMENT`は`production`以外（未設定含む）ならSandboxホストを使う実装**（`api/checkout.js`）。詳細は「現在作業中の内容」「未完了の作業」参照。
 - DB: Supabase Postgres。RLS 有効。`purchases.status` の更新は service role のみ許可（クライアントから直接書き換え不可）。
 - ホスティング/デプロイ: Vercel（`vercel.json`）。`api/` 配下が Vercel Functions として動く前提。
 - 依存パッケージ: `@supabase/supabase-js` のみ（`package.json`）。
@@ -142,7 +143,7 @@ git log（直近）で確認できた範囲:
 
 Supabase接続・ヘッダーのマイページ/通知UI刷新・お知らせ投稿ページ（合言葉方式、`/console`、全員/個人/チケット購入者宛て送信対応、Notion風ブロックエディタ）・Resendメール通知（テキスト＋HTML）・サイト内蔵お問い合わせフォーム（DB保存＋console返信、info@からの自動受付メール）まで完了。**2026-07-30、お問い合わせ機能一式を本番で実地確認済み**（`schema_v6_inquiries.sql`実行・`CONTACT_TO_EMAIL`設定・Redeploy後、フォーム送信→自動受付メール→管理者通知メール→Supabase保存→`/console`表示→console返信→返信メール受信、の一連の流れをユーザー自身がテストし、全て正常動作を確認）。Google OAuthはユーザーの意向で一旦後回し。
 
-**（2026-08-01・未コミット）Square Sandboxテストを開始**:
+**（2026-08-01・コミット`de05648`でpush済み・本番デプロイ確認済み）Square Sandboxテストを開始**:
 - ユーザーがSquare Sandboxで商品登録し、Item Variation ID を取得（Item IDではなくVariation IDを使う。理由: Orders APIの`line_items.catalog_object_id`はバリエーション単位を指す仕様のため）。
   - 1日入場チケット: `YFNRXOVTBA3L2NVJCHQXHJDB` → [`js/data.js`](../js/data.js) `ticketsC[0].catalogObjectId` に設定済み
   - 出店料: `J5FMYZYMXHOIGS3VXE6V6AUO` → [`js/data.js`](../js/data.js) `ticketsB[0].catalogObjectId` に設定済み
@@ -157,20 +158,20 @@ Supabase接続・ヘッダーのマイページ/通知UI刷新・お知らせ投
   - 出店料カードのnote欄に「※必ず詳細をご確認のうえお申し込みください」を追加。
   - **未実装**: 「お支払い確認後にGoogleフォームを送る」部分は現状まだ手動（Webhookで自動送信する仕組みは無い）。運営側が`purchases`テーブルや通知を見て都度Googleフォームのリンクを送る運用を想定。自動化するかは今後の相談。
 - **（要注意・現状維持で継続中）本番ドメインでSquare Sandboxが露出している**: `dress-code-tokyo.com`は実際に一般公開されているが、`SQUARE_ACCESS_TOKEN`等はまだSandbox設定のまま。今の状態で一般来場者が「カートに追加」→「レジに進む」まで進むと、実際の決済画面ではなくSquareの「APIサンドボックステストパネル」（開発者向けテスト画面）が表示されてしまう。実害（誤課金等）は無いが、お客様から見ると壊れているように見える。ユーザーは2026-08-01に「確実にSandboxです」と状況を把握・許容したうえで、現状維持のままテストを継続する意向を示した。**Square本番切り替え手順は本ファイル末尾の「関連ファイル」付近の会話ログ、または`api/checkout.js`のコメント参照。本番切り替えが完了するまではこのリスクは残り続ける。**
-- **（2026-08-01・未コミット→ユーザー承認後push予定）チケットカードのUI追加調整**:
+- **（2026-08-01・コミット`a742450`でpush済み・本番デプロイ確認済み）チケットカードのUI追加調整**:
   - 出店料カードの`caution`（注意書き）を`note`から独立させ、赤字太字で目立つように変更（[`css/style.css`](../css/style.css)の`.tcard__caution`、[`js/data.js`](../js/data.js)の新フィールド`caution`、[`js/render.js`](../js/render.js)）。
   - チケットカードの「詳細・お問い合わせ」文言で「Instagramのみ」だった案内に、「ホームページ下部のお問い合わせフォームからでも承っております」を追記（出店料・1日入場チケット両方）。理由: 問い合わせ先がInstagramしか書かれていない箇所が複数あり、ユーザーが「信用が無さそうに見える」と懸念したため。
   - チケットカードの写真プレースホルダー（`.tcard__ph`、写真未設定時に出ていた大きな頭文字アイコンの灰色ボックス）を廃止。写真が無い商品は`.tcard__media`ごと出さず、カードを文字だけにするよう[`js/render.js`](../js/render.js)を変更（該当CSSも削除）。
   - **新規ページ [`tokutei-shotorihiki.html`](../tokutei-shotorihiki.html)（特定商取引法に基づく表記）を追加**、その後の会話で必須項目を記入済み（詳細は上記「特定商取引法に基づく表記は必須項目を記入済み」の項目を参照）。
-- **（2026-08-01・未コミット→ユーザー承認後push予定）出店フローの文言簡略化＋トップナビの導線バグ修正**:
+- **（2026-08-01・コミット`c544ce0`でpush済み・本番デプロイ確認済み）出店フローの文言簡略化＋トップナビの導線バグ修正**:
   - [`js/data.js`](../js/data.js) `ticketsB[0].detail`の「出店者注意点」を書き直し。背景: 今回のチケットはDM等で事前に出店内容を確認してから購入してもらう流れが多い想定のため、「お支払い確認後、出店内容の確認が取れていない業者様に限りフォームをお送りします」という条件付きの案内に変更し、「当アカウントのフォロー・リツイート等にご協力ください」の一文は削除。あわせて矢印(→)の前で`\n`改行を入れ、詰まって読みにくかった1行の長文を複数行に分けた。
   - **（バグ修正）`/console`や特商法ページなどトップページ以外にいるとき、ヘッダーの上部ナビ（Top/About/DRESS CODE MARKET等）を押しても何も起きなかった問題**: [`js/render.js`](../js/render.js)のナビ描画が、`js/data.js`の`nav`配列の`href`（`#event`等、トップページ内のセクションIDが前提）をどのページでもそのまま使っていたため。トップページ以外で開いているときは、同じページ内に存在しないアンカーを探しにいくだけで無反応だった。`location.pathname`でトップページかどうか判定し、トップページ以外では`index.html#event`のように付け直すよう修正（`navHref()`ヘルパーを追加、nav-desktop/nav-mobile/footer-sitemapの3箇所に適用）。
-- **（2026-08-01・未コミット→ユーザー承認後push予定）「決済未完了者」向け一斉送信タブを追加**:
+- **（2026-08-01・コミット`1dbe928`でpush済み・本番デプロイ確認済み）「決済未完了者」向け一斉送信タブを追加**:
   - 背景: マイページの購入履歴に「手続き中」（`purchases.status='initiated'`のまま、決済ページまで進んだが支払いを完了していない）状態が残ることがあり、ユーザー本人が気づいていない可能性があるため、運営から一声かけられるようにしたいという要望。
   - [`api/admin-announcements.js`](../api/admin-announcements.js)に`collectPendingUserIds()`を追加（`purchases.status='initiated'`のuser_idを重複排除して集計）。POSTボディに`targetPending: true`が来た場合、対象者の`notifications`にinsert＋1人ずつメール送信（既存の「チケット購入者宛て」セグメント送信と同じパターン）。GETレスポンスに`pendingCount`（該当人数）を追加。
   - [`admin-announcements.html`](../admin-announcements.html)の宛先タブに「手続き中の人に送る」を追加（4つ目のタブ）。選択すると対象人数を表示するだけで、個別選択は不要（チケット単位の絞り込みはしていない＝ステータスが`initiated`の人全員が対象）。
-  - **未確認**: 実際にSandboxで「手続き中」状態を作ってから、このタブで送信→対象者に通知・メールが届くかの実地テストはまだ。
-- **（2026-08-01・未コミット→ユーザー承認後push予定）チケット名に日程を追加**:
+  - **未確認（要実地テスト）**: 実際にSandboxで「手続き中」状態を作ってから、このタブで送信→対象者に通知・メールが届くかの実地テストはまだ。「次に行うこと」にも記載。
+- **（2026-08-01・コミット`1dbe928`でpush済み・本番デプロイ確認済み）チケット名に日程を追加**:
   - [`js/data.js`](../js/data.js)の`ticketsB[0].name`を「出店料（1ブース・2026.9.27）」、`ticketsC[0].name`を「1日入場チケット（2026.9.27）」に変更。理由: ユーザーから「販売中のチケット名を見ただけでいつの開催分か分かるようにしたい」との要望。`name`は`purchases.ticket_name`としてそのまま保存されるため、マイページの購入履歴・購入完了/キャンセル通知・メール本文にも自動的に日付入りで反映される（コード変更は`js/data.js`のみで済んだ）。
 
 # 未完了の作業（＝ユーザーが各サイトで行う作業）
@@ -249,15 +250,27 @@ Supabase接続・ヘッダーのマイページ/通知UI刷新・お知らせ投
 
 # 次に行うこと
 
-1. ~~`supabase/schema_v6_inquiries.sql` 実行・`CONTACT_TO_EMAIL`設定・Redeploy・お問い合わせ一連の動作確認~~ 2026-07-30完了（ユーザー自身のメアドでテスト済み）
-2. ~~`CONTACT_TO_EMAIL` を実運用で使うメアドに切り替える~~ 2026-07-30完了（`marrine.michan@gmail.com`に設定済み）
+**メール・お知らせ関連（完了済み）**
+1. ~~`supabase/schema_v6_inquiries.sql` 実行・`CONTACT_TO_EMAIL`設定・Redeploy・お問い合わせ一連の動作確認~~ 2026-07-30完了
+2. ~~`CONTACT_TO_EMAIL` を実運用で使うメアドに切り替える~~ 2026-07-30完了（`marrine.michan@gmail.com`）
 3. ~~`announcement-images`バケット作成~~ 2026-07-30完了
 4. ~~`supabase/schema_v7_notification_html.sql` をSupabase SQL Editorで実行~~ 2026-07-31完了
-5. （保留中）Google OAuth — `js/auth.js`の`GOOGLE_LOGIN_ENABLED`を`true`に戻し、Cloud Console → OAuthクライアント作成 → SupabaseのGoogleプロバイダに登録
-6. （後回し中）Square Developer DashboardでSandboxアプリ作成 → Access Token/Location ID取得 → Catalog Object ID発行 → Webhook Subscription登録（`payment.updated`のみ）→ Vercel環境変数4つ設定
-7. Sandbox環境でログイン・カート・Square決済・サイト内通知・メール送信・チケット購入者セグメント配信を一通り確認
-8. 問題なければ Square を Production に切り替え（Access Token/Location ID/Signature Keyを本番用に総入れ替え）
-9. 本番公開の直前に、Supabase Authenticationの「Confirm email」を有効化（上記「本番公開前チェックリスト」参照）
+
+**Square Sandbox（進行中。2026-08-01時点の状況）**
+5. ~~Sandboxアプリ作成・Access Token/Location ID/Webhook Subscription登録・Vercel環境変数6つ設定~~ 完了
+6. ~~Sandboxで商品登録・Item Variation IDを`js/data.js`の`catalogObjectId`に設定~~ 完了（1日入場チケット/出店料の2件とも設定済み。2026-08-01にユーザーから改めて依頼が来たが、既に別セッションで完了済みだったことをこのセッションで確認・値も一致を確認）
+7. ~~`api/checkout.js`のSQUARE_API_BASEがSandboxで401になるバグ修正~~ 完了（`de05648`）
+8. ~~カート追加→Sandboxチェックアウト→決済→webhook反映の一連のテスト~~ 成功済み（1日入場チケットで確認）
+9. ~~webhook再送による通知重複バグの発見・修正~~ 完了（`1c5d9ba`）。修正後の再テストで通知1件になることも確認済み
+10. **【未実施】出店料チケットでも同様にカート決済のテストを行う**（今まで確認できているのは1日入場チケットのみ）
+11. **【未実施】「決済未完了者向け一斉送信」タブの実地テスト**（Sandboxで`purchases.status='initiated'`のまま止まる状態を作り、`/console`から送信→通知/メールが届くか確認）
+12. **【要ユーザー判断・現状はSandboxのまま放置中】本番ドメインが一般公開された状態でSquare Sandboxが動いている**（実際の来場者が「カートに追加」まで進むとSquareのテストパネルが出てしまう。詳細は「現在作業中の内容」参照）。イベント本番までにProductionへ切り替える必要がある
+13. 上記が全て問題なければ Square を Production に切り替え（Access Token/Location ID/Signature Key/Application IDを本番用に総入れ替え、`SQUARE_ENVIRONMENT=production`に変更）
+
+**保留中・後回し**
+14. （保留中）Google OAuth — `js/auth.js`の`GOOGLE_LOGIN_ENABLED`を`true`に戻し、Cloud Console → OAuthクライアント作成 → SupabaseのGoogleプロバイダに登録
+15. （公開判断待ち）[`tokutei-shotorihiki.html`](../tokutei-shotorihiki.html)の法的必須項目は記入済み。`noindex`を外して検索エンジンに載せるかはユーザー確認待ち（本名が載るため）。可能なら専門家レビューも推奨
+16. 本番公開の直前に、Supabase Authenticationの「Confirm email」を有効化（上記「本番公開前チェックリスト」参照）
 
 # 関連ファイル
 
@@ -270,8 +283,9 @@ Supabase接続・ヘッダーのマイページ/通知UI刷新・お知らせ投
 - [api/admin-inquiries.js](../api/admin-inquiries.js) / [api/contact.js](../api/contact.js) — サイト内蔵お問い合わせフォームの保存・console一覧・返信
 - [api/env-check.js](../api/env-check.js) — 環境変数・デプロイ診断用エンドポイント（トラブル時に使う）
 - [lib/mailer.js](../lib/mailer.js) — Resend送信の共通処理
-- [js/cart.js](../js/cart.js) / [api/checkout.js](../api/checkout.js) / [api/square-webhook.js](../api/square-webhook.js) — 決済フロー＋購入通知（メール／サイト内通知）
-- [supabase/schema.sql](../supabase/schema.sql) 〜 [schema_v6_inquiries.sql](../supabase/schema_v6_inquiries.sql) — DBスキーマ（v1〜v4・v6は使用中、v5は現在未使用）
+- [js/cart.js](../js/cart.js) / [api/checkout.js](../api/checkout.js) / [api/square-webhook.js](../api/square-webhook.js) — 決済フロー＋購入通知（メール／サイト内通知）。SandboxとProductionでAPIホストが違う点に注意（`api/checkout.js`のコメント参照）
+- [tokutei-shotorihiki.html](../tokutei-shotorihiki.html) — 特定商取引法に基づく表記（必須項目記入済み、公開判断待ち）
+- [supabase/schema.sql](../supabase/schema.sql) 〜 [schema_v7_notification_html.sql](../supabase/schema_v7_notification_html.sql) — DBスキーマ（v1〜v4・v6・v7は使用中、v5は現在未使用）
 - [vercel.json](../vercel.json) — セキュリティヘッダー＋ `/console` のrewrite
 - [.env.example](../.env.example) — 必要な環境変数一覧（実値はVercel側）
 - `方針/` `事業/` `案件/` `素材/` — 運営資料（gitignore対象、ローカルのみ）

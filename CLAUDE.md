@@ -12,7 +12,7 @@ DRESS CODE TOKYO のウェブサイト。静的サイト（素の HTML/CSS/JS）
 - フロントエンド: 素の HTML/CSS/JS（フレームワークなし、ビルドステップなし）。`js/data.js` にコンテンツデータ、`js/render.js` が描画。
 - 認証: Supabase Auth（`js/auth.js`, `js/auth-config.js`）。Google サインイン対応。
 - 決済: Square（Payment Link）。`js/cart.js` → `api/checkout.js` → Square API → `api/square-webhook.js` が決済完了を検知して DB を更新。
-- DB: Supabase Postgres（`supabase/schema.sql`, `supabase/schema_v2_cart.sql`）。RLS 前提。
+- DB: Supabase Postgres（`supabase/schema.sql` 〜 `schema_v7_notification_html.sql`。最新の一覧は`docs/PROJECT_STATE.md`の「現在の構成」参照）。RLS 前提。
 - ホスティング: Vercel（`vercel.json` にセキュリティヘッダー設定）。
 
 ## 必ず守る開発ルール
@@ -64,5 +64,6 @@ DRESS CODE TOKYO のウェブサイト。静的サイト（素の HTML/CSS/JS）
 
 - Webhook の署名検証は `crypto.timingSafeEqual` を使う（タイミング攻撃対策）。単純な `===` 比較に戻さない。
 - Sandbox 用と Production 用の Square 認証情報（ACCESS_TOKEN / LOCATION_ID / WEBHOOK_SIGNATURE_KEY）を混在させない。
+- Square は Sandbox と Production で **APIホストが異なる**（`connect.squareupsandbox.com` / `connect.squareup.com`）。`api/checkout.js`は`SQUARE_ENVIRONMENT`で切り替えている（過去に本番ホスト固定でSandboxトークンが401になるバグがあったため、`SQUARE_ENVIRONMENT`を見ずにホストを決め打ちする実装に戻さない）。
 - ブラウザ側コード（`js/*.js`）には anon key 以外の秘密情報を絶対に置かない。
 - お知らせ投稿ページ（`/console` = `admin-announcements.html`）は共通パスワード方式（`ADMIN_CONSOLE_PASSWORD`）。パスワード比較も `crypto.timingSafeEqual` を使う（`api/admin-login.js`）。トークン検証（`lib/adminAuth.js`）を弱めたり、`announcements`/`notifications`/`inquiries` テーブルへの読み書きを service role 以外に開放したりしない（`inquiries` は問い合わせ者の氏名・メールアドレス・本文を含むため特に注意）。
