@@ -67,7 +67,7 @@ window.SITE = {
     {
       name: '出店料（1ブース・2026.9.27）',
       price: 5000,
-      note: '約2m×2m / 現金・PayPay・口座振込',
+      note: '約2m×2m / お支払いはSquareのオンライン決済（クレジットカード）のみ対応（現金・PayPay・口座振込は現在非対応）',
       caution: '※必ず「もっと見る」の詳細をご確認のうえお申し込みください',
       url: 'index.html#contact', // catalogObjectId設定済みのため実際は使われない（js/render.js参照）。従来の問い合わせ導線として残置
       buyLabel: '出店を申し込む',

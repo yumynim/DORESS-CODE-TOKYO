@@ -1071,14 +1071,19 @@ a.mcard__sns:hover { transform: translateY(-3px); }
 /* /console の各リストをNotionのトグルのように開閉できるようにする（増えてきても圧迫しないため） */
 .admin-toggle summary { cursor: pointer; list-style: none; }
 .admin-toggle summary::-webkit-details-marker { display: none; }
-.admin-toggle summary h2 { display: flex; align-items: center; gap: 8px; margin-bottom: 0; }
-.admin-toggle summary h2::before {
+.admin-toggle summary h2, .admin-toggle summary h3 { display: flex; align-items: center; gap: 8px; margin-bottom: 0; }
+.admin-toggle summary h2::before, .admin-toggle summary h3::before {
   content: '▸'; display: inline-block; font-size: 12px; color: var(--muted);
   transition: transform .2s var(--ease);
 }
-.admin-toggle[open] summary h2::before { transform: rotate(90deg); }
+.admin-toggle[open] summary h2::before, .admin-toggle[open] summary h3::before { transform: rotate(90deg); }
 .admin-toggle__count { font-family: var(--f-sans); font-size: 12px; font-weight: 400; color: var(--muted); }
 .admin-toggle > *:not(summary) { margin-top: 18px; }
+/* チケットごとの購入者一覧（購入者一覧セクション内にネストするトグル） */
+.admin-toggle--nested { padding: 14px 0; border-top: 1px solid var(--line); }
+.admin-toggle--nested:first-child { border-top: none; padding-top: 0; }
+.admin-toggle--nested summary h3 { font-size: 14px; }
+.admin-toggle--nested > *:not(summary) { margin-top: 12px; }
 .admin-search {
   display: block; width: 100%; box-sizing: border-box; font: inherit; font-size: 13.5px;
   padding: 10px 14px; border: 1px solid var(--line-2); border-radius: 2px; background: #fff;

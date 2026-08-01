@@ -57,11 +57,11 @@ function segmentKeyOf(item) {
 }
 
 // 支払い済みの購入記録だけを対象に、チケットごとの購入者を集計する。
-// 戻り値: Map<segmentKey, { key, name, userIds:Set<string> }>
+// 戻り値: Map<segmentKey, { key, name, userIds:Set<string>, purchasedAt:Map<userId, created_at> }>
 async function collectSegments(serviceClient) {
   const { data, error } = await serviceClient
     .from('purchases')
-    .select('user_id, items')
+    .select('user_id, items, created_at')
     .eq('status', 'paid');
   if (error) { console.error('segments query failed:', error.message); return new Map(); }
 
@@ -71,11 +71,36 @@ async function collectSegments(serviceClient) {
     for (const item of items) {
       const key = segmentKeyOf(item);
       if (!key) continue;
-      if (!segments.has(key)) segments.set(key, { key, name: String(item.name || '（名称不明）').trim(), userIds: new Set() });
-      if (row.user_id) segments.get(key).userIds.add(row.user_id);
+      if (!segments.has(key)) segments.set(key, { key, name: String(item.name || '（名称不明）').trim(), userIds: new Set(), purchasedAt: new Map() });
+      if (row.user_id) {
+        const seg = segments.get(key);
+        seg.userIds.add(row.user_id);
+        // 同じ人が同じチケットを複数回買っていたら、一番最初の購入日を残す
+        const existing = seg.purchasedAt.get(row.user_id);
+        if (!existing || row.created_at < existing) seg.purchasedAt.set(row.user_id, row.created_at);
+      }
     }
   }
   return segments;
+}
+
+// 購入者一覧（コンソール表示用）: セグメントごとにメールアドレス・購入日まで解決する。
+// listUsers を都度呼ぶと遅いので、必要なuser_idぶんだけ1回のページングでまとめて引く。
+async function resolveEmails(serviceClient, userIds) {
+  const map = new Map();
+  const remaining = new Set(userIds);
+  if (!remaining.size) return map;
+  let page = 1;
+  const perPage = 200;
+  for (;;) {
+    const { data, error } = await serviceClient.auth.admin.listUsers({ page, perPage });
+    if (error) break;
+    const users = (data && data.users) || [];
+    for (const u of users) { if (remaining.has(u.id)) { map.set(u.id, u.email || '（不明）'); remaining.delete(u.id); } }
+    if (!remaining.size || users.length < perPage) break;
+    page += 1;
+  }
+  return map;
 }
 
 /* ---------- 決済未完了者（status='initiated'のまま止まっている人） ----------
@@ -138,10 +163,19 @@ module.exports = async function handler(req, res) {
         }));
       }
 
-      // チケット購入者セグメント（管理画面の「チケット購入者に送る」の選択肢になる）
+      // チケット購入者セグメント（管理画面の「チケット購入者に送る」の選択肢、および「購入者一覧」表示の両方に使う）
       const segmentMap = await collectSegments(serviceClient);
+      const allBuyerIds = [...segmentMap.values()].flatMap((s) => [...s.userIds]);
+      const emailByUserId = await resolveEmails(serviceClient, allBuyerIds);
       const segments = [...segmentMap.values()]
-        .map((s) => ({ key: s.key, name: s.name, count: s.userIds.size }))
+        .map((s) => ({
+          key: s.key,
+          name: s.name,
+          count: s.userIds.size,
+          buyers: [...s.userIds]
+            .map((uid) => ({ email: emailByUserId.get(uid) || '（不明）', purchasedAt: s.purchasedAt.get(uid) || null }))
+            .sort((a, b) => (b.purchasedAt || '').localeCompare(a.purchasedAt || '')),
+        }))
         .sort((a, b) => b.count - a.count);
 
       const pendingCount = (await collectPendingUserIds(serviceClient)).size;
