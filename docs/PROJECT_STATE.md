@@ -268,21 +268,23 @@ Supabase接続・ヘッダーのマイページ/通知UI刷新・お知らせ投
 3. ~~`announcement-images`バケット作成~~ 2026-07-30完了
 4. ~~`supabase/schema_v7_notification_html.sql` をSupabase SQL Editorで実行~~ 2026-07-31完了
 
-**Square Sandbox（進行中。2026-08-01時点の状況）**
+**Square（2026-08-01時点。SandboxからProductionへの切り替えは完了、実地の本番決済テストが残っている）**
 5. ~~Sandboxアプリ作成・Access Token/Location ID/Webhook Subscription登録・Vercel環境変数6つ設定~~ 完了
-6. ~~Sandboxで商品登録・Item Variation IDを`js/data.js`の`catalogObjectId`に設定~~ 完了（1日入場チケット/出店料の2件とも設定済み。2026-08-01にユーザーから改めて依頼が来たが、既に別セッションで完了済みだったことをこのセッションで確認・値も一致を確認）
+6. ~~Sandboxで商品登録・Item Variation IDを`js/data.js`の`catalogObjectId`に設定~~ 完了
 7. ~~`api/checkout.js`のSQUARE_API_BASEがSandboxで401になるバグ修正~~ 完了（`de05648`）
 8. ~~カート追加→Sandboxチェックアウト→決済→webhook反映の一連のテスト~~ 成功済み（1日入場チケットで確認）
 9. ~~webhook再送による通知重複バグの発見・修正~~ 完了（`1c5d9ba`）。修正後の再テストで通知1件になることも確認済み
-10. **【未実施】出店料チケットでも同様にカート決済のテストを行う**（今まで確認できているのは1日入場チケットのみ）
-11. **【未実施】「決済未完了者向け一斉送信」タブの実地テスト**（Sandboxで`purchases.status='initiated'`のまま止まる状態を作り、`/console`から送信→通知/メールが届くか確認）
-12. **【要ユーザー判断・現状はSandboxのまま放置中】本番ドメインが一般公開された状態でSquare Sandboxが動いている**（実際の来場者が「カートに追加」まで進むとSquareのテストパネルが出てしまう。詳細は「現在作業中の内容」参照）。イベント本番までにProductionへ切り替える必要がある
-13. 上記が全て問題なければ Square を Production に切り替え（Access Token/Location ID/Signature Key/Application IDを本番用に総入れ替え、`SQUARE_ENVIRONMENT=production`に変更）
+10. ~~Square Production環境への切り替え~~ 完了（Access Token/Location ID/Application ID/Webhook Signature Key/`SQUARE_ENVIRONMENT=production`をVercelに設定、Production側の商品登録・Webhook Subscription作成、`js/data.js`の`catalogObjectId`をProduction用IDに差し替え、すべて`9db9370`）
+11. ~~本番Checkoutページに実際に遷移できるかの一次確認~~ 完了（Google Pay等が表示される実際のSquare Checkout画面まで到達、401等のエラーなし）
+12. **【未実施・重要】実カードでの少額決済テスト（1回）**: 1,000円の1日入場チケット等で実際に支払いを完了させ、`purchases.status`が`paid`に更新される→通知/メールが届く、まで確認。問題なければSquareダッシュボードから返金。**これが完了するまでは「Productionに切り替わっている」だけで「実際に決済〜通知まで動くこと」はまだ確認できていない**
+13. **【未実施】出店料チケットでのカート決済テスト**（今まで確認できているのは1日入場チケットのみ）
+14. **【未実施】「決済未完了者向け一斉送信」タブの実地テスト**（`purchases.status='initiated'`のまま止まる状態を作り、`/console`から送信→通知/メールが届くか確認）
+15. **【未実施・急ぎではない】Sandboxテスト中にできた「手続き中」等のテスト購入データを`purchases`テーブルから削除**（見た目の問題のみ）
 
 **保留中・後回し**
-14. （保留中）Google OAuth — `js/auth.js`の`GOOGLE_LOGIN_ENABLED`を`true`に戻し、Cloud Console → OAuthクライアント作成 → SupabaseのGoogleプロバイダに登録
-15. （公開判断待ち）[`tokutei-shotorihiki.html`](../tokutei-shotorihiki.html)の法的必須項目は記入済み。`noindex`を外して検索エンジンに載せるかはユーザー確認待ち（本名が載るため）。可能なら専門家レビューも推奨
-16. 本番公開の直前に、Supabase Authenticationの「Confirm email」を有効化（上記「本番公開前チェックリスト」参照）
+16. （保留中）Google OAuth — `js/auth.js`の`GOOGLE_LOGIN_ENABLED`を`true`に戻し、Cloud Console → OAuthクライアント作成 → SupabaseのGoogleプロバイダに登録
+17. （公開判断待ち）[`tokutei-shotorihiki.html`](../tokutei-shotorihiki.html)の`noindex`を外すか（必須項目は記入済み、本名が検索に載る点をユーザーが判断。可能なら専門家レビューも推奨）
+18. **【未着手・本番公開の必須条件】Supabase Authenticationの「Confirm email」を有効化**（上記「本番公開前チェックリスト」参照。先にResendをカスタムSMTPとして設定してから）
 
 # 関連ファイル
 
