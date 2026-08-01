@@ -5,9 +5,9 @@
    未設定の商品は今まで通り「今すぐ支払う」の単品購入のみ表示される。
 
    流れ：
-   商品カードの「カートに追加」→ カートに貯める（localStorage）→
-   カートを開いて「レジに進む」→ 未ログインならログインを促す →
-   /api/checkout に送信 → Squareの決済ページへ遷移
+   商品カードの「カートに追加」→ 未ログインならまずログインを促す →
+   カートに貯める（localStorage）→ カートを開いて「レジに進む」→
+   （念のためもう一度ログイン確認）→ /api/checkout に送信 → Squareの決済ページへ遷移
    ========================================================= */
 (function () {
   const STORAGE_KEY = 'dct_cart_v1';
@@ -181,15 +181,28 @@
       });
   }
 
-  /* ---------- 「カートに追加」ボタンの配線（tcard内、data-catalog-id を持つもの） ---------- */
+  /* ---------- 「カートに追加」ボタンの配線（tcard内、data-catalog-id を持つもの） ----------
+     未ログインのままカートに商品を貯められると「ログイン不要で買えそう」に見えてしまうため、
+     カートに追加する時点でログインを必須にする（レジに進む時点でも別途チェックしているが、
+     ここで先に止めることで未ログインの人が購入フローに入れないようにする）。
+     ここは catalogObjectId を持つボタン全般にかかる共通処理なので、今後チケットを追加しても
+     同じ仕組みがそのまま適用される。 */
+  const PENDING_CART_ADD_KEY = 'dct_pending_cart_add';
   document.addEventListener('click', function (e) {
     const btn = e.target.closest && e.target.closest('.tcard__cart-add');
     if (btn) {
-      addToCart({
+      const item = {
         catalogObjectId: btn.getAttribute('data-catalog-id'),
         name: btn.getAttribute('data-name'),
         price: Number(btn.getAttribute('data-price')) || 0,
-      });
+      };
+      const auth = window.DCT_AUTH;
+      if (auth && auth.isConfigured() && !auth.getSession()) {
+        sessionStorage.setItem(PENDING_CART_ADD_KEY, JSON.stringify(item));
+        auth.openModal({ tab: 'signup', lead: 'カートに追加するにはログイン（または新規登録）が必要です。' });
+        return;
+      }
+      addToCart(item);
       return;
     }
     if (e.target.closest && e.target.closest('[data-cart-trigger]')) { openCart(); }
@@ -198,11 +211,17 @@
   document.addEventListener('DOMContentLoaded', function () { ensurePanel(); updateBadge(); });
   if (document.readyState !== 'loading') { ensurePanel(); updateBadge(); }
 
-  /* ---------- ログイン状態が変わったら、保留中のチェックアウトがあれば自動で再開 ---------- */
+  /* ---------- ログイン状態が変わったら、保留中のカート追加／チェックアウトがあれば自動で再開 ---------- */
   function wireResumeCheckout() {
     if (!window.DCT_AUTH) return;
     window.DCT_AUTH.onChange(function (session) {
-      if (session && sessionStorage.getItem(PENDING_CHECKOUT_KEY) && readCart().length) {
+      if (!session) return;
+      const pendingAdd = sessionStorage.getItem(PENDING_CART_ADD_KEY);
+      if (pendingAdd) {
+        sessionStorage.removeItem(PENDING_CART_ADD_KEY);
+        try { addToCart(JSON.parse(pendingAdd)); } catch (e) {}
+      }
+      if (sessionStorage.getItem(PENDING_CHECKOUT_KEY) && readCart().length) {
         sessionStorage.removeItem(PENDING_CHECKOUT_KEY);
         startCheckout();
       }
