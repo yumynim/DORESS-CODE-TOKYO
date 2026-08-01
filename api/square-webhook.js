@@ -89,6 +89,30 @@ async function notifyPurchaser(serviceClient, purchase, newStatus) {
     ctaLabel: isPaid ? 'マイページで確認する' : 'サイトに戻る',
     ctaUrl: SITE_URL,
   });
+
+  await notifyAdmin(purchase, newStatus, to);
+}
+
+// 運営（自分）宛ての通知。お問い合わせフォームと同じ宛先（CONTACT_TO_EMAIL、未設定ならNOTIFY_FROM_EMAIL）に送る。
+// 未設定でもエラーにせず静かにスキップする（購入者本人への通知は既に送信済みのため、これが失敗しても支障は無い）。
+async function notifyAdmin(purchase, newStatus, buyerEmail) {
+  const adminTo = process.env.CONTACT_TO_EMAIL || process.env.NOTIFY_FROM_EMAIL;
+  if (!adminTo) {
+    console.warn('square-webhook: CONTACT_TO_EMAIL / NOTIFY_FROM_EMAIL が未設定のため運営宛て通知はスキップします');
+    return;
+  }
+  const isPaid = newStatus === 'paid';
+  const subject = isPaid ? `【購入通知】${purchase.ticket_name}` : `【キャンセル通知】${purchase.ticket_name}`;
+  const lines = [
+    `${purchase.ticket_name} が${isPaid ? 'ご購入' : 'キャンセル'}されました。`,
+    `購入者: ${buyerEmail}`,
+  ];
+  if (isPaid && purchase.entry_code) lines.push(`受付コード: ${purchase.entry_code}`);
+  try {
+    await sendEmail({ to: adminTo, subject, text: lines.join('\n') });
+  } catch (e) {
+    console.error('admin notify email failed:', e);
+  }
 }
 
 function readRawBody(req) {
