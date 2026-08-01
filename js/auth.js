@@ -308,7 +308,7 @@
   function loadAccountPurchases() {
     var yen = function (n) { return (isFinite(n) && n > 0) ? '¥' + Number(n).toLocaleString('ja-JP') : String(n || ''); };
     client.from('purchases')
-      .select('ticket_name, price, status, created_at')
+      .select('ticket_name, price, status, created_at, entry_code')
       .eq('user_id', session.user.id)
       .order('created_at', { ascending: false })
       .then(function (res) {
@@ -318,7 +318,9 @@
         accountPurchasesEl.innerHTML = list.map(function (p) {
           return '<div class="mypage__purchase">' +
             '<div class="mypage__purchase-main"><h3>' + escHtml(p.ticket_name) + '</h3>' +
-            '<span class="mypage__purchase-date">' + new Date(p.created_at).toLocaleDateString('ja-JP') + '</span></div>' +
+            '<span class="mypage__purchase-date">' + new Date(p.created_at).toLocaleDateString('ja-JP') + '</span>' +
+            (p.entry_code ? '<span class="mypage__purchase-entrycode">当日の受付コード: ' + escHtml(p.entry_code) + '</span>' : '') +
+            '</div>' +
             '<div class="mypage__purchase-side"><span class="mypage__purchase-price">' + yen(p.price) + '</span>' +
             '<span class="mypage__purchase-status is-' + p.status + '">' + escHtml(ACCOUNT_STATUS_LABEL[p.status] || p.status) + '</span></div></div>';
         }).join('');

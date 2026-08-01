@@ -56,13 +56,15 @@ function segmentKeyOf(item) {
   return name ? `name:${name}` : null;
 }
 
-// 支払い済みの購入記録だけを対象に、チケットごとの購入者を集計する。
-// 戻り値: Map<segmentKey, { key, name, userIds:Set<string>, purchasedAt:Map<userId, created_at> }>
-async function collectSegments(serviceClient) {
+// 指定したstatusの購入記録を対象に、チケットごとの購入者を集計する。
+// status='paid' なら「チケット購入者に送る」の選択肢＆購入者一覧に、
+// status='initiated' なら「決済未完了者」の名簿に使う（共通ロジックなので関数を分けていない）。
+// 戻り値: Map<segmentKey, { key, name, userIds:Set<string>, purchasedAt:Map<userId, created_at>, entryCode:Map<userId, code> }>
+async function collectSegments(serviceClient, status) {
   const { data, error } = await serviceClient
     .from('purchases')
-    .select('user_id, items, created_at')
-    .eq('status', 'paid');
+    .select('user_id, items, created_at, entry_code')
+    .eq('status', status);
   if (error) { console.error('segments query failed:', error.message); return new Map(); }
 
   const segments = new Map();
@@ -71,13 +73,16 @@ async function collectSegments(serviceClient) {
     for (const item of items) {
       const key = segmentKeyOf(item);
       if (!key) continue;
-      if (!segments.has(key)) segments.set(key, { key, name: String(item.name || '（名称不明）').trim(), userIds: new Set(), purchasedAt: new Map() });
+      if (!segments.has(key)) segments.set(key, { key, name: String(item.name || '（名称不明）').trim(), userIds: new Set(), purchasedAt: new Map(), entryCode: new Map() });
       if (row.user_id) {
         const seg = segments.get(key);
         seg.userIds.add(row.user_id);
         // 同じ人が同じチケットを複数回買っていたら、一番最初の購入日を残す
         const existing = seg.purchasedAt.get(row.user_id);
-        if (!existing || row.created_at < existing) seg.purchasedAt.set(row.user_id, row.created_at);
+        if (!existing || row.created_at < existing) {
+          seg.purchasedAt.set(row.user_id, row.created_at);
+          if (row.entry_code) seg.entryCode.set(row.user_id, row.entry_code);
+        }
       }
     }
   }
@@ -164,23 +169,32 @@ module.exports = async function handler(req, res) {
       }
 
       // チケット購入者セグメント（管理画面の「チケット購入者に送る」の選択肢、および「購入者一覧」表示の両方に使う）
-      const segmentMap = await collectSegments(serviceClient);
-      const allBuyerIds = [...segmentMap.values()].flatMap((s) => [...s.userIds]);
+      const [segmentMap, pendingSegmentMap] = await Promise.all([
+        collectSegments(serviceClient, 'paid'),
+        collectSegments(serviceClient, 'initiated'),
+      ]);
+      const allBuyerIds = [...segmentMap.values(), ...pendingSegmentMap.values()].flatMap((s) => [...s.userIds]);
       const emailByUserId = await resolveEmails(serviceClient, allBuyerIds);
-      const segments = [...segmentMap.values()]
+      const toBuyerList = (segMap) => [...segMap.values()]
         .map((s) => ({
           key: s.key,
           name: s.name,
           count: s.userIds.size,
           buyers: [...s.userIds]
-            .map((uid) => ({ email: emailByUserId.get(uid) || '（不明）', purchasedAt: s.purchasedAt.get(uid) || null }))
+            .map((uid) => ({
+              email: emailByUserId.get(uid) || '（不明）',
+              purchasedAt: s.purchasedAt.get(uid) || null,
+              entryCode: s.entryCode.get(uid) || null,
+            }))
             .sort((a, b) => (b.purchasedAt || '').localeCompare(a.purchasedAt || '')),
         }))
         .sort((a, b) => b.count - a.count);
+      const segments = toBuyerList(segmentMap);
+      const pendingSegments = toBuyerList(pendingSegmentMap);
 
       const pendingCount = (await collectPendingUserIds(serviceClient)).size;
 
-      res.status(200).json({ announcements: broadcastRes.data || [], personal, segments, pendingCount });
+      res.status(200).json({ announcements: broadcastRes.data || [], personal, segments, pendingSegments, pendingCount });
       return;
     }
 
@@ -226,7 +240,7 @@ module.exports = async function handler(req, res) {
         // ---------- チケット購入者宛て ----------
         // 全員宛て（announcements）ではなく、対象者ひとりひとりの notifications に入れる。
         // そうしないと購入していない会員のヘッダー通知にも出てしまうため。
-        const segmentMap = await collectSegments(serviceClient);
+        const segmentMap = await collectSegments(serviceClient, 'paid');
         const segment = segmentMap.get(String(segmentKey));
         if (!segment || segment.userIds.size === 0) {
           res.status(404).json({ error: 'そのチケットの購入者が見つかりませんでした' });

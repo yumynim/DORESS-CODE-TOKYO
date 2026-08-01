@@ -113,7 +113,7 @@
       <section class="mypage__section" id="section-purchasers">
         <details class="admin-toggle" id="details-purchasers">
           <summary><h2>購入者一覧 <span class="admin-toggle__count" id="admin-purchasers-count"></span></h2></summary>
-          <p class="mypage__note">支払いが完了した購入者だけが表示されます（決済ページを開いただけで支払いが完了していない人は含まれません）。チケットごとに開閉できます。</p>
+          <p class="mypage__note">「支払い済み」（受付コード付き）と「手続き未完了」（決済ページまでは進んだがまだ支払っていない人）を分けて表示します。チケットごとに開閉できます。</p>
           <div id="admin-purchasers"><p class="cards-empty">読み込み中…</p></div>
         </details>
       </section>
@@ -365,7 +365,7 @@
             filterList();
             filterPersonal();
             renderSegments(data.segments || []);
-            renderPurchasers(data.segments || []);
+            renderPurchasers(data.segments || [], data.pendingSegments || []);
             pendingCountEl.textContent = String(data.pendingCount || 0);
           })
           .catch(() => {
@@ -645,25 +645,37 @@
       }
 
       // チケットごとの購入者一覧。人数が増えても見やすいよう、チケット単位でトグル開閉できるようにする。
-      function renderPurchasers(segments) {
-        purchasersCountEl.textContent = segments && segments.length ? `(${segments.length})` : '';
-        if (!segments || !segments.length) {
-          purchasersEl.innerHTML = '<p class="cards-empty">支払い済みの購入がまだありません。</p>';
-          return;
-        }
-        purchasersEl.innerHTML = segments.map(s => `
+      // 支払い済み（受付コードあり）と、決済ページまで進んだが未完了（受付コードはまだ無い）を分けて表示する。
+      function buyerRow(b) {
+        return `
+          <div class="mypage__notification">
+            <div class="mypage__notification-head">
+              <h4>${esc(b.email)}</h4>
+              <span class="mypage__notification-date">${b.purchasedAt ? new Date(b.purchasedAt).toLocaleDateString('ja-JP') : ''}</span>
+            </div>
+            ${b.entryCode ? `<p class="mypage__notification-date">受付コード: <strong>${esc(b.entryCode)}</strong></p>` : ''}
+          </div>`;
+      }
+      function segmentGroupHtml(segments) {
+        if (!segments || !segments.length) return '<p class="cards-empty">対象者はいません。</p>';
+        return segments.map(s => `
           <details class="admin-toggle admin-toggle--nested">
             <summary><h3>${esc(s.name)} <span class="admin-toggle__count">(${s.count}名)</span></h3></summary>
             <div class="mypage__notifications">
-              ${(s.buyers || []).map(b => `
-                <div class="mypage__notification">
-                  <div class="mypage__notification-head">
-                    <h4>${esc(b.email)}</h4>
-                    <span class="mypage__notification-date">${b.purchasedAt ? new Date(b.purchasedAt).toLocaleDateString('ja-JP') : ''}</span>
-                  </div>
-                </div>`).join('') || '<p class="cards-empty">購入者情報を取得できませんでした。</p>'}
+              ${(s.buyers || []).map(buyerRow).join('') || '<p class="cards-empty">購入者情報を取得できませんでした。</p>'}
             </div>
           </details>`).join('');
+      }
+      function renderPurchasers(segments, pendingSegments) {
+        const paidTotal = (segments || []).length;
+        const pendingTotal = (pendingSegments || []).length;
+        purchasersCountEl.textContent = (paidTotal || pendingTotal) ? `(${paidTotal + pendingTotal})` : '';
+        purchasersEl.innerHTML = `
+          <h3 class="admin-purchasers__group-title">支払い済み</h3>
+          ${segmentGroupHtml(segments)}
+          <h3 class="admin-purchasers__group-title">手続き未完了（決済ページまでは進んだが支払い未完了）</h3>
+          ${segmentGroupHtml(pendingSegments)}
+        `;
       }
       targetTabs.forEach(btn => btn.addEventListener('click', () => setTargetMode(btn.getAttribute('data-target-mode'))));
 

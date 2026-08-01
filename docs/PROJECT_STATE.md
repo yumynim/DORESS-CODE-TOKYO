@@ -46,7 +46,8 @@ DORESS CODE TOKYO/
 │   ├── schema_v4_announcements.sql  announcements テーブル（会員全員向けのお知らせ）
 │   ├── schema_v5_admin.sql          profiles.is_admin カラム＋本人が自分では変更できないようにするガード（現在は未使用。合言葉方式に変更したため）
 │   ├── schema_v6_inquiries.sql      inquiries テーブル（サイトのお問い合わせフォームの内容・返信記録）
-│   └── schema_v7_notification_html.sql  notifications/announcements に body_html カラムを追加（画像付きお知らせをサイト内でも正しく表示するため）
+│   ├── schema_v7_notification_html.sql  notifications/announcements に body_html カラムを追加（画像付きお知らせをサイト内でも正しく表示するため）
+│   └── schema_v8_entry_code.sql   purchases に entry_code カラムを追加（当日の入場確認用コード、支払い完了時にAPI側で発行。★未実行★Supabaseで実行が必要）
 ├── assets/images/                 画像
 ├── vercel.json                    セキュリティヘッダー設定
 ├── .env.example                   環境変数テンプレート（実値は Vercel の環境変数に設定する想定）
@@ -177,9 +178,18 @@ Supabase接続・ヘッダーのマイページ/通知UI刷新・お知らせ投
   - **PayPay表記の修正**: ユーザーが実際に本番決済ページ（Square Checkout）を開いたところGoogle Payは出るがPayPayは選べないことに気づき確認依頼。SquareのオンラインPayment Link/Checkoutはクレジットカード・Apple Pay・Google Payのみでオンライン決済としてのPayPay対応は無い（このAIの一般知識ベースの回答、Square公式の最新状況は都度要確認）。ユーザーの意向（「あとで導入するかもしれないので現状維持のまま正確に表示」）を踏まえ、[`js/data.js`](../js/data.js)の出店料カードnoteと[`tokutei-shotorihiki.html`](../tokutei-shotorihiki.html)の支払い方法欄を「クレジットカード（Square）のみ、現金・PayPay・口座振込は現在非対応」に修正。**未対応（コードでは直せない）**: 出店者向けフライヤー画像（`assets/images/market-flyer.jpg`）自体にPayPay等のアイコンが焼き込まれており、画像なので今回は手を付けていない。気になる場合は画像を作り直す必要がある。
   - **`/console`に「購入者一覧」セクションを追加**: チケットごとにトグル（開閉）でメールアドレス・購入日を一覧表示。人数が増えても圧迫しないように、他のトグル型セクション（お問い合わせ等）と同じ`.admin-toggle`パターンを流用。[`api/admin-announcements.js`](../api/admin-announcements.js)の`collectSegments()`に購入日(`purchasedAt`)を持たせ、新設の`resolveEmails()`でuser_id→メールアドレスをまとめて解決するように変更。対象は`status='paid'`の購入のみ（決済ページを開いただけの「手続き中」は含まれない）。
   - **確認済み事実（ユーザーからの質問に回答）**: 「カートに追加→レジに進む」だけでは`purchases`に`status:'initiated'`の行ができるだけで、購入者タグ（セグメント）にもメール送信にも影響しない。セグメント集計・購入完了メールともに`status='paid'`（＝Webhookが実際の決済完了を確認した後）にしか反応しないため、支払わずにテストしても誤タグ・誤送信の心配はないことをコードを読んで確認・回答した。
+- **（2026-08-01・未コミット→ユーザー承認後push予定）当日入場確認用の受付コード＋「手続き未完了」名簿を追加**:
+  - 背景: ユーザーから「入場・識別に使える、当てずっぽうでは当たらない番号を購入者に振りたい。口頭で伝える想定なので大文字小文字の区別が無いのがいい」との要望。
+  - **[`supabase/schema_v8_entry_code.sql`](../supabase/schema_v8_entry_code.sql)（新規・★まだユーザーが未実行★）**: `purchases.entry_code`カラム（テキスト）＋一意インデックスを追加。**このマイグレーションを実行するまでは、以下のコードはエラーになるかentry_codeが常にnullになる**。
+  - [`api/square-webhook.js`](../api/square-webhook.js): 支払いが`paid`に確定した最初の1回だけ、6桁の数字（`crypto.randomInt(100000, 1000000)`、大文字小文字の区別が発生しない・連番でないためあてずっぽうで当たりにくい）を発行して`entry_code`に保存。ユニーク制約に衝突したら別の値で最大5回まで再試行。Webhookの再送（既存の重複排除ロジック）が来ても、既にentry_codeがあれば再発行しない。購入完了メール・サイト内通知の本文にも「当日の受付コードは「○○○○○○」です」を追記。
+  - 表示側: [`js/auth.js`](../js/auth.js)のヘッダーマイページドロワー、[`members-only.html`](../members-only.html)のフルページ版、両方の購入履歴に受付コードを表示するよう`select`にフィールド追加。
+  - [`api/admin-announcements.js`](../api/admin-announcements.js): `collectSegments()`にstatus引数を追加して`'paid'`／`'initiated'`の両方に使えるようにし、`entry_code`も持たせた。GETレスポンスに`pendingSegments`（チケット単位の「手続き未完了」名簿、メール・購入試行日を含む）を追加。
+  - [`admin-announcements.html`](../admin-announcements.html): 「購入者一覧」セクションを「支払い済み（受付コード付き）」と「手続き未完了」の2グループ表示に変更。
+  - **次にやること**: Supabase SQL Editorで`schema_v8_entry_code.sql`を実行 → 動作確認（実際に支払い完了させてentry_codeが発行されるか、メール・マイページ・console双方に表示されるか）→ 問題なければpush。
 
 # 未完了の作業（＝ユーザーが各サイトで行う作業）
 
+- **（ブロッカー）Supabase — `supabase/schema_v8_entry_code.sql`をSQL Editorで実行する**: 実行するまで受付コード機能（当日の入場確認用）が動かない。
 - **特定商取引法に基づく表記（[`tokutei-shotorihiki.html`](../tokutei-shotorihiki.html)）は必須項目を記入済み、公開判断待ち**:
   - ユーザーは個人事業主（屋号は無い）と確認。**販売事業者・運営統括責任者ともに本名「齋藤南」を記載**（2026-08-01）。「DRESS CODE TOKYO」は屋号ではないため事業者名としては使わない、とユーザーが判断。
   - メールアドレス: `info@dress-code-tokyo.com` 記入済み。

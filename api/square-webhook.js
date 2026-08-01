@@ -18,11 +18,35 @@ const crypto = require('crypto');
 const { createClient } = require('@supabase/supabase-js');
 const { sendEmail, SITE_URL } = require('../lib/mailer');
 
+// 当日の入場確認用コード。口頭で伝える想定のため数字のみ・6桁（大文字小文字の区別が発生しない）。
+// 当てずっぽうで通らないよう、連番ではなくランダムに発行する。
+function generateEntryCode() {
+  return String(crypto.randomInt(100000, 1000000));
+}
+
+// purchases.entry_code はユニーク制約があるため、衝突したら別の値で数回だけ再試行する
+// （6桁・約90万通りなので実際に衝突することはほぼ無い）。
+async function assignEntryCode(serviceClient, purchaseId) {
+  for (let attempt = 0; attempt < 5; attempt++) {
+    const code = generateEntryCode();
+    const { data, error } = await serviceClient
+      .from('purchases')
+      .update({ entry_code: code })
+      .eq('id', purchaseId)
+      .select('entry_code')
+      .single();
+    if (!error) return data.entry_code;
+    if (error.code !== '23505') { console.error('entry_code assign failed:', error.message); return null; }
+  }
+  console.error('entry_code assign failed: 衝突が続いたため断念しました purchaseId=', purchaseId);
+  return null;
+}
+
 async function notifyPurchaser(serviceClient, purchase, newStatus) {
   const isPaid = newStatus === 'paid';
   const title = isPaid ? 'ご購入ありがとうございます' : 'お支払いがキャンセルされました';
   const body = isPaid
-    ? `${purchase.ticket_name} のお支払いが完了しました。マイページから購入内容を確認できます。`
+    ? `${purchase.ticket_name} のお支払いが完了しました。${purchase.entry_code ? `当日の受付コードは「${purchase.entry_code}」です。` : ''}マイページから購入内容を確認できます。`
     : `${purchase.ticket_name} のお支払いがキャンセル、または失敗しました。お手数ですが再度お手続きください。`;
 
   // Squareはこちらの応答が遅いと同じ通知を再送してくることがある。
@@ -119,10 +143,16 @@ async function handler(req, res) {
             .from('purchases')
             .update({ status: newStatus })
             .eq('square_order_id', orderId)
-            .select('id, user_id, ticket_name')
+            .select('id, user_id, ticket_name, entry_code')
             .single();
           if (error) console.error('purchases update failed:', error.message);
-          else if (purchase) await notifyPurchaser(serviceClient, purchase, newStatus);
+          else if (purchase) {
+            // 受付コードは支払い完了(paid)の最初の1回だけ発行する（再送で毎回変わらないように既存値があれば使う）
+            if (newStatus === 'paid' && !purchase.entry_code) {
+              purchase.entry_code = await assignEntryCode(serviceClient, purchase.id);
+            }
+            await notifyPurchaser(serviceClient, purchase, newStatus);
+          }
         }
       }
     }
