@@ -185,15 +185,15 @@ Supabase接続・ヘッダーのマイページ/通知UI刷新・お知らせ投
 - ~~Supabase — schema_v5実行~~ 実行済みだが**現在は未使用**（認証方式を合言葉に変更したため。上記「完了済みの作業」参照）
 - **Google OAuth**（後回し中）: Google Cloud ConsoleでOAuth同意画面→OAuthクライアントID作成→Client ID/SecretをSupabaseのGoogleプロバイダ設定に登録。リダイレクトURIはSupabaseのGoogleプロバイダ設定画面に表示されるCallback URLを使う。ボタン自体はログインモーダルに表示済み（押しても今はエラーになる想定内の状態）。
 - ~~Square Sandboxセットアップ~~ 2026-08-01完了（商品登録・Item Variation ID取得・`js/data.js`への設定・カート決済のSandbox実地テストまで完了。詳細は上記「Square Sandboxテストを開始」以降の各項目参照）。
-- **Square本番切り替え**（未着手）: 以下の順で実施。
-  1. Square Developer DashboardでProductionに切り替え（Sandboxアプリとは別にProduction用の認証情報が発行される）
-  2. `SQUARE_ACCESS_TOKEN`・`SQUARE_LOCATION_ID`をProduction用の値に総入れ替え（Sandbox用と混在させない）
-  3. 商品（出店料・1日入場チケット）をProduction側のアイテムライブラリにも登録し直し、新しいItem Variation IDを取得
-  4. `js/data.js`の`catalogObjectId`をSandbox用ID（`YFNRXOVTBA3L2NVJCHQXHJDB`/`J5FMYZYMXHOIGS3VXE6V6AUO`）からProduction用IDに差し替え
-  5. Production側でWebhook Subscription（`payment.updated`、宛先`https://dress-code-tokyo.com/api/square-webhook`）を作成し、発行される`SQUARE_WEBHOOK_SIGNATURE_KEY`をVercelに設定
-  6. `SQUARE_ENVIRONMENT`を`production`に変更してVercelを再デプロイ
-  7. 少額の実カードで本人が1回テスト購入し、課金→`purchases.status`が`paid`に更新→通知・メールが届く、まで確認（問題なければ返金/キャンセルしてOK）
-  8. Sandboxテスト中にできた「手続き中」等のテスト用購入データを`purchases`テーブルから削除（本番切り替え前後どちらでも可、見た目の問題のみ）
+- **Square本番切り替え（2026-08-01・コミット`9db9370`でpush済み）**: ユーザーが以下をすべて完了・確認済み。
+  1. ~~Square Developer DashboardでProductionに切り替え~~ 完了
+  2. ~~`SQUARE_ACCESS_TOKEN`・`SQUARE_LOCATION_ID`・`SQUARE_APPLICATION_ID`をProduction用の値に総入れ替え~~ Vercelで完了
+  3. ~~商品（出店料・1日入場チケット）をProduction側のアイテムライブラリにも登録~~ 完了
+  4. ~~`js/data.js`の`catalogObjectId`をProduction用IDに差し替え~~ 完了（出店料: `HHMIQQDFKFPB3BOK6VB2CGSQ` / 1日入場チケット: `NIZFJLDR6HEA7ML765JFBAS2`。Sandbox用ID(`YFNRXOVTBA3L2NVJCHQXHJDB`/`J5FMYZYMXHOIGS3VXE6V6AUO`)がリポジトリ内の他ファイルに残っていないかも確認済み、`docs/PROJECT_STATE.md`内の過去ログ以外に残存なし）
+  5. ~~Production側でWebhook Subscription（`payment.updated`）を作成、`SQUARE_WEBHOOK_SIGNATURE_KEY`をVercelに設定~~ 完了。**`SQUARE_WEBHOOK_URL`はSandbox/Production共通で変更不要**（`https://dress-code-tokyo.com/api/square-webhook`のまま）とユーザーが確認済み
+  6. ~~`SQUARE_ENVIRONMENT`を`production`に変更~~ Vercelで設定済み
+  7. **【未実施・次にやること】少額の実カードで本人が1回テスト購入**し、課金→`purchases.status`が`paid`に更新→通知・メールが届く、まで確認（問題なければ返金/キャンセルしてOK）
+  8. **【未実施】Sandboxテスト中にできた「手続き中」等のテスト用購入データを`purchases`テーブルから削除**（見た目の問題のみ、急ぎではない）
 - **（本番公開前チェックリスト・必須）Supabase Authenticationの「Confirm email」を有効化する**: 現在は開発・テスト効率優先でOFFにしており、メールアドレスを誤入力してもそのままアカウントが作成できてしまう。本番公開前に必ず以下を実施すること。
   - [ ] **先に** Supabase Dashboard → Authentication → Emails → SMTP Settings で、カスタムSMTPとしてResendを設定する。理由: SupabaseのデフォルトのメールサービスはカスタムSMTP未設定だと**1時間あたり2通までしか送れない**制限があり（2026-07-30公式ドキュメントで確認、予告なく変更されうる／本番非推奨と明記）、Confirm emailをONにすると新規登録のたびにこの制限に引っかかる。Resendは既にドメイン認証済みなので、SMTPホスト・ポート・APIキーをSupabase側に入力するだけで済み、追加のDNS設定は不要。この設定をしても課金は発生しない（Resendの無料枠＝1日100通・月3,000通が適用されるだけで、今の規模なら十分）。
   - [ ] Supabase Dashboard → Authentication → Providers（またはEmail設定）で「Confirm email」をON
