@@ -184,8 +184,16 @@ Supabase接続・ヘッダーのマイページ/通知UI刷新・お知らせ投
   - **法律上必須の項目はこれで揃った**が、本名が検索エンジンに載る状態になるため、`<meta name="robots">`の`noindex`を外すかはユーザーに確認してから。正式公開前に一度、行政書士等の専門家に内容を確認してもらうことも推奨（このAIは法律専門家ではないため）。
 - ~~Supabase — schema_v5実行~~ 実行済みだが**現在は未使用**（認証方式を合言葉に変更したため。上記「完了済みの作業」参照）
 - **Google OAuth**（後回し中）: Google Cloud ConsoleでOAuth同意画面→OAuthクライアントID作成→Client ID/SecretをSupabaseのGoogleプロバイダ設定に登録。リダイレクトURIはSupabaseのGoogleプロバイダ設定画面に表示されるCallback URLを使う。ボタン自体はログインモーダルに表示済み（押しても今はエラーになる想定内の状態）。
-- **Square**（後回し中）: Developer Dashboardへのアクセス権限待ち（現状はSquareアプリのみ利用可）。権限取得後、アプリ作成→Sandbox Access Token/Location ID取得→商品登録してCatalog Object ID取得→`js/data.js`の`catalogObjectId`に設定→Webhook登録→Vercel環境変数設定。
-- 全て完了後、Sandboxでの一連の動作確認（ログイン/カート/決済/通知/メール）を経てSquareをProductionへ切替。
+- ~~Square Sandboxセットアップ~~ 2026-08-01完了（商品登録・Item Variation ID取得・`js/data.js`への設定・カート決済のSandbox実地テストまで完了。詳細は上記「Square Sandboxテストを開始」以降の各項目参照）。
+- **Square本番切り替え**（未着手）: 以下の順で実施。
+  1. Square Developer DashboardでProductionに切り替え（Sandboxアプリとは別にProduction用の認証情報が発行される）
+  2. `SQUARE_ACCESS_TOKEN`・`SQUARE_LOCATION_ID`をProduction用の値に総入れ替え（Sandbox用と混在させない）
+  3. 商品（出店料・1日入場チケット）をProduction側のアイテムライブラリにも登録し直し、新しいItem Variation IDを取得
+  4. `js/data.js`の`catalogObjectId`をSandbox用ID（`YFNRXOVTBA3L2NVJCHQXHJDB`/`J5FMYZYMXHOIGS3VXE6V6AUO`）からProduction用IDに差し替え
+  5. Production側でWebhook Subscription（`payment.updated`、宛先`https://dress-code-tokyo.com/api/square-webhook`）を作成し、発行される`SQUARE_WEBHOOK_SIGNATURE_KEY`をVercelに設定
+  6. `SQUARE_ENVIRONMENT`を`production`に変更してVercelを再デプロイ
+  7. 少額の実カードで本人が1回テスト購入し、課金→`purchases.status`が`paid`に更新→通知・メールが届く、まで確認（問題なければ返金/キャンセルしてOK）
+  8. Sandboxテスト中にできた「手続き中」等のテスト用購入データを`purchases`テーブルから削除（本番切り替え前後どちらでも可、見た目の問題のみ）
 - **（本番公開前チェックリスト・必須）Supabase Authenticationの「Confirm email」を有効化する**: 現在は開発・テスト効率優先でOFFにしており、メールアドレスを誤入力してもそのままアカウントが作成できてしまう。本番公開前に必ず以下を実施すること。
   - [ ] **先に** Supabase Dashboard → Authentication → Emails → SMTP Settings で、カスタムSMTPとしてResendを設定する。理由: SupabaseのデフォルトのメールサービスはカスタムSMTP未設定だと**1時間あたり2通までしか送れない**制限があり（2026-07-30公式ドキュメントで確認、予告なく変更されうる／本番非推奨と明記）、Confirm emailをONにすると新規登録のたびにこの制限に引っかかる。Resendは既にドメイン認証済みなので、SMTPホスト・ポート・APIキーをSupabase側に入力するだけで済み、追加のDNS設定は不要。この設定をしても課金は発生しない（Resendの無料枠＝1日100通・月3,000通が適用されるだけで、今の規模なら十分）。
   - [ ] Supabase Dashboard → Authentication → Providers（またはEmail設定）で「Confirm email」をON
