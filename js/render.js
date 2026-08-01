@@ -14,10 +14,16 @@
     if (hero && media) { hero.classList.add('has-img'); media.innerHTML = `<img src="${S.heroImage}" alt="">`; }
   }
 
-  /* ---------- ナビ ---------- */
-  const navHtml = (S.nav || []).map(i => `<a href="${i.href}">${i.label}</a>`).join('');
+  /* ---------- ナビ ----------
+     S.nav の href は '#event' のようにトップページ内のセクションIDを指す前提。
+     トップページ以外（/console、特商法ページ、記事詳細等）で開いているときにそのまま使うと、
+     同じページ内で存在しないアンカーを探しにいくだけで「押しても何も起きない」状態になるため、
+     トップページ以外では 'index.html#event' のように付け直す。 */
+  const onHome = /\/(index\.html)?$/.test(location.pathname);
+  const navHref = href => (onHome || !href.startsWith('#')) ? href : `index.html${href}`;
+  const navHtml = (S.nav || []).map(i => `<a href="${navHref(i.href)}">${i.label}</a>`).join('');
   fill('nav-desktop', navHtml);
-  fill('nav-mobile', (S.nav || []).map(i => `<a href="${i.href}" data-close>${i.label}</a>`).join(''));
+  fill('nav-mobile', (S.nav || []).map(i => `<a href="${navHref(i.href)}" data-close>${i.label}</a>`).join(''));
   fill('footer-sitemap', navHtml);
 
   /* ---------- カテゴリタイル（activities） ---------- */
