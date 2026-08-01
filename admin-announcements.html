@@ -701,7 +701,7 @@
         return segments
           .map(s => {
             const buyers = (s.buyers || []).filter(b =>
-              (b.email || '').toLowerCase().includes(q) || (b.entryCode || '').includes(q));
+              (b.email || '').toLowerCase().includes(q) || (b.entryCode || '').toLowerCase().includes(q));
             return { ...s, buyers, count: buyers.length };
           })
           .filter(s => s.buyers.length);

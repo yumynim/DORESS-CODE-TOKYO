@@ -47,7 +47,7 @@ DORESS CODE TOKYO/
 │   ├── schema_v5_admin.sql          profiles.is_admin カラム＋本人が自分では変更できないようにするガード（現在は未使用。合言葉方式に変更したため）
 │   ├── schema_v6_inquiries.sql      inquiries テーブル（サイトのお問い合わせフォームの内容・返信記録）
 │   ├── schema_v7_notification_html.sql  notifications/announcements に body_html カラムを追加（画像付きお知らせをサイト内でも正しく表示するため）
-│   └── schema_v8_entry_code.sql   purchases に entry_code カラムを追加（当日の入場確認用コード、支払い完了時にAPI側で発行。★未実行★Supabaseで実行が必要）
+│   └── schema_v8_entry_code.sql   purchases に entry_code カラムを追加（当日の入場確認用コード「DCT-購入日-ランダム4文字」、支払い完了時にAPI側で発行。★未実行★Supabaseで実行が必要）
 ├── assets/images/                 画像
 ├── vercel.json                    セキュリティヘッダー設定
 ├── .env.example                   環境変数テンプレート（実値は Vercel の環境変数に設定する想定）
@@ -181,7 +181,8 @@ Supabase接続・ヘッダーのマイページ/通知UI刷新・お知らせ投
 - **（2026-08-01・コミット`6fc011c`でpush済み）当日入場確認用の受付コード＋「手続き未完了」名簿を追加**:
   - 背景: ユーザーから「入場・識別に使える、当てずっぽうでは当たらない番号を購入者に振りたい。口頭で伝える想定なので大文字小文字の区別が無いのがいい」との要望。
   - **[`supabase/schema_v8_entry_code.sql`](../supabase/schema_v8_entry_code.sql)（新規・★まだユーザーが未実行★）**: `purchases.entry_code`カラム（テキスト）＋一意インデックスを追加。**このマイグレーションを実行するまでは、以下のコードはエラーになるかentry_codeが常にnullになる**。
-  - [`api/square-webhook.js`](../api/square-webhook.js): 支払いが`paid`に確定した最初の1回だけ、6桁の数字（`crypto.randomInt(100000, 1000000)`、大文字小文字の区別が発生しない・連番でないためあてずっぽうで当たりにくい）を発行して`entry_code`に保存。ユニーク制約に衝突したら別の値で最大5回まで再試行。Webhookの再送（既存の重複排除ロジック）が来ても、既にentry_codeがあれば再発行しない。購入完了メール・サイト内通知の本文にも「当日の受付コードは「○○○○○○」です」を追記。
+  - [`api/square-webhook.js`](../api/square-webhook.js): 支払いが`paid`に確定した最初の1回だけコードを発行して`entry_code`に保存。ユニーク制約に衝突したら別の値で最大5回まで再試行。Webhookの再送（既存の重複排除ロジック）が来ても、既にentry_codeがあれば再発行しない。購入完了メール・サイト内通知の本文にも「当日の受付コードは「○○」です」を追記。
+    - **（2026-08-02更新）コード形式を変更**: 最初は6桁の数字のみだったが、ユーザーが他サービスの`TFM-20260802-A1B2`のような見た目の例を見て「そっちの方がやりやすい」と方針転換。`DCT-購入日(YYYYMMDD)-ランダム4文字`形式（例: `DCT-20260802-7K4M`）に変更。ランダム部分は見間違い・聞き間違いしやすい文字（`0/O`、`1/I/L`、`U/V`等）を除いた29文字のセットから選ぶ（同日内で約70万通り）。
   - 表示側: [`js/auth.js`](../js/auth.js)のヘッダーマイページドロワー、[`members-only.html`](../members-only.html)のフルページ版、両方の購入履歴に受付コードを表示するよう`select`にフィールド追加。
   - [`api/admin-announcements.js`](../api/admin-announcements.js): `collectSegments()`にstatus引数を追加して`'paid'`／`'initiated'`の両方に使えるようにし、`entry_code`も持たせた。GETレスポンスに`pendingSegments`（チケット単位の「手続き未完了」名簿、メール・購入試行日を含む）を追加。
   - [`admin-announcements.html`](../admin-announcements.html): 「購入者一覧」セクションを「支払い済み（受付コード付き）」と「手続き未完了」の2グループ表示に変更。

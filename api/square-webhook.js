@@ -18,14 +18,22 @@ const crypto = require('crypto');
 const { createClient } = require('@supabase/supabase-js');
 const { sendEmail, SITE_URL } = require('../lib/mailer');
 
-// 当日の入場確認用コード。口頭で伝える想定のため数字のみ・6桁（大文字小文字の区別が発生しない）。
-// 当てずっぽうで通らないよう、連番ではなくランダムに発行する。
+// 当日の入場確認用コード。「DCT-購入日-ランダム4文字」の形式（例: DCT-20260802-7K4M）。
+// ランダム部分は見間違い・聞き間違いしやすい文字（0/O, 1/I/L, U/V等）を除いた文字セットから選ぶ。
+// 当てずっぽうで通らないよう、連番ではなくランダムに発行する（ランダム部分だけで約70万通り）。
+const ENTRY_CODE_CHARS = '23456789ABCDEFGHJKMNPQRSTWXYZ';
 function generateEntryCode() {
-  return String(crypto.randomInt(100000, 1000000));
+  const now = new Date();
+  const y = now.getFullYear();
+  const m = String(now.getMonth() + 1).padStart(2, '0');
+  const d = String(now.getDate()).padStart(2, '0');
+  let suffix = '';
+  for (let i = 0; i < 4; i++) suffix += ENTRY_CODE_CHARS[crypto.randomInt(ENTRY_CODE_CHARS.length)];
+  return `DCT-${y}${m}${d}-${suffix}`;
 }
 
 // purchases.entry_code はユニーク制約があるため、衝突したら別の値で数回だけ再試行する
-// （6桁・約90万通りなので実際に衝突することはほぼ無い）。
+// （同じ日にランダム部分だけで約70万通りなので実際に衝突することはほぼ無い）。
 async function assignEntryCode(serviceClient, purchaseId) {
   for (let attempt = 0; attempt < 5; attempt++) {
     const code = generateEntryCode();
