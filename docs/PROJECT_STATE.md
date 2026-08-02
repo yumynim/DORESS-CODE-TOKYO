@@ -257,15 +257,16 @@ Supabase接続・ヘッダーのマイページ/通知UI刷新・お知らせ投
   6. ~~`SQUARE_ENVIRONMENT`を`production`に変更~~ Vercelで設定済み
   7. **【未実施・次にやること】少額の実カードで本人が1回テスト購入**し、課金→`purchases.status`が`paid`に更新→通知・メールが届く、まで確認（問題なければ返金/キャンセルしてOK）
   8. **【未実施】Sandboxテスト中にできた「手続き中」等のテスト用購入データを`purchases`テーブルから削除**（見た目の問題のみ、急ぎではない）
-- **（本番公開前チェックリスト・必須）Supabase Authenticationの「Confirm email」を有効化する**: 現在は開発・テスト効率優先でOFFにしており、メールアドレスを誤入力してもそのままアカウントが作成できてしまう。本番公開前に必ず以下を実施すること。
-  - [ ] **先に** Supabase Dashboard → Authentication → Emails → SMTP Settings で、カスタムSMTPとしてResendを設定する。理由: SupabaseのデフォルトのメールサービスはカスタムSMTP未設定だと**1時間あたり2通までしか送れない**制限があり（2026-07-30公式ドキュメントで確認、予告なく変更されうる／本番非推奨と明記）、Confirm emailをONにすると新規登録のたびにこの制限に引っかかる。Resendは既にドメイン認証済みなので、SMTPホスト・ポート・APIキーをSupabase側に入力するだけで済み、追加のDNS設定は不要。この設定をしても課金は発生しない（Resendの無料枠＝1日100通・月3,000通が適用されるだけで、今の規模なら十分）。
-  - [ ] Supabase Dashboard → Authentication → Providers（またはEmail設定）で「Confirm email」をON
-  - [ ] Resendの独自ドメイン認証（SPF/DKIM等）が完了していることを確認（[完了済みの作業]参照、2026-07-25に確認済みだが公開直前に再確認）
-  - [ ] 新規登録時に確認メールが送信されることを確認
-  - [ ] 確認メール内のリンクから認証できることを確認
-  - [ ] 認証前はログインできず、認証後のみログインできることを確認
+- **（本番公開前チェックリスト・必須・2026-08-03進行中）Supabase Authenticationの「Confirm email」を有効化する**:
+  - [x] Resendのカスタムメールドメイン用APIキーを作り直し（旧キーの値を忘れてしまったため、Resend側で新規発行→Vercelの`RESEND_API_KEY`更新→再デプロイ→Supabase SMTP Passwordにも反映、の順で対応。旧キーは新キーでの送信確認後に削除済み）
+  - [x] Supabase Dashboard → Authentication → Emails → SMTP SettingsでカスタムSMTP（Resend、`smtp.resend.com`:465、Username: `resend`固定）を設定・有効化（Enable custom SMTPがON）
+  - [x] Supabase Dashboard → Authentication → Sign In / Providers → User Signupsで「Confirm email」をON、保存成功を確認
+  - [ ] 新規登録時に確認メールが送信されることを確認 → **確認済み**（新しいメールアドレスで登録し、メール自体は届いた）
+  - [ ] 確認メール内のリンクから認証できることを確認 → **未解決の問題あり**：リンクを開くと`localhost:3000/#error=access_denied&error_code=otp_expired&error_description=Email+link+is+invalid+or+has+expired`というエラーになった。**原因はおそらくSupabaseの Authentication → URL Configuration の「Site URL」が開発用の`localhost:3000`のままになっていること**（本番ドメイン`https://dress-code-tokyo.com`に直すよう案内済み、ユーザーが対応中）。直しても直らない場合は、Gmail等のリンク事前スキャンによってワンタイムトークンが本人のクリック前に消費されてしまう既知の問題も疑う。
+  - [ ] 認証前はログインできず、認証後のみログインできることを確認（↑が直ってから）
   - [ ] メールアドレスを誤入力した場合にアカウントを利用できないことを確認
   - [ ] 実際のユーザー視点で新規登録フローを最後までテストする
+  - **（2026-08-03・未コミット→ユーザー承認後push予定）「確認メールを再送する」機能を追加**: Confirm emailをONにしたことで、確認メールを見落とした／届かなかった人がログインしようとしてエラーになるケースが発生するはずなのに、再送する手段が無かった。[`js/auth.js`](../js/auth.js)のログインフォームに、Supabaseが「メール未確認」エラーを返したときだけ「確認メールを再送する」ボタンを出す処理を追加（`client.auth.resend({ type: 'signup', email })`を呼ぶ）。
   - 完了するまでは公開しないこと（セキュリティとメールアドレスの正当性を保証するための必須項目）。
 
 # 重要な仕様・決定事項

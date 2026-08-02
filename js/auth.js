@@ -77,6 +77,7 @@
       '    <label>メールアドレス<input type="email" name="email" required autocomplete="email"></label>' +
       '    <label>パスワード<input type="password" name="password" required autocomplete="current-password"></label>' +
       '    <p class="auth-form__error" hidden></p>' +
+      '    <button type="button" class="btn-link auth-form__resend" hidden>確認メールを再送する</button>' +
       '    <button type="submit" class="btn btn--solid auth-form__submit">ログイン</button>' +
       '  </form>' +
       '  <form id="auth-form-signup" class="auth-form" hidden>' +
@@ -146,6 +147,8 @@
 
   function clearFormErrors() {
     modal.querySelectorAll('.auth-form__error').forEach(function (p) { p.hidden = true; p.textContent = ''; });
+    var resendBtn = modal.querySelector('.auth-form__resend');
+    if (resendBtn) { resendBtn.hidden = true; resendBtn.textContent = '確認メールを再送する'; resendBtn.disabled = false; }
   }
   function showFormError(form, message) {
     var p = form.querySelector('.auth-form__error');
@@ -177,6 +180,14 @@
     btn.textContent = busy ? '処理中…' : label;
   }
 
+  // Confirm email を有効にしてから、メール未確認のままログインしようとする人が出てくるため、
+  // その場合だけ「確認メールを再送する」を出す（見分け方はSupabaseのエラーコード／文言に依存）。
+  function isUnconfirmedEmailError(error) {
+    if (!error) return false;
+    if (error.code === 'email_not_confirmed') return true;
+    return /email not confirmed/i.test(error.message || '');
+  }
+
   function handleSignin(e) {
     e.preventDefault();
     clearFormErrors();
@@ -187,7 +198,30 @@
     setButtonBusy(btn, true, 'ログイン');
     client.auth.signInWithPassword({ email: email, password: password }).then(function (res) {
       setButtonBusy(btn, false, 'ログイン');
-      if (res.error) { showFormError(f, 'ログインできませんでした：' + res.error.message); return; }
+      if (res.error) {
+        if (isUnconfirmedEmailError(res.error)) {
+          showFormError(f, 'まだメールアドレスが確認されていません。確認メール内のリンクを開いてください。');
+          var resendBtn = f.querySelector('.auth-form__resend');
+          resendBtn.hidden = false;
+          resendBtn.onclick = function () {
+            resendBtn.disabled = true;
+            resendBtn.textContent = '送信中…';
+            client.auth.resend({ type: 'signup', email: email }).then(function (resendRes) {
+              if (resendRes.error) {
+                resendBtn.disabled = false;
+                resendBtn.textContent = '確認メールを再送する';
+                showFormError(f, '再送に失敗しました：' + resendRes.error.message);
+                return;
+              }
+              resendBtn.disabled = true;
+              resendBtn.textContent = '再送しました（メールをご確認ください）';
+            });
+          };
+          return;
+        }
+        showFormError(f, 'ログインできませんでした：' + res.error.message);
+        return;
+      }
       onAuthed(res.data.session);
     });
   }
