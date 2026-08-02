@@ -69,7 +69,7 @@
         <details class="admin-toggle" id="details-checkin-history">
           <summary><h2>本日のチェックイン一覧 <span class="admin-toggle__count" id="checkin-history-count"></span></h2></summary>
           <p class="mypage__note">間違えてチェックインしてしまった場合は「取り消す」で元に戻せます。</p>
-          <input type="search" class="admin-search" id="checkin-history-search" placeholder="コード・メールアドレス・チケット名で検索…">
+          <input type="search" class="admin-search" id="checkin-history-search" placeholder="コード・メールアドレス・お名前・チケット名で検索…">
           <div id="checkin-history-list" class="mypage__notifications">
             <p class="cards-empty">読み込み中…</p>
           </div>
@@ -163,15 +163,16 @@
       function renderResult(state, code, data) {
         const time = new Date().toLocaleTimeString('ja-JP');
         let html = '';
+        const buyerLine = data.buyerName ? `${esc(data.buyerName)}　${esc(data.buyerEmail)}` : esc(data.buyerEmail);
         if (state === 'ok') {
           html = `<div class="checkin__badge checkin__badge--ok">入場OK</div>
             <p class="checkin__ticket">${esc(data.ticketName)}</p>
-            <p class="checkin__buyer">${esc(data.buyerEmail)}</p>
+            <p class="checkin__buyer">${buyerLine}</p>
             <p class="checkin__code">${esc(code)}</p>`;
         } else if (state === 'used') {
           html = `<div class="checkin__badge checkin__badge--used">入場済みです</div>
             <p class="checkin__ticket">${esc(data.ticketName)}</p>
-            <p class="checkin__buyer">${esc(data.buyerEmail)}</p>
+            <p class="checkin__buyer">${buyerLine}</p>
             <p class="mypage__note">最初の入場: ${new Date(data.checkedInAt).toLocaleString('ja-JP')}</p>
             <p class="checkin__code">${esc(code)}</p>`;
         } else {
@@ -198,7 +199,7 @@
               <h3>${esc(c.ticketName)}</h3>
               <span class="mypage__notification-date">${new Date(c.checkedInAt).toLocaleString('ja-JP')}</span>
             </div>
-            <p>${esc(c.buyerEmail)}　${esc(c.entryCode)}</p>
+            <p>${c.buyerName ? esc(c.buyerName) + '　' : ''}${esc(c.buyerEmail)}　${esc(c.entryCode)}</p>
             <button type="button" class="btn-link" data-undo-id="${esc(c.id)}">取り消す</button>
           </div>`).join('');
         historyEl.querySelectorAll('[data-undo-id]').forEach(btn => {
@@ -221,6 +222,7 @@
         const filtered = !q ? allCheckins : allCheckins.filter(c =>
           (c.entryCode || '').toLowerCase().includes(q) ||
           (c.buyerEmail || '').toLowerCase().includes(q) ||
+          (c.buyerName || '').toLowerCase().includes(q) ||
           (c.ticketName || '').toLowerCase().includes(q));
         renderHistory(filtered);
       }

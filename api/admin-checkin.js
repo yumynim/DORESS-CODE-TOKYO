@@ -15,7 +15,9 @@
 const { createClient } = require('@supabase/supabase-js');
 const { verifyAdminToken } = require('../lib/adminAuth');
 
-async function resolveEmails(serviceClient, userIds) {
+// 会員登録時の「お名前」（display_name）とメールアドレスの両方を返す。
+// スタッフが現場でメールアドレスだけでは本人特定しづらいという要望に対応するため。
+async function resolveUsers(serviceClient, userIds) {
   const map = new Map();
   const remaining = new Set(userIds);
   if (!remaining.size) return map;
@@ -25,7 +27,15 @@ async function resolveEmails(serviceClient, userIds) {
     const { data, error } = await serviceClient.auth.admin.listUsers({ page, perPage });
     if (error) break;
     const users = (data && data.users) || [];
-    for (const u of users) { if (remaining.has(u.id)) { map.set(u.id, u.email || '（不明）'); remaining.delete(u.id); } }
+    for (const u of users) {
+      if (remaining.has(u.id)) {
+        map.set(u.id, {
+          email: u.email || '（不明）',
+          name: (u.user_metadata && u.user_metadata.display_name) || '',
+        });
+        remaining.delete(u.id);
+      }
+    }
     if (!remaining.size || users.length < perPage) break;
     page += 1;
   }
@@ -47,14 +57,18 @@ module.exports = async function handler(req, res) {
         .limit(200);
       if (error) { console.error('admin-checkin list failed:', error.message); res.status(500).json({ error: '読み込みに失敗しました' }); return; }
 
-      const emailByUserId = await resolveEmails(serviceClient, (data || []).map((p) => p.user_id));
-      const checkins = (data || []).map((p) => ({
-        id: p.id,
-        entryCode: p.entry_code,
-        ticketName: p.ticket_name,
-        buyerEmail: emailByUserId.get(p.user_id) || '（不明）',
-        checkedInAt: p.checked_in_at,
-      }));
+      const userByUserId = await resolveUsers(serviceClient, (data || []).map((p) => p.user_id));
+      const checkins = (data || []).map((p) => {
+        const u = userByUserId.get(p.user_id);
+        return {
+          id: p.id,
+          entryCode: p.entry_code,
+          ticketName: p.ticket_name,
+          buyerEmail: (u && u.email) || '（不明）',
+          buyerName: (u && u.name) || '',
+          checkedInAt: p.checked_in_at,
+        };
+      });
       res.status(200).json({ checkins });
     } catch (err) {
       console.error('admin-checkin GET handler error:', err);
@@ -104,12 +118,14 @@ module.exports = async function handler(req, res) {
 
     const { data: userRes } = await serviceClient.auth.admin.getUserById(purchase.user_id);
     const buyerEmail = (userRes && userRes.user && userRes.user.email) || '（不明）';
+    const buyerName = (userRes && userRes.user && userRes.user.user_metadata && userRes.user.user_metadata.display_name) || '';
 
     if (purchase.checked_in_at) {
       res.status(200).json({
         alreadyCheckedIn: true,
         ticketName: purchase.ticket_name,
         buyerEmail,
+        buyerName,
         checkedInAt: purchase.checked_in_at,
       });
       return;
@@ -122,7 +138,7 @@ module.exports = async function handler(req, res) {
       .eq('id', purchase.id);
     if (updateErr) { console.error('admin-checkin update failed:', updateErr.message); res.status(500).json({ error: '記録に失敗しました' }); return; }
 
-    res.status(200).json({ alreadyCheckedIn: false, id: purchase.id, ticketName: purchase.ticket_name, buyerEmail, checkedInAt });
+    res.status(200).json({ alreadyCheckedIn: false, id: purchase.id, ticketName: purchase.ticket_name, buyerEmail, buyerName, checkedInAt });
   } catch (err) {
     console.error('admin-checkin handler error:', err);
     res.status(500).json({ error: 'サーバー内部でエラーが発生しました' });

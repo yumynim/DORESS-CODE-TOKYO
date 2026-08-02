@@ -114,7 +114,7 @@
         <details class="admin-toggle" id="details-purchasers">
           <summary><h2>購入者一覧 <span class="admin-toggle__count" id="admin-purchasers-count"></span></h2></summary>
           <p class="mypage__note">「支払い済み」（受付コード付き）と「手続き未完了」（決済ページまでは進んだがまだ支払っていない人）を分けて表示します。チケットごとに開閉できます。</p>
-          <input type="search" class="admin-search" id="admin-purchasers-search" placeholder="メールアドレス・受付コードで検索…">
+          <input type="search" class="admin-search" id="admin-purchasers-search" placeholder="メールアドレス・お名前・受付コードで検索…">
           <div id="admin-purchasers"><p class="cards-empty">読み込み中…</p></div>
         </details>
       </section>
@@ -132,7 +132,7 @@
       <section class="mypage__section" id="section-personal">
         <details class="admin-toggle" id="details-personal">
           <summary><h2>個人宛てに送った履歴 <span class="admin-toggle__count" id="admin-list-personal-count"></span></h2></summary>
-          <input type="search" class="admin-search" id="admin-list-personal-search" placeholder="メールアドレス・タイトル・本文で検索…">
+          <input type="search" class="admin-search" id="admin-list-personal-search" placeholder="メールアドレス・お名前・タイトル・本文で検索…">
           <div id="admin-list-personal" class="mypage__notifications">
             <p class="cards-empty">読み込み中…</p>
           </div>
@@ -352,7 +352,7 @@
               </span>
             </summary>
             <div class="toggle-item__body">
-              ${n.email ? `<p class="mypage__notification-date">宛先: ${esc(n.email)}</p>` : ''}
+              ${n.email ? `<p class="mypage__notification-date">宛先: ${n.name ? esc(n.name) + '　' : ''}${esc(n.email)}</p>` : ''}
               <div class="mypage__notification-body">${n.body_html || `<p>${esc(n.body)}</p>`}</div>
               <button type="button" class="btn-link admin-form__delete" data-delete-id="${esc(n.id)}" data-delete-type="${type}">削除する</button>
             </div>
@@ -400,7 +400,7 @@
       function filterPersonal() {
         const q = (listPersonalSearchEl.value || '').trim().toLowerCase();
         const filtered = !q ? allPersonal : allPersonal.filter(n =>
-          (n.title || '').toLowerCase().includes(q) || (n.body || '').toLowerCase().includes(q) || (n.email || '').toLowerCase().includes(q));
+          (n.title || '').toLowerCase().includes(q) || (n.body || '').toLowerCase().includes(q) || (n.email || '').toLowerCase().includes(q) || (n.name || '').toLowerCase().includes(q));
         renderList(listPersonalEl, filtered, 'まだ個人宛てに送ったお知らせはありません。', 'personal', !q || filtered.length > 0);
       }
       listSearchEl.addEventListener('input', filterList);
@@ -666,7 +666,7 @@
         return `
           <div class="mypage__notification">
             <div class="mypage__notification-head">
-              <h4>${esc(b.email)}</h4>
+              <h4>${b.name ? esc(b.name) + '　' : ''}${esc(b.email)}</h4>
               <span class="mypage__notification-date">${b.purchasedAt ? new Date(b.purchasedAt).toLocaleDateString('ja-JP') : ''}</span>
             </div>
             ${b.entryCode ? `<p class="mypage__notification-date">受付コード: <strong>${esc(b.entryCode)}</strong></p>` : ''}
@@ -701,7 +701,7 @@
         return segments
           .map(s => {
             const buyers = (s.buyers || []).filter(b =>
-              (b.email || '').toLowerCase().includes(q) || (b.entryCode || '').toLowerCase().includes(q));
+              (b.email || '').toLowerCase().includes(q) || (b.name || '').toLowerCase().includes(q) || (b.entryCode || '').toLowerCase().includes(q));
             return { ...s, buyers, count: buyers.length };
           })
           .filter(s => s.buyers.length);

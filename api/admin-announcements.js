@@ -89,9 +89,9 @@ async function collectSegments(serviceClient, status) {
   return segments;
 }
 
-// 購入者一覧（コンソール表示用）: セグメントごとにメールアドレス・購入日まで解決する。
+// 購入者一覧（コンソール表示用）: セグメントごとにメールアドレス・お名前・購入日まで解決する。
 // listUsers を都度呼ぶと遅いので、必要なuser_idぶんだけ1回のページングでまとめて引く。
-async function resolveEmails(serviceClient, userIds) {
+async function resolveUsers(serviceClient, userIds) {
   const map = new Map();
   const remaining = new Set(userIds);
   if (!remaining.size) return map;
@@ -101,7 +101,15 @@ async function resolveEmails(serviceClient, userIds) {
     const { data, error } = await serviceClient.auth.admin.listUsers({ page, perPage });
     if (error) break;
     const users = (data && data.users) || [];
-    for (const u of users) { if (remaining.has(u.id)) { map.set(u.id, u.email || '（不明）'); remaining.delete(u.id); } }
+    for (const u of users) {
+      if (remaining.has(u.id)) {
+        map.set(u.id, {
+          email: u.email || '（不明）',
+          name: (u.user_metadata && u.user_metadata.display_name) || '',
+        });
+        remaining.delete(u.id);
+      }
+    }
     if (!remaining.size || users.length < perPage) break;
     page += 1;
   }
@@ -164,7 +172,12 @@ module.exports = async function handler(req, res) {
       if (!personalRes.error && personalRes.data) {
         personal = await Promise.all(personalRes.data.map(async (n) => {
           const { data } = await serviceClient.auth.admin.getUserById(n.user_id);
-          return { id: n.id, title: n.title, body: n.body, body_html: n.body_html, created_at: n.created_at, email: (data && data.user && data.user.email) || '（不明）' };
+          const u = data && data.user;
+          return {
+            id: n.id, title: n.title, body: n.body, body_html: n.body_html, created_at: n.created_at,
+            email: (u && u.email) || '（不明）',
+            name: (u && u.user_metadata && u.user_metadata.display_name) || '',
+          };
         }));
       }
 
@@ -174,18 +187,22 @@ module.exports = async function handler(req, res) {
         collectSegments(serviceClient, 'initiated'),
       ]);
       const allBuyerIds = [...segmentMap.values(), ...pendingSegmentMap.values()].flatMap((s) => [...s.userIds]);
-      const emailByUserId = await resolveEmails(serviceClient, allBuyerIds);
+      const userByUserId = await resolveUsers(serviceClient, allBuyerIds);
       const toBuyerList = (segMap) => [...segMap.values()]
         .map((s) => ({
           key: s.key,
           name: s.name,
           count: s.userIds.size,
           buyers: [...s.userIds]
-            .map((uid) => ({
-              email: emailByUserId.get(uid) || '（不明）',
-              purchasedAt: s.purchasedAt.get(uid) || null,
-              entryCode: s.entryCode.get(uid) || null,
-            }))
+            .map((uid) => {
+              const u = userByUserId.get(uid);
+              return {
+                email: (u && u.email) || '（不明）',
+                name: (u && u.name) || '',
+                purchasedAt: s.purchasedAt.get(uid) || null,
+                entryCode: s.entryCode.get(uid) || null,
+              };
+            })
             .sort((a, b) => (b.purchasedAt || '').localeCompare(a.purchasedAt || '')),
         }))
         .sort((a, b) => b.count - a.count);
