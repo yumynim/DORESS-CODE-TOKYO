@@ -83,6 +83,7 @@
       '  <form id="auth-form-signup" class="auth-form" hidden>' +
       '    <label>お名前<input type="text" name="displayName" required autocomplete="name"></label>' +
       '    <label>メールアドレス<input type="email" name="email" required autocomplete="email"></label>' +
+      '    <p class="auth-form__hint" id="auth-signup-email-hint" hidden>このメールアドレスは既に登録されています。「ログイン」タブからログインしてください。</p>' +
       '    <label>パスワード（6文字以上）<input type="password" name="password" required minlength="6" autocomplete="new-password"></label>' +
       '    <p class="auth-form__error" hidden></p>' +
       '    <button type="button" class="btn-link auth-form__resend" hidden>確認メールを再送する</button>' +
@@ -126,6 +127,7 @@
     } else {
       formSignin.addEventListener('submit', handleSignin);
       formSignup.addEventListener('submit', handleSignup);
+      wireEmailExistsCheck();
       if (GOOGLE_LOGIN_ENABLED) {
         googleBtn.addEventListener('click', signInWithGoogle);
       } else {
@@ -150,6 +152,8 @@
     modal.querySelectorAll('.auth-form__error').forEach(function (p) { p.hidden = true; p.textContent = ''; });
     var resendBtn = modal.querySelector('.auth-form__resend');
     if (resendBtn) { resendBtn.hidden = true; resendBtn.textContent = '確認メールを再送する'; resendBtn.disabled = false; }
+    var hint = modal.querySelector('#auth-signup-email-hint');
+    if (hint) hint.hidden = true;
   }
   function showFormError(form, message) {
     var p = form.querySelector('.auth-form__error');
@@ -194,6 +198,13 @@
     if (error.code === 'user_already_exists') return true;
     return /already registered/i.test(error.message || '');
   }
+  // メール確認リンクが（本人のクリック前に、メールソフトの自動先読み等で）既に使用され、
+  // 実はもう確認済みになっているケース。この場合「再送」はSupabase側で拒否される。
+  // 見分け方をユーザーに伝え、実は登録できている旨を案内する。
+  function isAlreadyConfirmedError(error) {
+    if (!error) return false;
+    return /already confirmed/i.test(error.message || '');
+  }
 
   // form内の「確認メールを再送する」ボタンを、指定のメール宛てに再送するよう配線する。
   function wireResendButton(f, email) {
@@ -209,13 +220,43 @@
         if (resendRes.error) {
           resendBtn.disabled = false;
           resendBtn.textContent = '確認メールを再送する';
-          showFormError(f, '再送に失敗しました：' + resendRes.error.message);
+          if (isAlreadyConfirmedError(resendRes.error)) {
+            showFormError(f, 'このメールアドレスは既に確認済みです。「ログイン」タブからログインしてください。');
+          } else {
+            showFormError(f, '再送に失敗しました：' + resendRes.error.message);
+          }
           return;
         }
         resendBtn.disabled = true;
         resendBtn.textContent = '再送しました（メールをご確認ください）';
       });
     };
+  }
+
+  // 新規登録フォームのメール欄からフォーカスが外れたら、そのメールアドレスが
+  // 既に会員登録済みかどうかを確認し、その場で案内を出す（送信してから気づくより早く分かるように）。
+  var emailExistsCheckSeq = 0;
+  function wireEmailExistsCheck() {
+    var emailInput = formSignup.querySelector('input[name="email"]');
+    var hint = formSignup.querySelector('#auth-signup-email-hint');
+    if (!emailInput || !hint) return;
+    emailInput.addEventListener('blur', function () {
+      var email = emailInput.value.trim();
+      hint.hidden = true;
+      if (!email || !emailInput.checkValidity()) return;
+      var seq = ++emailExistsCheckSeq;
+      fetch('/api/check-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: email }),
+      })
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+          if (seq !== emailExistsCheckSeq) return; // 入力が変わった後に古い結果が返ってきた場合は無視
+          hint.hidden = !data.exists;
+        })
+        .catch(function () { /* 確認できなくても登録自体は妨げない */ });
+    });
   }
 
   function handleSignin(e) {

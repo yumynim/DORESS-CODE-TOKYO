@@ -40,7 +40,10 @@
 * { box-sizing: border-box; }
 /* hidden 属性は display:flex 等を使うクラス（.btn 等）より弱いので、常に勝つように固定しておく */
 [hidden] { display: none !important; }
-html { scroll-behavior: smooth; }
+/* モーダル／ドロワーを開くたびに body に overflow:hidden を付けてスクロールバーを消しているが、
+   その分ページ幅が変わってヘッダーが一瞬ガタつく（レイアウトシフト）。
+   スクロールバー分の幅を常に確保しておくことで、出し入れしても幅が変わらないようにする。 */
+html { scroll-behavior: smooth; scrollbar-gutter: stable; }
 body {
   margin: 0;
   background: var(--bg);
@@ -1055,6 +1058,7 @@ a.mcard__sns:hover { transform: translateY(-3px); }
 }
 .auth-form input:focus { outline: none; border-color: var(--ink); background: #fff; }
 .auth-form__error { font-size: 12px; line-height: 1.7; color: #b8442f; }
+.auth-form__hint { margin: -8px 0 0; font-size: 12px; line-height: 1.7; color: #b8442f; }
 .auth-form__submit { margin-top: 4px; width: 100%; justify-content: center; border: none; }
 
 /* =========================================================
