@@ -136,7 +136,7 @@
       }
 
       const yen = n => (isFinite(n) && n > 0) ? '¥' + Number(n).toLocaleString('ja-JP') : String(n || '');
-      const STATUS_LABEL = { initiated: '手続き中', paid: '購入完了', canceled: 'キャンセル' };
+      const STATUS_LABEL = { initiated: '手続き中', paid: '購入完了', canceled: 'キャンセル', refunded: '返金済み' };
       const esc = s => String(s == null ? '' : s).replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
       // 当日の入場確認用QR画像（外部の無料サービスで生成。受付コード自体は個人情報を含まないランダムな文字列）
       const entryCodeQrUrl = (code, size) => 'https://api.qrserver.com/v1/create-qr-code/?size=' + (size || 160) + 'x' + (size || 160) + '&data=' + encodeURIComponent(code);

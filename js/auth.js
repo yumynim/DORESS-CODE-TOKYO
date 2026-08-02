@@ -434,7 +434,7 @@
   /* ---------- マイページ用ドロワー（購入したチケット＋ログアウト） ----------
      ヘッダーのアイコンから、他のページを離れずに開ける。 */
   var accountDrawer = null, accountGreetingEl = null, accountPurchasesEl = null;
-  var ACCOUNT_STATUS_LABEL = { initiated: '手続き中', paid: '購入完了', canceled: 'キャンセル' };
+  var ACCOUNT_STATUS_LABEL = { initiated: '手続き中', paid: '購入完了', canceled: 'キャンセル', refunded: '返金済み' };
   function escHtml(s) { return String(s == null ? '' : s).replace(/[&<>]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]; }); }
 
   function ensureAccountDrawer() {

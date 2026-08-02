@@ -146,6 +146,9 @@ module.exports = async function handler(req, res) {
       square_order_id: squareOrderId,
       square_checkout_id: paymentLink.id,
       items: resolvedItems,
+      // 何人分入場できるか。まとめ買いされたとき、受付でその人数まで通せるようにする
+      // （supabase/schema_v13_checkin_count.sql 参照）。
+      quantity: resolvedItems.reduce((sum, it) => sum + it.quantity, 0),
     });
     if (insertErr) {
       // 記録できないまま決済させると、Webhookが購入者を特定できず受付コードを発行できない

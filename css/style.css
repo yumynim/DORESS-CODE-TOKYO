@@ -1058,6 +1058,7 @@ a.mcard__sns:hover { transform: translateY(-3px); }
 }
 .auth-form input:focus { outline: none; border-color: var(--ink); background: #fff; }
 .auth-form__error { font-size: 12px; line-height: 1.7; color: #b8442f; }
+.checkin__count { margin: 6px 0 0; font-family: var(--f-sans); font-size: 15px; font-weight: 600; letter-spacing: 0.04em; color: var(--ink); }
 .auth-form__hint { margin: -8px 0 0; font-size: 12px; line-height: 1.7; color: #b8442f; }
 .auth-form__submit { margin-top: 4px; width: 100%; justify-content: center; border: none; }
 .auth-modal__forgot, #auth-reset-back { align-self: center; margin-top: 2px; border-bottom-color: var(--line-2); font-size: 11px; }

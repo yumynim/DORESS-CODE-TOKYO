@@ -204,6 +204,26 @@ async function notifyAdmin(purchase, newStatus, buyerEmail) {
 // `data += chunk` のように1チャンクずつ文字列化すると、日本語などのマルチバイト文字が
 // チャンクの境目で分断されたときに文字化けし、署名計算の対象がSquareの送った本文と
 // 変わってしまう（＝正規の通知なのに署名不一致で弾かれ、決済が反映されなくなる）。
+// 返金が確定したときに運営へ知らせる。すでに入場済みだった場合は特に目立つようにする
+// （入場した人に返金した、という状況は人手での確認が要るため）。
+async function notifyRefund(purchase) {
+  const adminTo = process.env.CONTACT_TO_EMAIL || process.env.NOTIFY_FROM_EMAIL;
+  if (!adminTo) return;
+  const safeName = String(purchase.ticket_name || '').replace(/[\r\n]+/g, ' ');
+  const lines = [
+    `${safeName} が返金されました。受付コードを無効にしました。`,
+    purchase.entry_code ? `無効にしたコード: ${purchase.entry_code}` : '',
+    purchase.checked_in_at
+      ? `※このお客様は ${new Date(purchase.checked_in_at).toLocaleString('ja-JP')} に入場済みです。ご確認ください。`
+      : '',
+  ].filter(Boolean);
+  try {
+    await sendEmail({ to: adminTo, subject: `【返金】${safeName}`, text: lines.join('\n') });
+  } catch (e) {
+    console.error('refund notify email failed:', e);
+  }
+}
+
 function readRawBody(req) {
   return new Promise((resolve, reject) => {
     const chunks = [];
@@ -285,6 +305,41 @@ async function handler(req, res) {
             }
             await notifyPurchaser(serviceClient, purchase, newStatus);
           }
+        }
+      }
+    }
+
+    // 返金（refund.created / refund.updated）。
+    // Squareで返金しても payment.status は COMPLETED のままなので、上の分岐には入らない。
+    // ここを実装していないと「返金したのに受付コードが有効なまま」になり、
+    // お金を返した相手がそのまま入場できてしまう。
+    if (event.type === 'refund.created' || event.type === 'refund.updated') {
+      const refund = event.data && event.data.object && event.data.object.refund;
+      const orderId = refund && refund.order_id;
+      const refundStatus = refund && refund.status; // 'PENDING' | 'COMPLETED' | 'REJECTED' | 'FAILED'
+
+      // 返金が確定したときだけ取り消す（申請中・失敗では取り消さない）
+      if (orderId && refundStatus === 'COMPLETED') {
+        const serviceClient = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
+        const { data: purchase, error } = await serviceClient
+          .from('purchases')
+          .select('id, user_id, ticket_name, entry_code, status, checked_in_at')
+          .eq('square_order_id', orderId)
+          .maybeSingle();
+
+        if (error) console.error('refund lookup failed:', error.message);
+        else if (!purchase) console.warn('返金通知に対応する購入記録が見つかりません order_id=', orderId);
+        else if (purchase.status === 'refunded') {
+          console.warn('返金済みとして処理済みです。スキップします purchase_id=', purchase.id);
+        } else {
+          // 受付コードを外して入場できないようにする。
+          // 入場後に返金された場合は checked_in_at が残るので、運営が後から気づける。
+          const { error: updateErr } = await serviceClient
+            .from('purchases')
+            .update({ status: 'refunded', entry_code: null })
+            .eq('id', purchase.id);
+          if (updateErr) console.error('refund update failed:', updateErr.message);
+          else await notifyRefund(purchase);
         }
       }
     }

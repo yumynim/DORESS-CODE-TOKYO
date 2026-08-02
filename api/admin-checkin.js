@@ -51,7 +51,7 @@ module.exports = async function handler(req, res) {
     try {
       const { data, error } = await serviceClient
         .from('purchases')
-        .select('id, user_id, ticket_name, entry_code, checked_in_at')
+        .select('id, user_id, ticket_name, entry_code, checked_in_at, quantity, checked_in_count')
         .eq('status', 'paid')
         .not('checked_in_at', 'is', null)
         .order('checked_in_at', { ascending: false })
@@ -68,6 +68,8 @@ module.exports = async function handler(req, res) {
           buyerEmail: (u && u.email) || '（不明）',
           buyerName: (u && u.name) || '',
           checkedInAt: p.checked_in_at,
+          quantity: p.quantity,
+          checkedInCount: p.checked_in_count,
         };
       });
       res.status(200).json({ checkins });
@@ -93,9 +95,12 @@ module.exports = async function handler(req, res) {
     if (undo) {
       // スタッフの誤操作（間違ったコードを読み取ってチェックインしてしまった等）を取り消す。
       if (!id) { res.status(400).json({ error: 'idが必要です' }); return; }
-      const { error } = await serviceClient.from('purchases').update({ checked_in_at: null }).eq('id', id);
+      // 1人分だけ戻す（3人分の購入で2人入場済みなら1人に戻す）。
+      // 0人になったら checked_in_at も消えるので、一覧からも消える。
+      const { data: undone, error } = await serviceClient.rpc('undo_checkin', { p_id: id });
       if (error) { console.error('admin-checkin undo failed:', error.message); res.status(500).json({ error: '取り消しに失敗しました' }); return; }
-      res.status(200).json({ ok: true });
+      const undoneRow = Array.isArray(undone) ? undone[0] : undone;
+      res.status(200).json({ ok: true, checkedInCount: undoneRow ? undoneRow.checked_in_count : null });
       return;
     }
 
@@ -116,77 +121,56 @@ module.exports = async function handler(req, res) {
       return;
     }
 
-    let { data: purchase, error } = await serviceClient
+    // 入力ゆれを吸収するため、まずはそのまま、見つからなければ記号を無視して探す。
+    let matchedCode = entryCode;
+    const { data: exact } = await serviceClient
       .from('purchases')
-      .select('id, user_id, ticket_name, status, checked_in_at')
+      .select('entry_code')
       .eq('entry_code', entryCode)
+      .eq('status', 'paid')
       .maybeSingle();
 
-    // そのままの文字列で見つからない場合、記号を無視した比較で探し直す
-    // （ハイフンを抜いて入力された、全角が混ざった、等を救済する）。
-    if (!error && !purchase) {
+    if (!exact) {
       const target = normalize(entryCode);
       const { data: candidates } = await serviceClient
         .from('purchases')
-        .select('id, user_id, ticket_name, status, checked_in_at, entry_code')
+        .select('entry_code')
         .not('entry_code', 'is', null)
         .eq('status', 'paid');
-      purchase = (candidates || []).find((row) => normalize(row.entry_code) === target) || null;
+      const hit = (candidates || []).find((row) => normalize(row.entry_code) === target);
+      if (!hit) {
+        res.status(404).json({ error: 'そのコードの購入が見つかりませんでした（支払い未完了、または無効なコードです）' });
+        return;
+      }
+      matchedCode = hit.entry_code;
     }
 
-    if (error) { console.error('admin-checkin lookup failed:', error.message); res.status(500).json({ error: '確認中にエラーが発生しました' }); return; }
-    if (!purchase || purchase.status !== 'paid') {
+    // 入場のカウントアップはDBの関数の中で行ロック付きで行う。
+    // ここで「読んでから書く」をやると、受付が複数台あるときに同じコードを
+    // 同時に読んで両方入場させてしまうため（supabase/schema_v13_checkin_count.sql 参照）。
+    const { data: result, error: checkinErr } = await serviceClient.rpc('checkin_entry', { p_code: matchedCode });
+    if (checkinErr) { console.error('checkin_entry failed:', checkinErr.message); res.status(500).json({ error: '記録に失敗しました' }); return; }
+
+    const row = Array.isArray(result) ? result[0] : result;
+    if (!row) {
       res.status(404).json({ error: 'そのコードの購入が見つかりませんでした（支払い未完了、または無効なコードです）' });
       return;
     }
 
-    const { data: userRes } = await serviceClient.auth.admin.getUserById(purchase.user_id);
+    const { data: userRes } = await serviceClient.auth.admin.getUserById(row.user_id);
     const buyerEmail = (userRes && userRes.user && userRes.user.email) || '（不明）';
     const buyerName = (userRes && userRes.user && userRes.user.user_metadata && userRes.user.user_metadata.display_name) || '';
 
-    if (purchase.checked_in_at) {
-      res.status(200).json({
-        alreadyCheckedIn: true,
-        ticketName: purchase.ticket_name,
-        buyerEmail,
-        buyerName,
-        checkedInAt: purchase.checked_in_at,
-      });
-      return;
-    }
-
-    // 「まだチェックインしていない行だけ」を条件に更新し、実際に更新できたかで判定する。
-    // 上のselectを見てからupdateするだけだと、受付が2台に分かれていて同じコードを
-    // 同時にスキャンした場合、どちらのselectも checked_in_at = null を読んでしまい、
-    // 両方に「入場OK」を出す（＝1枚のチケットで2人入れる）ことになる。
-    // .is('checked_in_at', null) を付けると、後から来た方は0行更新となり弾ける。
-    const checkedInAt = new Date().toISOString();
-    const { data: updated, error: updateErr } = await serviceClient
-      .from('purchases')
-      .update({ checked_in_at: checkedInAt })
-      .eq('id', purchase.id)
-      .is('checked_in_at', null)
-      .select('id, checked_in_at');
-    if (updateErr) { console.error('admin-checkin update failed:', updateErr.message); res.status(500).json({ error: '記録に失敗しました' }); return; }
-
-    if (!updated || updated.length === 0) {
-      // ほぼ同時に別の端末がチェックインを完了させていた。現在の記録を読み直して「入場済み」として返す。
-      const { data: current } = await serviceClient
-        .from('purchases')
-        .select('checked_in_at')
-        .eq('id', purchase.id)
-        .maybeSingle();
-      res.status(200).json({
-        alreadyCheckedIn: true,
-        ticketName: purchase.ticket_name,
-        buyerEmail,
-        buyerName,
-        checkedInAt: (current && current.checked_in_at) || checkedInAt,
-      });
-      return;
-    }
-
-    res.status(200).json({ alreadyCheckedIn: false, id: purchase.id, ticketName: purchase.ticket_name, buyerEmail, buyerName, checkedInAt });
+    res.status(200).json({
+      alreadyCheckedIn: !row.admitted,
+      id: row.id,
+      ticketName: row.ticket_name,
+      buyerEmail,
+      buyerName,
+      checkedInAt: row.checked_in_at,
+      quantity: row.quantity,
+      checkedInCount: row.checked_in_count,
+    });
   } catch (err) {
     console.error('admin-checkin handler error:', err);
     res.status(500).json({ error: 'サーバー内部でエラーが発生しました' });

@@ -164,14 +164,20 @@
         const time = new Date().toLocaleTimeString('ja-JP');
         let html = '';
         const buyerLine = data.buyerName ? `${esc(data.buyerName)}　${esc(data.buyerEmail)}` : esc(data.buyerEmail);
+        // まとめ買い（1回の決済で複数枚）のときは、何人目かが分かるようにする。
+        const qty = Number(data.quantity) || 1;
+        const done = Number(data.checkedInCount) || 0;
+        const countLine = qty > 1 ? `<p class="checkin__count">${done} / ${qty} 人目</p>` : '';
         if (state === 'ok') {
           html = `<div class="checkin__badge checkin__badge--ok">入場OK</div>
             <p class="checkin__ticket">${esc(data.ticketName)}</p>
+            ${countLine}
             <p class="checkin__buyer">${buyerLine}</p>
             <p class="checkin__code">${esc(code)}</p>`;
         } else if (state === 'used') {
           html = `<div class="checkin__badge checkin__badge--used">入場済みです</div>
             <p class="checkin__ticket">${esc(data.ticketName)}</p>
+            ${qty > 1 ? `<p class="checkin__count">${qty} 人分すべて入場済み</p>` : ''}
             <p class="checkin__buyer">${buyerLine}</p>
             <p class="mypage__note">最初の入場: ${new Date(data.checkedInAt).toLocaleString('ja-JP')}</p>
             <p class="checkin__code">${esc(code)}</p>`;
@@ -199,12 +205,12 @@
               <h3>${esc(c.ticketName)}</h3>
               <span class="mypage__notification-date">${new Date(c.checkedInAt).toLocaleString('ja-JP')}</span>
             </div>
-            <p>${c.buyerName ? esc(c.buyerName) + '　' : ''}${esc(c.buyerEmail)}　${esc(c.entryCode)}</p>
+            <p>${c.buyerName ? esc(c.buyerName) + '　' : ''}${esc(c.buyerEmail)}　${esc(c.entryCode)}${Number(c.quantity) > 1 ? `　<strong>${Number(c.checkedInCount) || 0}/${Number(c.quantity)}人</strong>` : ''}</p>
             <button type="button" class="btn-link" data-undo-id="${esc(c.id)}">取り消す</button>
           </div>`).join('');
         historyEl.querySelectorAll('[data-undo-id]').forEach(btn => {
           btn.addEventListener('click', () => {
-            if (!confirm('このチェックインを取り消しますか？')) return;
+            if (!confirm('このチェックインを1人分取り消しますか？')) return;
             fetch('/api/admin-checkin', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
