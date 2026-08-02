@@ -18,18 +18,32 @@ const crypto = require('crypto');
 const { createClient } = require('@supabase/supabase-js');
 const { sendEmail, SITE_URL } = require('../lib/mailer');
 
-// 当日の入場確認用コード。「DCT-購入日-ランダム4文字」の形式（例: DCT-20260802-7K4M）。
-// ランダム部分は見間違い・聞き間違いしやすい文字（0/O, 1/I/L, U/V等）を除いた文字セットから選ぶ。
-// 当てずっぽうで通らないよう、連番ではなくランダムに発行する（ランダム部分だけで約70万通り）。
-const ENTRY_CODE_CHARS = '23456789ABCDEFGHJKMNPQRSTWXYZ';
-function generateEntryCode() {
-  const now = new Date();
-  const y = now.getFullYear();
-  const m = String(now.getMonth() + 1).padStart(2, '0');
-  const d = String(now.getDate()).padStart(2, '0');
-  let suffix = '';
-  for (let i = 0; i < 4; i++) suffix += ENTRY_CODE_CHARS[crypto.randomInt(ENTRY_CODE_CHARS.length)];
-  return `DCT-${y}${m}${d}-${suffix}`;
+// 当日の入場確認用コード。「DCT-イベント識別番号-カテゴリ+連番」の形式
+// （例: 2026年9月27日開催のイベントなら DCT-0927.01-S1（出店者1人目）、DCT-0927.01-N1（来場者1人目）…）。
+// イベント識別番号はイベントごとにVercelの環境変数 CURRENT_EVENT_ID を変えるだけで良く、
+// 変えると出店者(S)・来場者(N)の連番はどちらも1から自動的に再スタートする
+// （supabase/schema_v10_event_sequence.sql の next_entry_seq() がイベントID×カテゴリ単位で数える）。
+// 連番はDBの関数でアトミックに発行するため、同時に決済が完了しても重複しない。
+function currentEventId() {
+  return process.env.CURRENT_EVENT_ID || 'EVENT';
+}
+
+// チケット名からカテゴリ（S=出店者 / N=来場者）を判定する。
+// js/data.js のticketsB（出店料）/ticketsC（1日入場チケット）の名前に含まれる語で判定しているだけなので、
+// 将来チケットの名前を変えるときはこの判定も見直すこと。どちらにも一致しない場合はXにする。
+function categoryFor(ticketName) {
+  const name = String(ticketName || '');
+  if (name.includes('出店')) return 'S';
+  if (name.includes('入場')) return 'N';
+  return 'X';
+}
+
+async function generateEntryCode(serviceClient, ticketName) {
+  const eventId = currentEventId();
+  const category = categoryFor(ticketName);
+  const { data: seq, error } = await serviceClient.rpc('next_entry_seq', { p_event: eventId, p_category: category });
+  if (error) { console.error('next_entry_seq failed:', error.message); return null; }
+  return `DCT-${eventId}-${category}${seq}`;
 }
 
 function escapeHtml(s) {
@@ -42,11 +56,12 @@ function entryCodeQrUrl(code, size) {
   return `https://api.qrserver.com/v1/create-qr-code/?size=${size || 240}x${size || 240}&data=${encodeURIComponent(code)}`;
 }
 
-// purchases.entry_code はユニーク制約があるため、衝突したら別の値で数回だけ再試行する
-// （同じ日にランダム部分だけで約70万通りなので実際に衝突することはほぼ無い）。
-async function assignEntryCode(serviceClient, purchaseId) {
+// purchases.entry_code はユニーク制約があるため、衝突したら別の連番で数回だけ再試行する
+// （next_entry_seq()はアトミックなので通常は衝突しないが、念のための保険）。
+async function assignEntryCode(serviceClient, purchaseId, ticketName) {
   for (let attempt = 0; attempt < 5; attempt++) {
-    const code = generateEntryCode();
+    const code = await generateEntryCode(serviceClient, ticketName);
+    if (!code) return null;
     const { data, error } = await serviceClient
       .from('purchases')
       .update({ entry_code: code })
@@ -214,7 +229,7 @@ async function handler(req, res) {
           else if (purchase) {
             // 受付コードは支払い完了(paid)の最初の1回だけ発行する（再送で毎回変わらないように既存値があれば使う）
             if (newStatus === 'paid' && !purchase.entry_code) {
-              purchase.entry_code = await assignEntryCode(serviceClient, purchase.id);
+              purchase.entry_code = await assignEntryCode(serviceClient, purchase.id, purchase.ticket_name);
             }
             await notifyPurchaser(serviceClient, purchase, newStatus);
           }

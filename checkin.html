@@ -58,7 +58,7 @@
 
       <form id="checkin-manual-form" class="checkin__manual">
         <label>受付コードを入力
-          <input type="text" id="checkin-manual-input" placeholder="DCT-20260802-7K4M" autocomplete="off" autocapitalize="characters">
+          <input type="text" id="checkin-manual-input" placeholder="DCT-0927.01-N1" autocomplete="off" autocapitalize="characters">
         </label>
         <button type="submit" class="btn btn--solid">確認する</button>
       </form>
@@ -66,10 +66,14 @@
       <section id="checkin-result" class="checkin__result" hidden></section>
 
       <section class="mypage__section">
-        <h2>直近の読み取り履歴</h2>
-        <div id="checkin-log" class="mypage__notifications">
-          <p class="cards-empty">まだ読み取りはありません。</p>
-        </div>
+        <details class="admin-toggle" id="details-checkin-history">
+          <summary><h2>本日のチェックイン一覧 <span class="admin-toggle__count" id="checkin-history-count"></span></h2></summary>
+          <p class="mypage__note">間違えてチェックインしてしまった場合は「取り消す」で元に戻せます。</p>
+          <input type="search" class="admin-search" id="checkin-history-search" placeholder="コード・メールアドレス・チケット名で検索…">
+          <div id="checkin-history-list" class="mypage__notifications">
+            <p class="cards-empty">読み込み中…</p>
+          </div>
+        </details>
       </section>
     </div>
   </main>
@@ -108,7 +112,9 @@
       const loginError = document.getElementById('checkin-login-error');
       const logoutBtns = [document.getElementById('checkin-logout-btn'), document.getElementById('checkin-logout-btn-mobile')];
       const resultEl = document.getElementById('checkin-result');
-      const logEl = document.getElementById('checkin-log');
+      const historyEl = document.getElementById('checkin-history-list');
+      const historyCountEl = document.getElementById('checkin-history-count');
+      const historySearchEl = document.getElementById('checkin-history-search');
       const manualForm = document.getElementById('checkin-manual-form');
       const manualInput = document.getElementById('checkin-manual-input');
       const scanBtn = document.getElementById('checkin-scan-btn');
@@ -118,10 +124,10 @@
       const cameraErrorEl = document.getElementById('checkin-camera-error');
 
       let scanning = false;
-      let logEntries = [];
+      let allCheckins = [];
 
       function showLocked() { clearToken(); locked.hidden = false; content.hidden = true; logoutBtns.forEach(b => { b.hidden = true; }); }
-      function showContent() { locked.hidden = true; content.hidden = false; logoutBtns.forEach(b => { b.hidden = false; }); }
+      function showContent() { locked.hidden = true; content.hidden = false; logoutBtns.forEach(b => { b.hidden = false; }); loadHistory(); }
 
       loginForm.addEventListener('submit', function (e) {
         e.preventDefault();
@@ -176,16 +182,60 @@
         resultEl.innerHTML = html;
         resultEl.hidden = false;
 
-        logEntries.unshift({ state, code, time, ticketName: data && data.ticketName });
-        logEntries = logEntries.slice(0, 20);
-        logEl.innerHTML = logEntries.map(e => `
+        if (state !== 'error') loadHistory(); // チェックインが増えたので一覧を最新化する
+      }
+
+      /* ---------- 本日のチェックイン一覧（実データ・検索・取り消し可能） ---------- */
+      function renderHistory(list) {
+        historyCountEl.textContent = list.length ? `(${list.length})` : '';
+        if (!list.length) {
+          historyEl.innerHTML = `<p class="cards-empty">${allCheckins.length ? '検索条件に一致するものがありません。' : 'まだチェックインはありません。'}</p>`;
+          return;
+        }
+        historyEl.innerHTML = list.map(c => `
           <div class="mypage__notification">
             <div class="mypage__notification-head">
-              <h3>${e.state === 'ok' ? '✓ 入場OK' : e.state === 'used' ? '△ 入場済み' : '✕ 無効'} ${e.ticketName ? '— ' + esc(e.ticketName) : ''}</h3>
-              <span class="mypage__notification-date">${e.time}</span>
+              <h3>${esc(c.ticketName)}</h3>
+              <span class="mypage__notification-date">${new Date(c.checkedInAt).toLocaleString('ja-JP')}</span>
             </div>
-            <p>${esc(e.code)}</p>
+            <p>${esc(c.buyerEmail)}　${esc(c.entryCode)}</p>
+            <button type="button" class="btn-link" data-undo-id="${esc(c.id)}">取り消す</button>
           </div>`).join('');
+        historyEl.querySelectorAll('[data-undo-id]').forEach(btn => {
+          btn.addEventListener('click', () => {
+            if (!confirm('このチェックインを取り消しますか？')) return;
+            fetch('/api/admin-checkin', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ undo: true, id: btn.getAttribute('data-undo-id'), token: getToken() }),
+            })
+              .then(r => r.json().then(data => ({ ok: r.ok, status: r.status, data })))
+              .then(({ ok, status }) => { if (status === 401) { showLocked(); return; } if (ok) loadHistory(); })
+              .catch(() => {});
+          });
+        });
+      }
+
+      function filterHistory() {
+        const q = (historySearchEl.value || '').trim().toLowerCase();
+        const filtered = !q ? allCheckins : allCheckins.filter(c =>
+          (c.entryCode || '').toLowerCase().includes(q) ||
+          (c.buyerEmail || '').toLowerCase().includes(q) ||
+          (c.ticketName || '').toLowerCase().includes(q));
+        renderHistory(filtered);
+      }
+      historySearchEl.addEventListener('input', filterHistory);
+
+      function loadHistory() {
+        fetch('/api/admin-checkin?token=' + encodeURIComponent(getToken()))
+          .then(r => r.json().then(data => ({ ok: r.ok, status: r.status, data })))
+          .then(({ ok, status, data }) => {
+            if (status === 401) { showLocked(); return; }
+            if (!ok) { historyEl.innerHTML = '<p class="cards-empty">読み込みに失敗しました。</p>'; return; }
+            allCheckins = data.checkins || [];
+            filterHistory();
+          })
+          .catch(() => { historyEl.innerHTML = '<p class="cards-empty">通信エラーが発生しました。</p>'; });
       }
 
       function submitCode(rawCode) {

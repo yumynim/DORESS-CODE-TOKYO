@@ -50,8 +50,9 @@ DORESS CODE TOKYO/
 │   ├── schema_v5_admin.sql          profiles.is_admin カラム＋本人が自分では変更できないようにするガード（現在は未使用。合言葉方式に変更したため）
 │   ├── schema_v6_inquiries.sql      inquiries テーブル（サイトのお問い合わせフォームの内容・返信記録）
 │   ├── schema_v7_notification_html.sql  notifications/announcements に body_html カラムを追加（画像付きお知らせをサイト内でも正しく表示するため）
-│   ├── schema_v8_entry_code.sql   purchases に entry_code カラムを追加（当日の入場確認用コード「DCT-購入日-ランダム4文字」、支払い完了時にAPI側で発行）
-│   └── schema_v9_checkin.sql      purchases に checked_in_at カラムを追加（当日のQR/手入力チェックイン記録。★未実行★Supabaseで実行が必要）
+│   ├── schema_v8_entry_code.sql   purchases に entry_code カラムを追加（当日の入場確認用コード。実行済み）
+│   ├── schema_v9_checkin.sql      purchases に checked_in_at カラムを追加（当日のQR/手入力チェックイン記録。実行済み）
+│   └── schema_v10_event_sequence.sql  entry_code_counters テーブル＋next_entry_seq()関数を追加（イベント識別番号×カテゴリごとの連番発行。★未実行★Supabaseで実行が必要）
 ├── assets/images/                 画像
 ├── vercel.json                    セキュリティヘッダー設定
 ├── .env.example                   環境変数テンプレート（実値は Vercel の環境変数に設定する想定）
@@ -227,11 +228,17 @@ Supabase接続・ヘッダーのマイページ/通知UI刷新・お知らせ投
   - [`members-only.html`](../members-only.html): 「お知らせ」セクションの`select`に`body_html`が漏れていて**常にプレーンテキストしか表示されない不具合**があったのを発見・修正。あわせて同様にトグル化。
   - 上記2箇所のトグルCSSはコンソール用に作った`.admin-item`系クラスをそのまま流用すると命名が紛らわしいため、`.toggle-item`にリネームして共通化（[`css/style.css`](../css/style.css)、[`admin-announcements.html`](../admin-announcements.html)側も追従）。
   - **未確認**: 実際に決済して、通知ドロワー・`members-only.html`の両方でQR付きの通知が正しく開閉表示されるか。
+- **（2026-08-03・未コミット→ユーザー承認後push予定）受付コードをイベント識別番号ベースに変更、`/checkin`のチェックイン履歴を実データ化**:
+  - **受付コードの形式変更**: `DCT-購入日-ランダム4文字`から`DCT-イベント識別番号-カテゴリ+連番`（例: `DCT-0927.01-S1`）に変更。詳細・運用ルールは上記「重要な仕様・決定事項」参照。[`supabase/schema_v10_event_sequence.sql`](../supabase/schema_v10_event_sequence.sql)（新規・★まだユーザーが未実行★）で`entry_code_counters`テーブルと`next_entry_seq()`関数を追加。[`api/square-webhook.js`](../api/square-webhook.js)の`generateEntryCode`/`assignEntryCode`をこの関数を呼ぶ形に書き換え。[`.env.example`](../.env.example)に`CURRENT_EVENT_ID`を追加。
+  - **`/checkin`のチェックイン履歴を実データ化**: 背景はユーザーから「読み取り履歴にトグルと検索が欲しい、消せるようにもしてほしい」との要望。今までは`checkin.html`内のJS変数だけに溜めていた（ページ再読み込みで消える、検索も削除もできない）簡易ログだったのを、[`api/admin-checkin.js`](../api/admin-checkin.js)にGET（チェックイン済み一覧取得）と`{undo:true, id}`での取り消し機能を追加し、実際に`purchases.checked_in_at`から読み書きする形に変更。[`checkin.html`](../checkin.html)側は「本日のチェックイン一覧」をトグル（`.admin-toggle`）＋検索ボックス＋各行に「取り消す」ボタン、という構成にした。チェックインするたびに一覧を自動で再読み込みする。
+  - **未確認**: `schema_v10_event_sequence.sql`実行後、実際に決済してコードが`DCT-{CURRENT_EVENT_ID}-{S|N}{連番}`の形式で発行されるか、`/checkin`で検索・取り消しが動くか、まだ実地テストしていない。`CURRENT_EVENT_ID`もまだVercelに設定していない（未設定だと`'EVENT'`という既定値になる）。
 
 # 未完了の作業（＝ユーザーが各サイトで行う作業）
 
-- **（ブロッカー）Supabase — `supabase/schema_v8_entry_code.sql`をSQL Editorで実行する**: 実行するまで受付コード機能（当日の入場確認用）が動かない。
-- **（ブロッカー）Supabase — `supabase/schema_v9_checkin.sql`をSQL Editorで実行する**: 実行するまで`/checkin`のチェックイン機能が動かない（v8実行後に続けて実行すればOK）。
+- ~~Supabase — `schema_v8_entry_code.sql`実行~~ 2026-08-03実行済み
+- ~~Supabase — `schema_v9_checkin.sql`実行~~ 2026-08-03実行済み
+- **（ブロッカー）Supabase — `supabase/schema_v10_event_sequence.sql`をSQL Editorで実行する**: 実行するまで受付コードの発行自体が失敗する（`next_entry_seq()`関数が無いため）。
+- **（ブロッカー）Vercel環境変数 `CURRENT_EVENT_ID` を設定する**: 例えば今回のイベント（2026年9月27日開催）なら`0927.01`のような値。未設定のままだと受付コードが`DCT-EVENT-...`という仮の値になってしまう。新しいイベントを開催するたびにこの値を変更すること（詳細は「重要な仕様・決定事項」参照）。
 - **特定商取引法に基づく表記（[`tokutei-shotorihiki.html`](../tokutei-shotorihiki.html)）は必須項目を記入済み、公開判断待ち**:
   - ユーザーは個人事業主（屋号は無い）と確認。**販売事業者・運営統括責任者ともに本名「齋藤南」を記載**（2026-08-01）。「DRESS CODE TOKYO」は屋号ではないため事業者名としては使わない、とユーザーが判断。
   - メールアドレス: `info@dress-code-tokyo.com` 記入済み。
@@ -271,6 +278,10 @@ Supabase接続・ヘッダーのマイページ/通知UI刷新・お知らせ投
 - **announcements への書き込みは `/api/admin-announcements` 経由のみ**: RLSでinsert/deleteポリシーを意図的に作っておらず、サーバー側（service role）でしか書き込めない。理由: `purchases.status` と同じ考え方で、権限確認をクライアント任せにしない。
 - **お知らせ投稿ページ（`/console`）はチーム共通の合言葉方式**: `ADMIN_CONSOLE_PASSWORD` 1つを知っている人なら誰でも会員全員／個人宛てにお知らせ（サイト内通知＋メール）を送れる。個人アカウント単位の権限管理ではないため、「誰が送ったか」の記録は残らない。合言葉が漏れた場合は`ADMIN_CONSOLE_PASSWORD`を変更すれば、発行済みトークンも含めて即座に無効化される。
 - **Vercelのプロジェクトは`doress-code-tokyo-9qjj`が唯一の本番**: 過去に同じリポジトリを複数回インポートしてしまい、似た名前の重複プロジェクトができていたことがある（2026-07-25に発見・削除済み）。今後Vercelの環境変数を触るときは、必ずURLの末尾が`-9qjj`のプロジェクトを編集していることを確認する。原因切り分けには`/api/env-check`が使える。
+- **受付コード（entry_code）は「イベント識別番号」ベース、新しいイベントのたびに`CURRENT_EVENT_ID`を変えること**（2026-08-03決定）: 形式は`DCT-{イベント識別番号}-{カテゴリ}{連番}`（例: `DCT-0927.01-S1`＝2026.9.27開催イベントの出店者1人目、`DCT-0927.01-N1`＝同イベントの来場者1人目）。
+  - **イベント識別番号**（`0927.01`の部分）はVercel環境変数`CURRENT_EVENT_ID`で管理する。**新しいイベントを開催するたびに、この値を新しいものに変更すること**（例: 次回が2026年12月開催なら`1201.01`のように）。値を変えると出店者(S)・来場者(N)の連番はどちらも自動的に1から再スタートする（`supabase/schema_v10_event_sequence.sql`の`entry_code_counters`テーブルが「イベントID×カテゴリ」ごとにカウンターを持っているため）。**同じイベント識別番号を使い続けている間は、番号は増え続ける**（出店が増えたらS2, S3…と自動的に増える）。
+  - **カテゴリの判定はチケット名の文字列に依存**（`api/square-webhook.js`の`categoryFor()`）：チケット名に「出店」が含まれれば`S`、「入場」が含まれれば`N`、どちらでもなければ`X`。将来チケットの名前（`js/data.js`の`name`）を変える場合、この判定ロジックも見直すこと。
+  - 環境変数の設定を忘れると`CURRENT_EVENT_ID`が未設定のまま`'EVENT'`という既定値が使われてしまうので、**イベントを開催する前に必ず`CURRENT_EVENT_ID`をVercelに設定/更新したか確認すること**。
 - **Resendは設定済み・動作確認済み**（2026-07-25）: ドメイン認証（SPF/DKIM/DMARC）・APIキー発行・Vercel環境変数（`RESEND_API_KEY`/`NOTIFY_FROM_EMAIL`）設定まで完了し、`/console`からのメール送信を実地確認済み。送信元は`DRESS CODE TOKYO <noreply@dress-code-tokyo.com>`。メールはテキスト版とHTML版を同時送信（`lib/mailer.js`の`sendEmail`が両方生成）。設定直後に送信履歴が0件で「動いていないように見えた」原因は、Resend側ではなく管理画面→`serviceClient.auth.admin.listUsers()`が`SUPABASE_SERVICE_ROLE_KEY`の不整合で`invalid JWT`エラーを起こし、Resendまで処理が到達していなかったこと。最新のSecret Key（`sb_secret_...`形式）を取得してVercelの`SUPABASE_SERVICE_ROLE_KEY`を更新し解決。**教訓**: Supabaseのservice roleキーは形式が変わることがあるため、`invalid JWT`系のエラーが出たらまずこのキーを疑う。
 - **HTMLメールテンプレート**（2026-07-25追加、同日ヘッダーデザイン修正・ブロックエディタ追加）: `lib/mailer.js`の`buildEmailHtml()`が黒×白ベースの共通レイアウト（見出し・本文・CTAボタン・フッター、max-width 600px、テーブルベースでインラインCSS）を生成する。ヘッダーは当初ロゴ画像を黒背景に載せていたが「ダサい」とのフィードバックを受け、白背景＋総称フォントの欧文ワードマーク（"DRESS CODE" / "TOKYO"、下線区切り）に変更済み（メールクライアントはWebフォント・カスタムロゴ画像の見え方が不安定なため、Georgia等の総称フォントで組んでいる）。
 - **配信エディタ（ブロック方式）**（2026-07-25追加、同日ブロック種類を拡張）: `/console`のお知らせ投稿フォームは、Notionのブロック編集のような自由な組み立てができるエディタ（`admin-announcements.html`）。対応ブロックは「見出し（大/中/小、文字色）」「段落（文字色）」「ハイライト（背景付き強調ボックス）」「画像（外部URL指定）」「区切り線」「ボタン」の6種類。追加・並び替え（↑↓）・削除ができ、右側にAPIから取得した実際のメールHTML（`/api/admin-preview-email`、送信は伴わない）をリアルタイムプレビュー表示する。文字色は黒白ベースの世界観を崩さないよう「標準／濃い黒／グレー／えんじ」の4色に絞ってある（`lib/mailer.js`の`TEXT_COLORS`）。画像はURL貼り付けに加え、ファイルを直接アップロードもできる（`api/admin-upload-image.js`がSupabase Storageの`announcement-images`バケットへservice role経由でアップロードし、公開URLを返す。JPEG/PNG/WebP/GIF、3MBまで）。エディタ本体は横並び2カラム（左: エディタ／右: プレビュー、`.mypage--admin`で通常の720px幅制限をこのページだけ1160pxに拡張）。送信時はブロック配列をサーバー（`api/admin-announcements.js`）に渡し、`lib/mailer.js`の`renderBlocks()`でサイト内通知用のプレーンテキストとメールHTMLの両方を同じ処理から生成する（プレビューと実際のメールが常に一致する設計）。購入完了/キャンセル通知（`api/square-webhook.js`）は従来どおりの単純な`text`＋任意の単一CTAボタンの方式のまま（`sendEmail`はblocks指定時とtext指定時の両方に対応、後方互換）。
