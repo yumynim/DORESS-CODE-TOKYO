@@ -45,16 +45,18 @@
     listBroadcastEl.hidden = name !== 'broadcast';
   }
 
+  // 1件ずつタップして開閉できるトグル形式（増えても一覧がかさばらないように）。
   function renderList(el, items, emptyMsg) {
     if (!items.length) { el.innerHTML = '<p class="cards-empty">' + emptyMsg + '</p>'; return; }
     el.innerHTML = items.map(function (n) {
       // body_html があれば（配信エディタの画像・見出し・ボタン等を含むHTML）それを表示する。
       // 無い場合（過去のお知らせ／購入完了通知など）はプレーンテキストのbodyにフォールバック。
       var body = n.body_html ? n.body_html : '<p>' + esc(n.body) + '</p>';
-      return '<div class="mypage__notification' + (n.unread ? ' is-unread' : '') + '">' +
-        '<div class="mypage__notification-head"><h3>' + esc(n.title) + '</h3>' +
-        '<span class="mypage__notification-date">' + new Date(n.created_at).toLocaleDateString('ja-JP') + '</span></div>' +
-        '<div class="mypage__notification-body">' + body + '</div></div>';
+      return '<details class="mypage__notification toggle-item' + (n.unread ? ' is-unread' : '') + '">' +
+        '<summary><span class="toggle-item__arrow" aria-hidden="true">▸</span>' +
+        '<span class="mypage__notification-head"><h3>' + esc(n.title) + '</h3>' +
+        '<span class="mypage__notification-date">' + new Date(n.created_at).toLocaleDateString('ja-JP') + '</span></span></summary>' +
+        '<div class="toggle-item__body mypage__notification-body">' + body + '</div></details>';
     }).join('');
   }
 

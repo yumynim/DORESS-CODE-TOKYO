@@ -254,16 +254,16 @@
           return;
         }
         inquiriesEl.innerHTML = list.map(q => `
-          <details class="mypage__notification admin-item inquiry${q.status === 'replied' ? ' inquiry--replied' : ''}" data-id="${esc(q.id)}">
+          <details class="mypage__notification toggle-item inquiry${q.status === 'replied' ? ' inquiry--replied' : ''}" data-id="${esc(q.id)}">
             <summary>
-              <span class="admin-item__arrow" aria-hidden="true">▸</span>
+              <span class="toggle-item__arrow" aria-hidden="true">▸</span>
               <span class="mypage__notification-head">
                 <h3>【${esc(q.reason)}】${esc(q.name)} 様</h3>
                 <span class="mypage__notification-date">${new Date(q.created_at).toLocaleString('ja-JP')}</span>
               </span>
               <span class="inquiry__status">${q.status === 'replied' ? '✓ 対応済み' : '未対応'}</span>
             </summary>
-            <div class="admin-item__body">
+            <div class="toggle-item__body">
               <p class="mypage__notification-date">差出人: ${esc(q.email)}</p>
               <p>${esc(q.message).replace(/\n/g, '<br>')}</p>
               ${q.status === 'replied' ? `
@@ -343,15 +343,15 @@
       function renderList(el, list, emptyMsg, type, hasMatches) {
         if (!list.length) { el.innerHTML = `<p class="cards-empty">${hasMatches === false ? '検索条件に一致するお知らせがありません。' : emptyMsg}</p>`; return; }
         el.innerHTML = list.map(n => `
-          <details class="mypage__notification admin-item" data-id="${esc(n.id)}">
+          <details class="mypage__notification toggle-item" data-id="${esc(n.id)}">
             <summary>
-              <span class="admin-item__arrow" aria-hidden="true">▸</span>
+              <span class="toggle-item__arrow" aria-hidden="true">▸</span>
               <span class="mypage__notification-head">
                 <h3>${esc(n.title)}</h3>
                 <span class="mypage__notification-date">${new Date(n.created_at).toLocaleDateString('ja-JP')}</span>
               </span>
             </summary>
-            <div class="admin-item__body">
+            <div class="toggle-item__body">
               ${n.email ? `<p class="mypage__notification-date">宛先: ${esc(n.email)}</p>` : ''}
               <div class="mypage__notification-body">${n.body_html || `<p>${esc(n.body)}</p>`}</div>
               <button type="button" class="btn-link admin-form__delete" data-delete-id="${esc(n.id)}" data-delete-type="${type}">削除する</button>

@@ -220,6 +220,13 @@ Supabase接続・ヘッダーのマイページ/通知UI刷新・お知らせ投
   - **[`checkin.html`](../checkin.html)（新規、`/checkin`でアクセス）**: `/console`と同じ合言葉ログイン画面（トークンは同じ`sessionStorage`キー`dct_admin_token`を共有）。カメラでのQR読み取り（`BarcodeDetector`対応ブラウザのみ、非対応時は案内文を表示）と、手入力フォームの両方に対応。結果は「入場OK／入場済みです／無効なコード」の3状態で大きく表示し、直近の読み取り履歴も一覧表示する。[`vercel.json`](../vercel.json)に`/checkin`→`/checkin.html`のrewriteを追加。`Permissions-Policy`ヘッダーが`camera=()`（全面禁止）になっていたため`camera=(self)`に変更（変更しないとカメラが起動できない）。主要ナビ・フッターにはリンクを置かず、`/console`と同様URLを直接知っている人だけが使う想定。
   - **QRコードの表示側（購入者が見る側）を追加**: 受付コードが表示される4箇所（決済直後のありがとうございました画面・購入完了メール・ヘッダーのマイページドロワー・`members-only.html`の購入履歴）すべてに、コードのテキストと並べてQR画像（`https://api.qrserver.com/v1/create-qr-code/?data=...`）を表示するようにした（[`members-only.html`](../members-only.html)、[`js/auth.js`](../js/auth.js)、[`api/square-webhook.js`](../api/square-webhook.js)の`notifyPurchaser`。メールは`sendEmail`をblocks形式に切り替えて画像ブロックを追加）。
   - **未確認**: `schema_v9_checkin.sql`実行後、実際にQRを読み取って`/checkin`でチェックインできるか・二重チェックイン時に正しく「入場済みです」と出るか、まだ実地テストしていない。
+- **（2026-08-02・未コミット→ユーザー承認後push予定）ヘッダー通知ドロワーにも受付コード/QRを表示、通知カードをトグル化**:
+  - 背景: ユーザーからヘッダーの「お知らせ」ドロワーのスクリーンショットを見せられ、「購入者はこの画面からもコード・QRを見られるようにしてほしい」「1件ずつタップで開閉するトグルにして、メッセージが場所を取りすぎないようにしてほしい」との要望。
+  - [`api/square-webhook.js`](../api/square-webhook.js): `notifications`テーブルへのinsertに`body_html`を追加。支払い完了（`paid`）かつ`entry_code`がある場合は、コードとQR画像を含むHTMLを生成して保存する（`escapeHtml`ヘルパーを新設）。これにより通知ベルのドロワー・`members-only.html`のお知らせ欄どちらでもQRが見えるようになる。**注意**: この`body_html`は今後発行される通知にのみ入る。過去の通知（このコミット以前に届いたもの）は遡って追加されない。
+  - [`js/notifications.js`](../js/notifications.js): ヘッダー通知ドロワーの各カードを`<div>`から`<details>`に変更し、タイトル・日付だけの見出し行をタップすると本文（QR含む）が開く形にした。
+  - [`members-only.html`](../members-only.html): 「お知らせ」セクションの`select`に`body_html`が漏れていて**常にプレーンテキストしか表示されない不具合**があったのを発見・修正。あわせて同様にトグル化。
+  - 上記2箇所のトグルCSSはコンソール用に作った`.admin-item`系クラスをそのまま流用すると命名が紛らわしいため、`.toggle-item`にリネームして共通化（[`css/style.css`](../css/style.css)、[`admin-announcements.html`](../admin-announcements.html)側も追従）。
+  - **未確認**: 実際に決済して、通知ドロワー・`members-only.html`の両方でQR付きの通知が正しく開閉表示されるか。
 
 # 未完了の作業（＝ユーザーが各サイトで行う作業）
 

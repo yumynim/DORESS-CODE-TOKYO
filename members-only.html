@@ -172,23 +172,26 @@
       }
 
       /* ---------- お知らせ（決済完了/キャンセル時にWebhookが作る通知） ---------- */
+      // 1件ずつタップして開閉できるトグル形式（増えても一覧がかさばらないように）。
       function renderNotifications(list) {
         const el = document.getElementById('mypage-notifications');
         if (!list.length) { el.innerHTML = '<p class="cards-empty">お知らせはありません。</p>'; return; }
         el.innerHTML = list.map(n => `
-          <div class="mypage__notification${n.read ? '' : ' is-unread'}">
-            <div class="mypage__notification-head">
-              <h3>${esc(n.title)}</h3>
-              <span class="mypage__notification-date">${new Date(n.created_at).toLocaleDateString('ja-JP')}</span>
-            </div>
-            <p>${esc(n.body)}</p>
-          </div>`).join('');
+          <details class="mypage__notification toggle-item${n.read ? '' : ' is-unread'}">
+            <summary><span class="toggle-item__arrow" aria-hidden="true">▸</span>
+              <span class="mypage__notification-head">
+                <h3>${esc(n.title)}</h3>
+                <span class="mypage__notification-date">${new Date(n.created_at).toLocaleDateString('ja-JP')}</span>
+              </span>
+            </summary>
+            <div class="toggle-item__body mypage__notification-body">${n.body_html || `<p>${esc(n.body)}</p>`}</div>
+          </details>`).join('');
       }
 
       function loadNotifications(session) {
         const client = window.DCT_AUTH.getClient();
         client.from('notifications')
-          .select('id, title, body, read, created_at')
+          .select('id, title, body, body_html, read, created_at')
           .eq('user_id', session.user.id)
           .order('created_at', { ascending: false })
           .then(res => {

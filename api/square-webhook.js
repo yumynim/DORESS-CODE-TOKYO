@@ -32,6 +32,10 @@ function generateEntryCode() {
   return `DCT-${y}${m}${d}-${suffix}`;
 }
 
+function escapeHtml(s) {
+  return String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+
 // 受付コードのQR画像URL。外部の無料サービス（api.qrserver.com）に生成を任せる。
 // 追加のライブラリ・課金無しで済ませるためで、渡すのはランダムな受付コードのみ（個人情報は含まない）。
 function entryCodeQrUrl(code, size) {
@@ -77,11 +81,19 @@ async function notifyPurchaser(serviceClient, purchase, newStatus) {
     return;
   }
 
+  // 通知ベルのドロワーは body_html があればそれを表示する（無ければ body のプレーンテキスト）。
+  // 受付コードがある場合はQR画像もその場で見られるようにする（メール・マイページと同じ扱い）。
+  const bodyHtml = (isPaid && purchase.entry_code)
+    ? `<p>${escapeHtml(body)}</p><p style="margin-top:10px; font-weight:700;">${escapeHtml(purchase.entry_code)}</p>` +
+      `<img src="${entryCodeQrUrl(purchase.entry_code, 140)}" alt="受付QRコード" width="140" height="140" style="margin-top:8px;">`
+    : null;
+
   const { error: notifErr } = await serviceClient.from('notifications').insert({
     user_id: purchase.user_id,
     purchase_id: purchase.id,
     title,
     body,
+    body_html: bodyHtml,
   });
   if (notifErr) console.error('notifications insert failed:', notifErr.message);
 

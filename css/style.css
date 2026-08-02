@@ -1166,12 +1166,12 @@ a.mcard__sns:hover { transform: translateY(-3px); }
 /* /console: お問い合わせ・投稿済み一覧・個人宛て履歴の各カードを、増えても
    スクロールが苦にならないよう1件ずつ開閉できるトグルにする（.admin-toggleとは別に、
    ここは1件1件のカード用）。 */
-.admin-item > summary { cursor: pointer; list-style: none; display: flex; align-items: baseline; gap: 8px; }
-.admin-item > summary::-webkit-details-marker { display: none; }
-.admin-item > summary .mypage__notification-head { flex: 1; margin-bottom: 0; }
-.admin-item__arrow { display: inline-block; font-size: 11px; color: var(--muted); transition: transform .2s var(--ease); flex: none; }
-.admin-item[open] .admin-item__arrow { transform: rotate(90deg); }
-.admin-item__body { margin-top: 10px; }
+.toggle-item > summary { cursor: pointer; list-style: none; display: flex; align-items: baseline; gap: 8px; }
+.toggle-item > summary::-webkit-details-marker { display: none; }
+.toggle-item > summary .mypage__notification-head { flex: 1; margin-bottom: 0; }
+.toggle-item__arrow { display: inline-block; font-size: 11px; color: var(--muted); transition: transform .2s var(--ease); flex: none; }
+.toggle-item[open] .toggle-item__arrow { transform: rotate(90deg); }
+.toggle-item__body { margin-top: 10px; }
 
 /* お問い合わせカード（/console） */
 .inquiry__status {
