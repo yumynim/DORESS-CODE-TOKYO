@@ -1068,6 +1068,27 @@ a.mcard__sns:hover { transform: translateY(-3px); }
 .mypage__section { margin-top: clamp(40px, 5vw, 64px); scroll-margin-top: 96px; }
 .mypage__section h2 { font-family: var(--f-jp); font-weight: 700; font-size: 16px; color: var(--ink); margin-bottom: 18px; }
 
+/* members-only.html: Squareの決済から戻った直後だけ出す「ご購入ありがとうございました」バナー */
+.thanks-banner { margin-top: clamp(32px, 5vw, 48px); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+.thanks-banner__box {
+  padding: clamp(36px, 6vw, 56px) 20px; text-align: center;
+  background: repeating-linear-gradient(135deg, var(--bg-band) 0px, var(--bg-band) 10px, #fff 10px, #fff 20px);
+  border-bottom: 1px solid var(--line);
+}
+.thanks-banner__title { font-family: var(--f-jp-serif); font-weight: 600; font-size: clamp(20px, 3vw, 26px); color: var(--ink); }
+.thanks-banner__sub { margin-top: 8px; font-family: var(--f-sans); font-size: 11px; letter-spacing: 0.3em; color: var(--muted); }
+.thanks-banner__body { padding: 24px 20px; text-align: center; }
+.thanks-banner__body p { font-size: 13.5px; line-height: 1.9; color: var(--ink-3); }
+.thanks-banner__order { margin-top: 16px; }
+.thanks-banner__order h3 { font-family: var(--f-jp); font-weight: 700; font-size: 15px; color: var(--ink); }
+.thanks-banner__price { margin-top: 4px; font-family: var(--f-jp); font-weight: 700; font-size: 15px; color: var(--ink); }
+.thanks-banner__code {
+  display: inline-flex; flex-direction: column; gap: 4px; margin-top: 20px; padding: 16px 32px;
+  border: 1px solid var(--line-2); border-radius: 8px; background: var(--bg-band);
+}
+.thanks-banner__code span { font-family: var(--f-sans); font-size: 11px; letter-spacing: 0.12em; color: var(--muted); }
+.thanks-banner__code strong { font-family: var(--f-sans); font-weight: 700; font-size: 22px; letter-spacing: 0.06em; color: var(--ink); }
+
 /* /console の各リストをNotionのトグルのように開閉できるようにする（増えてきても圧迫しないため） */
 .admin-toggle summary { cursor: pointer; list-style: none; }
 .admin-toggle summary::-webkit-details-marker { display: none; }

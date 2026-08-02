@@ -75,7 +75,9 @@ module.exports = async function handler(req, res) {
           })),
         },
         checkout_options: {
-          redirect_url: `${req.headers.origin || ''}/members-only.html`, // 決済完了後に戻ってくる先
+          // 決済完了後に戻ってくる先。?thanks=1 は「Squareから戻ってきた直後」の合図
+          // （members-only.htmlがこれを見て「ありがとうございました」表示を出す。詳細は同ファイル参照）。
+          redirect_url: `${req.headers.origin || ''}/members-only.html?thanks=1`,
         },
       }),
     });

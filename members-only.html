@@ -63,6 +63,17 @@
       <h1 class="mypage__title" id="mypage-greeting">マイページ</h1>
       <p class="mypage__note">購入したチケットはこちらで確認できます。</p>
 
+      <!-- Squareの決済ページから ?thanks=1 付きで戻ってきたときだけ表示する「ありがとうございました」 -->
+      <section class="thanks-banner" id="thanks-banner" hidden>
+        <div class="thanks-banner__box">
+          <p class="thanks-banner__title">ご購入ありがとうございました</p>
+          <p class="thanks-banner__sub">THANK YOU</p>
+        </div>
+        <div id="thanks-banner-body" class="thanks-banner__body">
+          <p>お支払いの確認中です。少々お待ちください…</p>
+        </div>
+      </section>
+
       <section class="mypage__section">
         <h2>お知らせ</h2>
         <div id="mypage-notifications" class="mypage__notifications">
@@ -189,6 +200,67 @@
           });
       }
 
+      /* ---------- 「ご購入ありがとうございました」バナー ----------
+         Squareの決済ページから ?thanks=1 付きで戻ってきたときだけ表示する。
+         戻ってきた直後はまだWebhookが届いていない可能性があるため、
+         数秒おきに購入結果を確認して、確定したら受付コードを表示する。 */
+      let thanksHandled = false;
+      function wireThanksBanner(session) {
+        if (thanksHandled) return;
+        const params = new URLSearchParams(location.search);
+        if (params.get('thanks') !== '1') return;
+        thanksHandled = true;
+        // 一度表示したらURLから消す（再読み込みのたびに出ないように）
+        params.delete('thanks');
+        const qs = params.toString();
+        history.replaceState(null, '', location.pathname + (qs ? '?' + qs : ''));
+
+        const banner = document.getElementById('thanks-banner');
+        const body = document.getElementById('thanks-banner-body');
+        banner.hidden = false;
+
+        const client = window.DCT_AUTH.getClient();
+        let tries = 0;
+        const maxTries = 8; // 2秒間隔で最大16秒待つ
+        function showConfirmed(p) {
+          body.innerHTML =
+            '<p>お支払いが確認できました。ご購入内容の確認メールをお送りしております。届いていない場合は迷惑メールフォルダもご確認ください。</p>' +
+            '<div class="thanks-banner__order"><h3>' + esc(p.ticket_name) + '</h3>' +
+            '<p class="thanks-banner__price">' + yen(p.price) + '（税込）</p></div>' +
+            (p.entry_code
+              ? '<div class="thanks-banner__code"><span>当日の受付コード</span><strong>' + esc(p.entry_code) + '</strong></div>'
+              : '');
+          loadPurchases(session); // 一覧側の表示も最新化する
+        }
+        function showTimeout() {
+          body.innerHTML = '<p>お支払いの確認にお時間がかかっています。数分後にこのページの「購入したチケット」欄をご確認いただくか、確認メールをご覧ください。</p>';
+        }
+        function poll() {
+          client.from('purchases')
+            .select('ticket_name, price, status, entry_code, created_at')
+            .eq('user_id', session.user.id)
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .then(res => {
+              const p = res.data && res.data[0];
+              if (!res.error && p && p.status === 'paid') { showConfirmed(p); return; }
+              if (!res.error && p && p.status === 'canceled') {
+                body.innerHTML = '<p>お支払いが完了しませんでした。お手数ですが、もう一度お手続きください。</p>';
+                return;
+              }
+              tries += 1;
+              if (tries >= maxTries) { showTimeout(); return; }
+              setTimeout(poll, 2000);
+            })
+            .catch(() => {
+              tries += 1;
+              if (tries >= maxTries) { showTimeout(); return; }
+              setTimeout(poll, 2000);
+            });
+        }
+        poll();
+      }
+
       function paint(session) {
         if (!window.DCT_AUTH.isConfigured()) { show('unconfigured'); return; }
         if (!session) { show('guest'); return; }
@@ -199,6 +271,7 @@
         document.getElementById('logout-btn-mobile').hidden = false;
         loadNotifications(session);
         loadPurchases(session);
+        wireThanksBanner(session);
       }
 
       document.getElementById('mypage-login-btn').addEventListener('click', function () {
