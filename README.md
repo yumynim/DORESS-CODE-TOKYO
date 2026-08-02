@@ -1,87 +1,107 @@
 # DRESS CODE TOKYO — サイト編集ガイド
 
-claudedesign が書き出した 22MB の1枚 HTML を、**編集しやすい構成**に組み直したものです。
-見た目（フォント・色・レイアウト）は元のままです。
+素の HTML/CSS/JS（ビルドステップなし）でできた静的サイトに、Vercel Functions（決済・メール）と Supabase（会員・DB）を足した構成です。
+
+**技術的な現在地・未完了タスク・過去の経緯は [`docs/PROJECT_STATE.md`](docs/PROJECT_STATE.md) が正本です。** このREADMEは「日々の文章・画像の差し替え方」だけを扱います。
 
 ## フォルダ構成
 
 ```
 DORESS CODE TOKYO/
-├── index.html              ← ページ本体（レイアウトと一度きりの文章はここ）
-├── css/
-│   └── style.css           ← 全体の土台スタイル（フォント・色・スマホ対応）
+├── index.html                  トップページ（レイアウトと一度きりの文章はここ）
+├── article.html                記事詳細ページ
+├── member.html                 メンバー個人ページ
+├── members-only.html           マイページ（購入したチケット・お知らせ）
+├── admin-announcements.html    お知らせ投稿ページ（/console、合言葉方式）
+├── checkin.html                当日の入場確認ページ（/checkin、合言葉方式）
+├── tokutei-shotorihiki.html    特定商取引法に基づく表記
+├── community-creator.html      コミュニティ（クリエイター向け・現在どこからもリンクしていない）
+├── community-exhibitor.html    コミュニティ（出展者向け・現在どこからもリンクしていない）
+├── css/style.css               全体スタイル（先頭の :root に色・余白をまとめてある）
 ├── js/
-│   ├── data.js             ← ★サイトの中身データ（記事・ギャラリー等はここを編集）
-│   └── render.js           ← データをHTMLに展開する仕組み（基本さわらない）
-├── assets/
-│   └── images/             ← 画像置き場
-│       ├── logo.png        ← ヘッダーのロゴ
-│       ├── mark.png        ← 装飾マーク
-│       └── photo-sample.jpg← サンプル写真（メインビジュアルに使用中）
-├── DRESS CODE TOKYO.html   ← 元の22MBバンドル（バックアップ。普段は使いません）
-└── 画像/                   ← 受け取った元画像の保管場所
+│   ├── data.js                 ★サイトの中身データ（記事・チケット・メンバー等はここを編集）
+│   ├── render.js               データをHTMLに展開する仕組み（基本さわらない）
+│   ├── auth.js                 会員登録・ログイン・マイページ
+│   ├── auth-config.js          Supabaseの接続情報
+│   ├── notifications.js        ヘッダーの通知ベル
+│   └── cart.js                 カート
+├── api/                        Vercel Functions（決済・Webhook・メール・管理画面のAPI）
+├── lib/                        api/ から使う共通処理（メール送信・管理者トークン）
+├── supabase/                   DBスキーマのSQL（新しい順にv1〜v11）
+├── scripts/                    ローカル用の補助スクリプト
+├── docs/PROJECT_STATE.md       ★開発の現在地（作業前に必ず読む）
+├── assets/images/              画像置き場
+└── DRESS CODE TOKYO.html       元の22MBバンドル（バックアップ。普段は使いません）
 ```
 
 ## プレビューの仕方
 
-`index.html` をダブルクリックしてブラウザで開くだけでOKです。
-（Google フォームや一部の埋め込みを確実に動かしたい場合は、簡易サーバー
-`python3 -m http.server` を使うとより確実です。）
+`index.html` をダブルクリックしても見た目は確認できますが、**ログイン・カート・決済・お知らせは動きません**（`api/` のサーバー処理が必要なため）。
+
+- 見た目だけ直したいとき: 簡易サーバーで十分です。
+  ```bash
+  python3 -m http.server 8000
+  ```
+- 決済やログインまで含めて確認したいとき: 本番（`https://dress-code-tokyo.com`）にpushして確認するのが確実です。pushすると自動でVercelにデプロイされます。
 
 ## よくある編集
 
 ### 記事を追加する
-`js/data.js` の `articles:` リストに `{ }` を1つ足します。
+`js/data.js` の `articles:` リストに `{ }` を1つ足します。カードをタップすると `article.html?id=<slug>` が開きます。
 
 ```js
-{ cat: 'Event Report', date: '2026.04.01', title: 'タイトル',
-  excerpt: '一覧に出る短い説明', href: '#contact', img: 'assets/images/cover.jpg' },
-```
-
-- `img:` を空 `''` にするとプレースホルダー、画像パスを入れると写真が出ます。
-- `href:` は今は `#contact`。記事ページを作ったら `articles/xxx.html` などに変えます。
-
-### 画像を入れる
-1. 写真を `assets/images/` に入れる（例: `snap01.jpg`）。
-2. `data.js` の該当箇所に `img: 'assets/images/snap01.jpg'` と書く。
-   - カテゴリタイル（トップの4枚）→ `activities:` の各行の `img`
-   - ギャラリー → `gallery:` の各行の `img`
-   - 記事カバー → `articles:` の各行の `img`
-   - メインビジュアル（ヒーロー全面）→ `data.js` の `heroImage: 'assets/images/hero.jpg'`
-     （写真を入れると全面写真＋白文字に自動で切り替わります）
-
-### 見た目（色・余白・フォント）を変える
-`css/style.css` の先頭 `:root { ... }` にまとまっています。色や余白の数値を変えるとサイト全体に反映されます。
-個別パーツの見た目も同ファイル内のクラス（`.card` `.tile` `.hero` など）で調整できます。
-
-### 動画を入れる
-`data.js` の `videoEmbed:` に YouTube/Vimeo の埋め込み `<iframe>` を貼り付け。
-
-```js
-videoEmbed: '<iframe src="https://www.youtube.com/embed/動画ID" allowfullscreen></iframe>',
-```
-
-### お問い合わせフォーム（インライン展開＋Google フォーム連携）
-Contact セクションの「応募・お問い合わせフォームを開く」をタップすると、サイトに合わせた
-入力フォームが開きます。送信内容は **Google フォーム経由でスプレッドシートに記録**されます。
-
-設定は `data.js` の `contactForm` に、Google フォームの送信先URLと各項目の `entry.xxxx` 番号を入れるだけ：
-
-```js
-contactForm: {
-  action: 'https://docs.google.com/forms/d/e/XXXX/formResponse',
-  entries: { name: 'entry.111', email: 'entry.222', type: 'entry.333', message: 'entry.444' },
+{
+  cat: 'fashion', slug: 'f3',
+  title: 'タイトル',
+  date: '2026.08.01',
+  images: ['assets/images/mag-f3-1.jpg', 'assets/images/mag-f3-2.jpg'],
+  body: '本文',
+  tags: ['#dresscodetokyo'],
 },
 ```
 
-番号は、Google フォーム → ⋮ →「事前入力したリンクを取得」で出る URL から拾えます
-（未設定のあいだは送信すると御礼が出るデモ動作）。
+- `cat:` は `'fashion'` か `'shop'`（`magCats` で定義）。
+- `slug:` は記事のURLに使うID。fashionは `f番号`、shopは `s番号`。既存と重複しないように。
+- `images:` の1枚目がカードのカバー写真になります。
 
-### メニュー・SNSリンク・開催情報など
-すべて `data.js` の各リスト（`nav` / `socials` / `eventInfo` …）を直すだけで反映されます。
+### チケット・出店料を変える
+`js/data.js` の `ticketsC`（来場者向け）／ `ticketsB`（出店者向け）を編集します。
+
+**価格や商品を変えるときは、Square側の商品も合わせて直す必要があります。** `catalogObjectId` は Square に登録した商品の **Item Variation ID**（Item IDではない）です。ここが合っていないと決済できません。
+
+### 画像を入れる
+1. 写真を `assets/images/` に入れる。
+2. `data.js` の該当箇所に `img: 'assets/images/xxx.jpg'` と書く。
+   - カテゴリタイル → `activities:` の各行の `img`
+   - 記事 → `articles:` の各行の `images` 配列
+   - メンバー → `members:` の各行の `photo`
+   - イベントのチラシ → `eventVisualB`（出店者向け）/ `eventVisualC`（来場者向け）
+   - メインビジュアル（ヒーロー全面）→ `heroImage`（空のままだとオフホワイト背景＋虹色モチーフ）
+
+### メンバーを追加・編集する
+`js/data.js` の `members:` を編集します。
+
+- 紹介文は `desc:`（複数段落の配列）を使います。`desc` があれば `catch`（太字1行）より優先されます。
+- **未入力の項目は空にしておくこと**。`'（役職）'` のようなプレースホルダーを入れたままにすると、そのままトップページに公開されてしまいます。
+
+### 見た目（色・余白・フォント）を変える
+`css/style.css` の先頭 `:root { ... }` にまとまっています。個別パーツは同ファイル内のクラス（`.tcard` `.mcard` `.hero` など）で調整します。
+
+### お問い合わせフォーム
+サイト内蔵のフォームです（Googleフォームは使っていません）。送信すると `api/contact.js` 経由で Supabase の `inquiries` テーブルに保存され、運営宛てに通知メールが届きます。返信は `/console` から行えます。
+
+「ご用件」の選択肢を増やすには `js/data.js` の `contactReasons:` に1行足します。
+
+### メニュー・SNSリンク
+`js/data.js` の `nav:` / `socials:` を直すだけで、ヘッダー・フッターの両方に反映されます。
+
+## 運用でよく使うページ
+
+| URL | 用途 | 入り方 |
+|---|---|---|
+| `/console` | お知らせ配信・購入者一覧・問い合わせ返信 | 管理者パスワード |
+| `/checkin` | 当日の入場確認（QR読み取り／手入力） | 管理者パスワード（`/console`と同じ） |
 
 ## フォントについて
-元は 864 個の woff2 をファイルに埋め込んでいたため 22MB でしたが、
-同じ Google Fonts を `index.html` 内の `<link>` 1行で読み込む形に変えました
-（Cormorant Garamond / Jost / Zen Kaku Gothic New / Zen Old Mincho）。見た目は同じです。
-※ 表示にはインターネット接続が必要です。
+
+元は 864 個の woff2 を埋め込んでいたため 22MB でしたが、同じ Google Fonts を `<link>` 1行で読み込む形に変えました（Cormorant Garamond / Jost / Zen Kaku Gothic New / Zen Old Mincho）。見た目は同じです。表示にはインターネット接続が必要です。

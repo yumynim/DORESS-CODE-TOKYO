@@ -60,7 +60,7 @@ DORESS CODE TOKYO/
 ├── js/
 │   ├── data.js                 サイトのコンテンツデータ（記事・ギャラリー等）
 │   ├── render.js                data.js を HTML に展開する描画ロジック
-│   ├── auth.js                  Supabase Auth（会員登録/ログイン/ログアウト、Googleサインイン、ログイン再開）＋
+│   ├── auth.js                  Supabase Auth（会員登録/ログイン/ログアウト/パスワード再設定/確認メール再送、ログイン再開。Googleサインインは実装済みだがGOOGLE_LOGIN_ENABLED=falseで非表示）＋
 │   │                             ヘッダーのマイページアイコン・マイページドロワー（購入履歴＋ログアウト）
 │   ├── auth-config.js            Supabase の url / anonKey を入れる設定ファイル（設定済み）
 │   ├── notifications.js          ヘッダーの通知ベルアイコン。ドロワーで「あなたへのお知らせ」／
@@ -75,10 +75,12 @@ DORESS CODE TOKYO/
 │   ├── admin-inquiries.js         GET/POST /api/admin-inquiries: /console のお問い合わせ一覧・返信（返信はinfo@から送信しinquiries.statusを更新）
 │   ├── admin-preview-email.js     POST /api/admin-preview-email: /console のブロックエディタのライブプレビュー用（送信は行わない）
 │   ├── admin-upload-image.js      POST /api/admin-upload-image: /console の画像ブロック用、Supabase Storageへアップロード
-│   ├── admin-checkin.js           POST /api/admin-checkin: /checkin から呼ぶ。受付コードを照合し未チェックインならchecked_in_atを記録
+│   ├── admin-checkin.js           GET/POST /api/admin-checkin: /checkin から呼ぶ。受付コードを照合し未チェックインならchecked_in_atを記録（GETは一覧、POST undo で取り消し）
+│   ├── check-email.js             POST /api/check-email: 新規登録フォームで、そのメールアドレスが既に会員登録済みかだけを返す
 │   └── env-check.js               GET /api/env-check: 環境変数が設定されているか（値は返さず真偽値のみ）を確認する診断用
 ├── lib/
-│   └── mailer.js                 Resend経由のメール送信の共通処理（購入通知・お知らせ配信・お問い合わせ対応で共用）。ブロック配列→HTML/テキスト変換、送信元アドレスの差し替えにも対応
+│   ├── mailer.js                 Resend経由のメール送信の共通処理（購入通知・お知らせ配信・お問い合わせ対応で共用）。ブロック配列→HTML/テキスト変換、送信元アドレスの差し替えにも対応
+│   └── adminAuth.js              /console・/checkin 共通の管理者トークン発行・検証（timingSafeEqual使用）
 ├── supabase/
 │   ├── schema.sql                 profiles / purchases テーブルの初期スキーマ
 │   ├── schema_v2_cart.sql         purchases にカート対応カラム（square_order_id 等）を追加
@@ -89,7 +91,10 @@ DORESS CODE TOKYO/
 │   ├── schema_v7_notification_html.sql  notifications/announcements に body_html カラムを追加（画像付きお知らせをサイト内でも正しく表示するため）
 │   ├── schema_v8_entry_code.sql   purchases に entry_code カラムを追加（当日の入場確認用コード。実行済み）
 │   ├── schema_v9_checkin.sql      purchases に checked_in_at カラムを追加（当日のQR/手入力チェックイン記録。実行済み）
-│   └── schema_v10_event_sequence.sql  entry_code_counters テーブル＋next_entry_seq()関数を追加（イベント識別番号×カテゴリごとの連番発行。★未実行★Supabaseで実行が必要）
+│   ├── schema_v10_event_sequence.sql  entry_code_counters テーブル＋next_entry_seq()関数を追加（イベント識別番号×カテゴリごとの連番発行。実行済み）
+│   └── schema_v11_notifications_update_guard.sql  notificationsの更新をread列だけに制限（with check＋トリガー。★未実行★Supabaseで実行が必要）
+├── scripts/
+│   └── simulate-payment-webhook.js  実決済せずに決済完了後の一連の流れを試すローカル用スクリプト（署名鍵を使って正規の署名を作り、本番のWebhookを叩く）
 ├── assets/images/                 画像
 ├── vercel.json                    セキュリティヘッダー設定
 ├── .env.example                   環境変数テンプレート（実値は Vercel の環境変数に設定する想定）
@@ -101,7 +106,7 @@ DORESS CODE TOKYO/
 # 使用技術・外部サービス
 
 - フロントエンド: 素の HTML/CSS/JS。ビルドステップなし。フォントは Google Fonts を `<link>` で読み込み（Cormorant Garamond / Jost / Zen Kaku Gothic New / Zen Old Mincho）。
-- 認証: Supabase Auth（メール/パスワード + Google OAuth）。プロジェクト作成済み（`dresscode-tokyo`, Tokyo region, Free）。`js/auth-config.js` に Project URL / Publishable Key を設定済み（2026-07-24、ローカルサーバーでログインモーダルが「準備中」ではなく実フォームで表示されることを確認済み）。Vercel環境変数（`SUPABASE_URL`/`SUPABASE_ANON_KEY`/`SUPABASE_SERVICE_ROLE_KEY`）も設定・Redeploy済み。Secret Keyはローテーション済み・Vercel側も更新済み。Google OAuthプロバイダ（Client ID/Secret）は未設定。
+- 認証: Supabase Auth（メール/パスワード + Google OAuth）。プロジェクト作成済み（`dresscode-tokyo`, Tokyo region, Free）。`js/auth-config.js` に Project URL / Publishable Key を設定済み（2026-07-24、ローカルサーバーでログインモーダルが「準備中」ではなく実フォームで表示されることを確認済み）。Vercel環境変数（`SUPABASE_URL`/`SUPABASE_ANON_KEY`/`SUPABASE_SERVICE_ROLE_KEY`）も設定・Redeploy済み。Secret Keyはローテーション済み・Vercel側も更新済み。Google OAuthプロバイダ（Client ID/Secret）は未設定のため、`js/auth.js`の`GOOGLE_LOGIN_ENABLED = false`でGoogleログインボタン自体を非表示にしている（再開するときはtrueに戻すだけでよい）。
 - 決済: Square API（Create Payment Link、Orders APIのline_items経由）。**2026-08-01にProductionへ切り替え済み**（Vercel環境変数`SQUARE_ACCESS_TOKEN`/`SQUARE_LOCATION_ID`/`SQUARE_APPLICATION_ID`/`SQUARE_WEBHOOK_SIGNATURE_KEY`/`SQUARE_ENVIRONMENT=production`、Production側の商品登録・Webhook Subscription作成、`js/data.js`の`catalogObjectId`もProduction用IDに差し替え済み）。`SQUARE_WEBHOOK_URL`はSandbox/Production共通で変更不要。実際の少額決済でのエンドツーエンド確認はまだ（詳細は「未完了の作業」参照）。
 - DB: Supabase Postgres。RLS 有効。`purchases.status` の更新は service role のみ許可（クライアントから直接書き換え不可）。
 - ホスティング/デプロイ: Vercel（`vercel.json`）。`api/` 配下が Vercel Functions として動く前提。
@@ -135,7 +140,7 @@ git log（直近）で確認できた範囲:
 - **（2026-07-24）Secret Keyローテーション完了・`js/auth-config.js` 設定完了**:
   - ユーザーがSecret Keyをローテーションし、Vercelの`SUPABASE_SERVICE_ROLE_KEY`も新しい値に更新済み
   - Project URL（`https://qyqeyinkvofosmcwskwx.supabase.co`）とPublishable Keyを共有してもらい、[`js/auth-config.js`](../js/auth-config.js) に設定
-  - ローカルサーバー（`python3 -m http.server`）でログインモーダルを開き、「準備中」ではなく実際のログイン/新規登録フォーム（Googleサインインボタン含む）が表示されることを確認済み
+  - ローカルサーバー（`python3 -m http.server`）でログインモーダルを開き、「準備中」ではなく実際のログイン/新規登録フォームが表示されることを確認済み（当時はGoogleサインインボタンも表示していたが、後に`GOOGLE_LOGIN_ENABLED = false`で非表示にした）
 - **（2026-07-25）ヘッダーUIを大幅変更：マイページ/通知をページ遷移せずドロワーで表示**:
   - 背景: 「マイページ」ボタンが `members-only.html` へのページ遷移だったため、押すと他のページを閲覧できなくなる不満があった
   - [`js/auth.js`](../js/auth.js): ログイン中はヘッダーの「ログイン」ボタンが人型アイコン（アバター）に変わり、押すと**ページ遷移せずドロワー**（カートと同じ仕組み）でマイページ（挨拶／購入したチケット／ログアウト）を表示するように変更。旧・未読バッジ表示ロジック（`refreshNotifBadge`/`.notif-dot`）は下記の通知ベルに統合したため削除
@@ -200,7 +205,7 @@ Supabase接続・ヘッダーのマイページ/通知UI刷新・お知らせ投
   - 出店申し込みの流れを「Googleフォーム提出→お支払い」から**「カートでお支払い→お支払い確認後にGoogleフォームをお送りして詳細入力してもらう」**（支払い先行）に変更。ユーザーの意向（決済を先に済ませてから出店内容を確認する運用にしたい）による。
   - 出店料カードのnote欄に「※必ず詳細をご確認のうえお申し込みください」を追加。
   - **未実装**: 「お支払い確認後にGoogleフォームを送る」部分は現状まだ手動（Webhookで自動送信する仕組みは無い）。運営側が`purchases`テーブルや通知を見て都度Googleフォームのリンクを送る運用を想定。自動化するかは今後の相談。
-- **（要注意・現状維持で継続中）本番ドメインでSquare Sandboxが露出している**: `dress-code-tokyo.com`は実際に一般公開されているが、`SQUARE_ACCESS_TOKEN`等はまだSandbox設定のまま。今の状態で一般来場者が「カートに追加」→「レジに進む」まで進むと、実際の決済画面ではなくSquareの「APIサンドボックステストパネル」（開発者向けテスト画面）が表示されてしまう。実害（誤課金等）は無いが、お客様から見ると壊れているように見える。ユーザーは2026-08-01に「確実にSandboxです」と状況を把握・許容したうえで、現状維持のままテストを継続する意向を示した。**Square本番切り替え手順は本ファイル末尾の「関連ファイル」付近の会話ログ、または`api/checkout.js`のコメント参照。本番切り替えが完了するまではこのリスクは残り続ける。**
+- ~~**（要注意）本番ドメインでSquare Sandboxが露出している**~~ **→ 2026-08-01に本番切り替え完了により解消済み**（`SQUARE_ENVIRONMENT=production`＋Production用のcatalogObjectIdに変更済み。当時の記録: `dress-code-tokyo.com`は公開済みなのに`SQUARE_ACCESS_TOKEN`等がSandbox設定のままで、レジに進むとSquareの「APIサンドボックステストパネル」が表示されてしまう状態だった）。
 - **（2026-08-01・コミット`a742450`でpush済み・本番デプロイ確認済み）チケットカードのUI追加調整**:
   - 出店料カードの`caution`（注意書き）を`note`から独立させ、赤字太字で目立つように変更（[`css/style.css`](../css/style.css)の`.tcard__caution`、[`js/data.js`](../js/data.js)の新フィールド`caution`、[`js/render.js`](../js/render.js)）。
   - チケットカードの「詳細・お問い合わせ」文言で「Instagramのみ」だった案内に、「ホームページ下部のお問い合わせフォームからでも承っております」を追記（出店料・1日入場チケット両方）。理由: 問い合わせ先がInstagramしか書かれていない箇所が複数あり、ユーザーが「信用が無さそうに見える」と懸念したため。
@@ -222,7 +227,7 @@ Supabase接続・ヘッダーのマイページ/通知UI刷新・お知らせ投
   - **確認済み事実（ユーザーからの質問に回答）**: 「カートに追加→レジに進む」だけでは`purchases`に`status:'initiated'`の行ができるだけで、購入者タグ（セグメント）にもメール送信にも影響しない。セグメント集計・購入完了メールともに`status='paid'`（＝Webhookが実際の決済完了を確認した後）にしか反応しないため、支払わずにテストしても誤タグ・誤送信の心配はないことをコードを読んで確認・回答した。
 - **（2026-08-01・コミット`6fc011c`でpush済み）当日入場確認用の受付コード＋「手続き未完了」名簿を追加**:
   - 背景: ユーザーから「入場・識別に使える、当てずっぽうでは当たらない番号を購入者に振りたい。口頭で伝える想定なので大文字小文字の区別が無いのがいい」との要望。
-  - **[`supabase/schema_v8_entry_code.sql`](../supabase/schema_v8_entry_code.sql)（新規・★まだユーザーが未実行★）**: `purchases.entry_code`カラム（テキスト）＋一意インデックスを追加。**このマイグレーションを実行するまでは、以下のコードはエラーになるかentry_codeが常にnullになる**。
+  - **[`supabase/schema_v8_entry_code.sql`](../supabase/schema_v8_entry_code.sql)（実行済み）**: `purchases.entry_code`カラム（テキスト）＋一意インデックスを追加。**このマイグレーションを実行するまでは、以下のコードはエラーになるかentry_codeが常にnullになる**。
   - [`api/square-webhook.js`](../api/square-webhook.js): 支払いが`paid`に確定した最初の1回だけコードを発行して`entry_code`に保存。ユニーク制約に衝突したら別の値で最大5回まで再試行。Webhookの再送（既存の重複排除ロジック）が来ても、既にentry_codeがあれば再発行しない。購入完了メール・サイト内通知の本文にも「当日の受付コードは「○○」です」を追記。
     - **（2026-08-02更新）コード形式を変更**: 最初は6桁の数字のみだったが、ユーザーが他サービスの`TFM-20260802-A1B2`のような見た目の例を見て「そっちの方がやりやすい」と方針転換。`DCT-購入日(YYYYMMDD)-ランダム4文字`形式（例: `DCT-20260802-7K4M`）に変更。ランダム部分は見間違い・聞き間違いしやすい文字（`0/O`、`1/I/L`、`U/V`等）を除いた29文字のセットから選ぶ（同日内で約70万通り）。
   - 表示側: [`js/auth.js`](../js/auth.js)のヘッダーマイページドロワー、[`members-only.html`](../members-only.html)のフルページ版、両方の購入履歴に受付コードを表示するよう`select`にフィールド追加。
@@ -253,7 +258,7 @@ Supabase接続・ヘッダーのマイページ/通知UI刷新・お知らせ投
   - **未確認**: この修正で実際に直ったかどうかは、もう一度Squareの決済を通してテストするまで確定していない。また、この不具合が本当に「決済ページから戻ってきた直後」特有のものか、単に直接URLを開いて未ログイン状態で見ていただけなのかは、ユーザーへの再現手順の確認待ち。
 - **（2026-08-02・未コミット→ユーザー承認後push予定）当日の入場確認をQRコード対応にする一式を追加**:
   - 背景: ユーザーが以前使っていた別サービス（TFM）と同様に、受付コードをQR化してスタッフが読み取れるようにしたいという要望。実装にあたり「npm依存を増やしたくない」という懸念が出たため、**追加ライブラリ0個**で実現する方針にした（QR生成は外部の無料サービス`api.qrserver.com`の画像URLを直接`<img>`で使う。読み取りはAndroid/Chromeがブラウザ標準搭載の`BarcodeDetector`機能を使い、対応していないSafari/iPhoneは既存の手入力検索にフォールバックする）。
-  - **[`supabase/schema_v9_checkin.sql`](../supabase/schema_v9_checkin.sql)（新規・★まだユーザーが未実行★）**: `purchases.checked_in_at`カラムを追加。実行するまで`/checkin`は動かない。
+  - **[`supabase/schema_v9_checkin.sql`](../supabase/schema_v9_checkin.sql)（実行済み）**: `purchases.checked_in_at`カラムを追加。実行するまで`/checkin`は動かない。
   - **[`api/admin-checkin.js`](../api/admin-checkin.js)（新規）**: POST。`/console`と同じ合言葉トークン（`verifyAdminToken`）で認証。受付コードで`purchases`を検索（`status='paid'`のみ対象）→未チェックインならその場で`checked_in_at`を記録して購入者情報を返す→チェックイン済みなら「入場済みです（最初の入場時刻）」を返す→見つからなければ404。
   - **[`checkin.html`](../checkin.html)（新規、`/checkin`でアクセス）**: `/console`と同じ合言葉ログイン画面（トークンは同じ`sessionStorage`キー`dct_admin_token`を共有）。カメラでのQR読み取り（`BarcodeDetector`対応ブラウザのみ、非対応時は案内文を表示）と、手入力フォームの両方に対応。結果は「入場OK／入場済みです／無効なコード」の3状態で大きく表示し、直近の読み取り履歴も一覧表示する。[`vercel.json`](../vercel.json)に`/checkin`→`/checkin.html`のrewriteを追加。`Permissions-Policy`ヘッダーが`camera=()`（全面禁止）になっていたため`camera=(self)`に変更（変更しないとカメラが起動できない）。主要ナビ・フッターにはリンクを置かず、`/console`と同様URLを直接知っている人だけが使う想定。
   - **QRコードの表示側（購入者が見る側）を追加**: 受付コードが表示される4箇所（決済直後のありがとうございました画面・購入完了メール・ヘッダーのマイページドロワー・`members-only.html`の購入履歴）すべてに、コードのテキストと並べてQR画像（`https://api.qrserver.com/v1/create-qr-code/?data=...`）を表示するようにした（[`members-only.html`](../members-only.html)、[`js/auth.js`](../js/auth.js)、[`api/square-webhook.js`](../api/square-webhook.js)の`notifyPurchaser`。メールは`sendEmail`をblocks形式に切り替えて画像ブロックを追加）。
@@ -266,7 +271,7 @@ Supabase接続・ヘッダーのマイページ/通知UI刷新・お知らせ投
   - 上記2箇所のトグルCSSはコンソール用に作った`.admin-item`系クラスをそのまま流用すると命名が紛らわしいため、`.toggle-item`にリネームして共通化（[`css/style.css`](../css/style.css)、[`admin-announcements.html`](../admin-announcements.html)側も追従）。
   - **未確認**: 実際に決済して、通知ドロワー・`members-only.html`の両方でQR付きの通知が正しく開閉表示されるか。
 - **（2026-08-03・未コミット→ユーザー承認後push予定）受付コードをイベント識別番号ベースに変更、`/checkin`のチェックイン履歴を実データ化**:
-  - **受付コードの形式変更**: `DCT-購入日-ランダム4文字`から`DCT-イベント識別番号-カテゴリ+連番`（例: `DCT-0927.01-S1`）に変更。詳細・運用ルールは上記「重要な仕様・決定事項」参照。[`supabase/schema_v10_event_sequence.sql`](../supabase/schema_v10_event_sequence.sql)（新規・★まだユーザーが未実行★）で`entry_code_counters`テーブルと`next_entry_seq()`関数を追加。[`api/square-webhook.js`](../api/square-webhook.js)の`generateEntryCode`/`assignEntryCode`をこの関数を呼ぶ形に書き換え。[`.env.example`](../.env.example)に`CURRENT_EVENT_ID`を追加。
+  - **受付コードの形式変更**: `DCT-購入日-ランダム4文字`から`DCT-イベント識別番号-カテゴリ+連番`（例: `DCT-0927-S1`）に変更。詳細・運用ルールは上記「重要な仕様・決定事項」参照。[`supabase/schema_v10_event_sequence.sql`](../supabase/schema_v10_event_sequence.sql)（実行済み）で`entry_code_counters`テーブルと`next_entry_seq()`関数を追加。[`api/square-webhook.js`](../api/square-webhook.js)の`generateEntryCode`/`assignEntryCode`をこの関数を呼ぶ形に書き換え。[`.env.example`](../.env.example)に`CURRENT_EVENT_ID`を追加。
   - **`/checkin`のチェックイン履歴を実データ化**: 背景はユーザーから「読み取り履歴にトグルと検索が欲しい、消せるようにもしてほしい」との要望。今までは`checkin.html`内のJS変数だけに溜めていた（ページ再読み込みで消える、検索も削除もできない）簡易ログだったのを、[`api/admin-checkin.js`](../api/admin-checkin.js)にGET（チェックイン済み一覧取得）と`{undo:true, id}`での取り消し機能を追加し、実際に`purchases.checked_in_at`から読み書きする形に変更。[`checkin.html`](../checkin.html)側は「本日のチェックイン一覧」をトグル（`.admin-toggle`）＋検索ボックス＋各行に「取り消す」ボタン、という構成にした。チェックインするたびに一覧を自動で再読み込みする。
   - **未確認**: `schema_v10_event_sequence.sql`実行後、実際に決済してコードが`DCT-{CURRENT_EVENT_ID}-{S|N}{連番}`の形式で発行されるか、`/checkin`で検索・取り消しが動くか、まだ実地テストしていない。`CURRENT_EVENT_ID`もまだVercelに設定していない（未設定だと`'EVENT'`という既定値になる）。
 
@@ -274,8 +279,8 @@ Supabase接続・ヘッダーのマイページ/通知UI刷新・お知らせ投
 
 - ~~Supabase — `schema_v8_entry_code.sql`実行~~ 2026-08-03実行済み
 - ~~Supabase — `schema_v9_checkin.sql`実行~~ 2026-08-03実行済み
-- **（ブロッカー）Supabase — `supabase/schema_v10_event_sequence.sql`をSQL Editorで実行する**: 実行するまで受付コードの発行自体が失敗する（`next_entry_seq()`関数が無いため）。
-- **（ブロッカー）Vercel環境変数 `CURRENT_EVENT_ID` を設定する**: 例えば今回のイベント（2026年9月27日開催）なら`0927.01`のような値。未設定のままだと受付コードが`DCT-EVENT-...`という仮の値になってしまう。新しいイベントを開催するたびにこの値を変更すること（詳細は「重要な仕様・決定事項」参照）。
+- ~~（ブロッカー）Supabase — `supabase/schema_v10_event_sequence.sql`をSQL Editorで実行する~~ **→ 2026-08-03実行済み**
+- ~~（ブロッカー）Vercel環境変数 `CURRENT_EVENT_ID` を設定する~~ **→ 2026-08-03に`0927`を設定・Redeploy済み**。新しいイベントを開催するたびにこの値を変更すること（詳細は「重要な仕様・決定事項」参照）。
 - **特定商取引法に基づく表記（[`tokutei-shotorihiki.html`](../tokutei-shotorihiki.html)）は必須項目を記入済み、公開判断待ち**:
   - ユーザーは個人事業主（屋号は無い）と確認。**販売事業者・運営統括責任者ともに本名「齋藤南」を記載**（2026-08-01）。「DRESS CODE TOKYO」は屋号ではないため事業者名としては使わない、とユーザーが判断。
   - メールアドレス: `info@dress-code-tokyo.com` 記入済み。
@@ -316,8 +321,8 @@ Supabase接続・ヘッダーのマイページ/通知UI刷新・お知らせ投
 - **announcements への書き込みは `/api/admin-announcements` 経由のみ**: RLSでinsert/deleteポリシーを意図的に作っておらず、サーバー側（service role）でしか書き込めない。理由: `purchases.status` と同じ考え方で、権限確認をクライアント任せにしない。
 - **お知らせ投稿ページ（`/console`）はチーム共通の合言葉方式**: `ADMIN_CONSOLE_PASSWORD` 1つを知っている人なら誰でも会員全員／個人宛てにお知らせ（サイト内通知＋メール）を送れる。個人アカウント単位の権限管理ではないため、「誰が送ったか」の記録は残らない。合言葉が漏れた場合は`ADMIN_CONSOLE_PASSWORD`を変更すれば、発行済みトークンも含めて即座に無効化される。
 - **Vercelのプロジェクトは`doress-code-tokyo-9qjj`が唯一の本番**: 過去に同じリポジトリを複数回インポートしてしまい、似た名前の重複プロジェクトができていたことがある（2026-07-25に発見・削除済み）。今後Vercelの環境変数を触るときは、必ずURLの末尾が`-9qjj`のプロジェクトを編集していることを確認する。原因切り分けには`/api/env-check`が使える。
-- **受付コード（entry_code）は「イベント識別番号」ベース、新しいイベントのたびに`CURRENT_EVENT_ID`を変えること**（2026-08-03決定）: 形式は`DCT-{イベント識別番号}-{カテゴリ}{連番}`（例: `DCT-0927.01-S1`＝2026.9.27開催イベントの出店者1人目、`DCT-0927.01-N1`＝同イベントの来場者1人目）。
-  - **イベント識別番号**（`0927.01`の部分）はVercel環境変数`CURRENT_EVENT_ID`で管理する。**新しいイベントを開催するたびに、この値を新しいものに変更すること**（例: 次回が2026年12月開催なら`1201.01`のように）。値を変えると出店者(S)・来場者(N)の連番はどちらも自動的に1から再スタートする（`supabase/schema_v10_event_sequence.sql`の`entry_code_counters`テーブルが「イベントID×カテゴリ」ごとにカウンターを持っているため）。**同じイベント識別番号を使い続けている間は、番号は増え続ける**（出店が増えたらS2, S3…と自動的に増える）。
+- **受付コード（entry_code）は「イベント識別番号」ベース、新しいイベントのたびに`CURRENT_EVENT_ID`を変えること**（2026-08-03決定）: 形式は`DCT-{イベント識別番号}-{カテゴリ}{連番}`（例: `DCT-0927-S1`＝2026.9.27開催イベントの出店者1人目、`DCT-0927-N1`＝同イベントの来場者1人目）。
+  - **イベント識別番号**（`0927`の部分）はVercel環境変数`CURRENT_EVENT_ID`で管理する。**MMDD形式**（同じ日に複数イベントを開催するときだけ`0927.01`のような枝番を足す）。**新しいイベントを開催するたびに、この値を新しいものに変更し、Redeployすること**（例: 次回が2026年12月1日開催なら`1201`）。値を変えると出店者(S)・来場者(N)の連番はどちらも自動的に1から再スタートする（`supabase/schema_v10_event_sequence.sql`の`entry_code_counters`テーブルが「イベントID×カテゴリ」ごとにカウンターを持っているため）。**同じイベント識別番号を使い続けている間は、番号は増え続ける**（出店が増えたらS2, S3…と自動的に増える）。
   - **カテゴリの判定はチケット名の文字列に依存**（`api/square-webhook.js`の`categoryFor()`）：チケット名に「出店」が含まれれば`S`、「入場」が含まれれば`N`、どちらでもなければ`X`。将来チケットの名前（`js/data.js`の`name`）を変える場合、この判定ロジックも見直すこと。
   - 環境変数の設定を忘れると`CURRENT_EVENT_ID`が未設定のまま`'EVENT'`という既定値が使われてしまうので、**イベントを開催する前に必ず`CURRENT_EVENT_ID`をVercelに設定/更新したか確認すること**。
 - **Resendは設定済み・動作確認済み**（2026-07-25）: ドメイン認証（SPF/DKIM/DMARC）・APIキー発行・Vercel環境変数（`RESEND_API_KEY`/`NOTIFY_FROM_EMAIL`）設定まで完了し、`/console`からのメール送信を実地確認済み。送信元は`DRESS CODE TOKYO <noreply@dress-code-tokyo.com>`。メールはテキスト版とHTML版を同時送信（`lib/mailer.js`の`sendEmail`が両方生成）。設定直後に送信履歴が0件で「動いていないように見えた」原因は、Resend側ではなく管理画面→`serviceClient.auth.admin.listUsers()`が`SUPABASE_SERVICE_ROLE_KEY`の不整合で`invalid JWT`エラーを起こし、Resendまで処理が到達していなかったこと。最新のSecret Key（`sb_secret_...`形式）を取得してVercelの`SUPABASE_SERVICE_ROLE_KEY`を更新し解決。**教訓**: Supabaseのservice roleキーは形式が変わることがあるため、`invalid JWT`系のエラーが出たらまずこのキーを疑う。
@@ -400,7 +405,7 @@ Supabase接続・ヘッダーのマイページ/通知UI刷新・お知らせ投
 - [lib/mailer.js](../lib/mailer.js) — Resend送信の共通処理
 - [js/cart.js](../js/cart.js) / [api/checkout.js](../api/checkout.js) / [api/square-webhook.js](../api/square-webhook.js) — 決済フロー＋購入通知（メール／サイト内通知）。SandboxとProductionでAPIホストが違う点に注意（`api/checkout.js`のコメント参照）
 - [tokutei-shotorihiki.html](../tokutei-shotorihiki.html) — 特定商取引法に基づく表記（必須項目記入済み、公開判断待ち）
-- [supabase/schema.sql](../supabase/schema.sql) 〜 [schema_v7_notification_html.sql](../supabase/schema_v7_notification_html.sql) — DBスキーマ（v1〜v4・v6・v7は使用中、v5は現在未使用）
+- [supabase/schema.sql](../supabase/schema.sql) 〜 [schema_v11_notifications_update_guard.sql](../supabase/schema_v11_notifications_update_guard.sql) — DBスキーマ（v1〜v4・v6〜v10は使用中、v5(`profiles.is_admin`)は合言葉方式に移行したため現在未使用、v11は未実行）
 - [vercel.json](../vercel.json) — セキュリティヘッダー＋ `/console` のrewrite
 - [.env.example](../.env.example) — 必要な環境変数一覧（実値はVercel側）
 - `方針/` `事業/` `案件/` `素材/` — 運営資料（gitignore対象、ローカルのみ）
@@ -409,7 +414,7 @@ Supabase接続・ヘッダーのマイページ/通知UI刷新・お知らせ投
 
 - ローカルプレビュー: `index.html` をブラウザで直接開く、または `python3 -m http.server` で簡易サーバーを立てて確認（README記載）。
 - Vercel Functions（`api/checkout.js` 等）を試す場合はローカルの簡易サーバーでは動かないため、Vercel CLI（`vercel dev`）または実デプロイでの確認が必要（未確認: このプロジェクトで Vercel CLI を使ったローカル実行が想定されているか）。
-- 決済まわりは Square Sandbox 環境での動作確認を想定（`.env.example` の `SQUARE_ENVIRONMENT=sandbox`）。
+- 決済まわりは2026-08-01にSquare Production環境へ切り替え済み（`SQUARE_ENVIRONMENT=production`）。`.env.example`のsandbox表記はテンプレートの既定値であり、本番Vercelの設定とは別物。
 
 2026-07-30 — お問い合わせ機能一式（DB保存・console返信・info@からの自動受付メール）を追加。あわせて全体の整理・点検を実施:
 - **（修正）SEOメタデータが削除済みのVercelプロジェクトを指していた**: `index.html`ほか全ページのcanonical/og:url/構造化データ・`sitemap.xml`・`robots.txt`が`doress-code-tokyo-cip1.vercel.app`（2026-07-25に削除済みの重複プロジェクト、404確認済み）を指したままだった。すべて`https://dress-code-tokyo.com`に修正。
