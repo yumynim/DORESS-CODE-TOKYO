@@ -79,6 +79,18 @@
       '    <p class="auth-form__error" hidden></p>' +
       '    <button type="button" class="btn-link auth-form__resend" hidden>確認メールを再送する</button>' +
       '    <button type="submit" class="btn btn--solid auth-form__submit">ログイン</button>' +
+      '    <button type="button" class="btn-link auth-modal__forgot" id="auth-forgot-btn">パスワードをお忘れですか？</button>' +
+      '  </form>' +
+      '  <form id="auth-form-reset" class="auth-form" hidden>' +
+      '    <label>メールアドレス<input type="email" name="email" required autocomplete="email"></label>' +
+      '    <p class="auth-form__error" hidden></p>' +
+      '    <button type="submit" class="btn btn--solid auth-form__submit">再設定メールを送る</button>' +
+      '    <button type="button" class="btn-link" id="auth-reset-back">ログインに戻る</button>' +
+      '  </form>' +
+      '  <form id="auth-form-newpassword" class="auth-form" hidden>' +
+      '    <label>新しいパスワード（6文字以上）<input type="password" name="password" required minlength="6" autocomplete="new-password"></label>' +
+      '    <p class="auth-form__error" hidden></p>' +
+      '    <button type="submit" class="btn btn--solid auth-form__submit">パスワードを更新する</button>' +
       '  </form>' +
       '  <form id="auth-form-signup" class="auth-form" hidden>' +
       '    <label>お名前<input type="text" name="displayName" required autocomplete="name"></label>' +
@@ -94,7 +106,7 @@
     return wrap;
   }
 
-  var modal = null, elLead = null, elNotice = null, formSignin = null, formSignup = null, tabBtns = null, titleEl = null, googleBtn = null;
+  var modal = null, elLead = null, elNotice = null, formSignin = null, formSignup = null, formReset = null, formNewPassword = null, tabsEl = null, tabBtns = null, titleEl = null, googleBtn = null;
 
   function ensureModal() {
     if (modal) return modal;
@@ -103,6 +115,9 @@
     elNotice = modal.querySelector('#auth-modal-notice');
     formSignin = modal.querySelector('#auth-form-signin');
     formSignup = modal.querySelector('#auth-form-signup');
+    formReset = modal.querySelector('#auth-form-reset');
+    formNewPassword = modal.querySelector('#auth-form-newpassword');
+    tabsEl = modal.querySelector('.auth-modal__tabs');
     tabBtns = modal.querySelectorAll('.auth-modal__tab');
     titleEl = modal.querySelector('#auth-modal-title');
     googleBtn = modal.querySelector('#auth-google-btn');
@@ -127,6 +142,10 @@
     } else {
       formSignin.addEventListener('submit', handleSignin);
       formSignup.addEventListener('submit', handleSignup);
+      formReset.addEventListener('submit', handleResetRequest);
+      formNewPassword.addEventListener('submit', handleNewPassword);
+      modal.querySelector('#auth-forgot-btn').addEventListener('click', function () { switchTab('reset'); });
+      modal.querySelector('#auth-reset-back').addEventListener('click', function () { switchTab('signin'); });
       wireEmailExistsCheck();
       if (GOOGLE_LOGIN_ENABLED) {
         googleBtn.addEventListener('click', signInWithGoogle);
@@ -139,12 +158,25 @@
     return modal;
   }
 
+  // name: 'signin' | 'signup' | 'reset'（パスワード再設定リンクの送信）| 'newpassword'（再設定リンクを開いた直後、新パスワード入力）
   function switchTab(name) {
-    tabBtns.forEach(function (b) { b.classList.toggle('is-active', b.getAttribute('data-auth-tab') === name); });
     var isSignin = name === 'signin';
+    var isSignup = name === 'signup';
+    var isReset = name === 'reset';
+    var isNewPassword = name === 'newpassword';
+    tabBtns.forEach(function (b) { b.classList.toggle('is-active', b.getAttribute('data-auth-tab') === name); });
+    // reset/newpasswordはログイン・新規登録のタブ切り替えとは別の一時的な画面なので、タブ自体とGoogleログインは隠す
+    tabsEl.hidden = isReset || isNewPassword;
+    googleBtn.hidden = isReset || isNewPassword || !GOOGLE_LOGIN_ENABLED;
+    modal.querySelector('.auth-modal__or').hidden = isReset || isNewPassword || !GOOGLE_LOGIN_ENABLED;
     formSignin.hidden = !isSignin;
-    formSignup.hidden = isSignin;
-    titleEl.textContent = isSignin ? 'アカウントにログイン' : '新規登録して会員になる';
+    formSignup.hidden = !isSignup;
+    formReset.hidden = !isReset;
+    formNewPassword.hidden = !isNewPassword;
+    titleEl.textContent = isSignin ? 'アカウントにログイン'
+      : isSignup ? '新規登録して会員になる'
+      : isReset ? 'パスワードを再設定'
+      : '新しいパスワードを設定';
     clearFormErrors();
   }
 
@@ -163,14 +195,17 @@
 
   function openModal(opts) {
     opts = opts || {};
-    if (session) { openAccountDrawer(); return; }
+    // パスワード再設定リンクを開いた直後は、Supabaseが一時的な回復用セッションを作るため
+    // session が既に存在する状態になる。この場合だけはマイページに飛ばさず新パスワード入力を出す。
+    if (session && opts.tab !== 'newpassword') { openAccountDrawer(); return; }
     ensureModal();
     if (opts.lead) { elLead.hidden = false; elLead.textContent = opts.lead; } else { elLead.hidden = true; }
     if (CONFIGURED) switchTab(opts.tab || 'signin');
     modal.classList.add('open');
     modal.setAttribute('aria-hidden', 'false');
     document.body.style.overflow = 'hidden';
-    var firstInput = modal.querySelector(CONFIGURED ? ((opts.tab === 'signup') ? '#auth-form-signup input' : '#auth-form-signin input') : '.auth-modal__notice');
+    var activeFormId = { signup: 'auth-form-signup', reset: 'auth-form-reset', newpassword: 'auth-form-newpassword' }[opts.tab] || 'auth-form-signin';
+    var firstInput = modal.querySelector(CONFIGURED ? ('#' + activeFormId + ' input') : '.auth-modal__notice');
     if (firstInput && firstInput.focus) setTimeout(function () { firstInput.focus(); }, 50);
   }
   function closeModal() {
@@ -310,6 +345,37 @@
       elNotice.hidden = false;
       elNotice.textContent = '確認メールを送りました。メール内のリンクを開いて登録を完了してください。届かない場合は下のボタンから再送できます。';
       wireResendButton(f, email);
+    });
+  }
+
+  function handleResetRequest(e) {
+    e.preventDefault();
+    clearFormErrors();
+    var f = e.target;
+    var email = f.email.value.trim();
+    var btn = f.querySelector('.auth-form__submit');
+    setButtonBusy(btn, true, '再設定メールを送る');
+    client.auth.resetPasswordForEmail(email, { redirectTo: window.location.origin + '/' }).then(function (res) {
+      setButtonBusy(btn, false, '再設定メールを送る');
+      if (res.error) { showFormError(f, '送信できませんでした：' + res.error.message); return; }
+      elNotice.hidden = false;
+      elNotice.textContent = 'パスワード再設定用のメールを送りました。メール内のリンクを開いて新しいパスワードを設定してください。';
+    });
+  }
+
+  function handleNewPassword(e) {
+    e.preventDefault();
+    clearFormErrors();
+    var f = e.target;
+    var password = f.password.value;
+    var btn = f.querySelector('.auth-form__submit');
+    setButtonBusy(btn, true, 'パスワードを更新する');
+    client.auth.updateUser({ password: password }).then(function (res) {
+      setButtonBusy(btn, false, 'パスワードを更新する');
+      if (res.error) { showFormError(f, '更新できませんでした：' + res.error.message); return; }
+      elNotice.hidden = false;
+      elNotice.textContent = 'パスワードを更新しました。';
+      onAuthed(res.data.session || session);
     });
   }
 
@@ -488,7 +554,15 @@
       // 既にセッションが存在していれば保留中のチケット購入をここで再開する。
       if (session) resumePendingTicket();
     });
-    client.auth.onAuthStateChange(function (_event, newSession) {
+    client.auth.onAuthStateChange(function (event, newSession) {
+      if (event === 'PASSWORD_RECOVERY') {
+        // パスワード再設定リンクを開いた直後。Supabaseが回復用の一時セッションを作るが、
+        // まだ「ログイン完了」ではなく新パスワードを決めさせる必要があるので、
+        // 通常のログイン扱い（notify等）はせず新パスワード入力だけを出す。
+        session = newSession;
+        openModal({ tab: 'newpassword' });
+        return;
+      }
       var wasLoggedOut = !session;
       session = newSession;
       paintAuthButtons();
