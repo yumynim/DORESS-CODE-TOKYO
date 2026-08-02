@@ -18,14 +18,30 @@ const crypto = require('crypto');
 const { createClient } = require('@supabase/supabase-js');
 const { sendEmail, SITE_URL } = require('../lib/mailer');
 
-// 当日の入場確認用コード。「DCT-イベント識別番号-カテゴリ+連番」の形式
-// （例: 2026年9月27日開催のイベントなら DCT-0927-S1（出店者1人目）、DCT-0927-N1（来場者1人目）…）。
+// 当日の入場確認用コード。「DCT-イベント識別番号-カテゴリ+連番-ランダム4文字」の形式
+// （例: 2026年9月27日開催のイベントなら DCT-0927-S1-7K4M（出店者1人目）、DCT-0927-N1-QX52（来場者1人目）…）。
 // イベント識別番号はイベントごとにVercelの環境変数 CURRENT_EVENT_ID を変えるだけで良く、
 // 変えると出店者(S)・来場者(N)の連番はどちらも1から自動的に再スタートする
 // （supabase/schema_v10_event_sequence.sql の next_entry_seq() がイベントID×カテゴリ単位で数える）。
 // 連番はDBの関数でアトミックに発行するため、同時に決済が完了しても重複しない。
+//
+// 末尾のランダム4文字は、連番だけだと次の人のコードが簡単に推測できてしまうため
+// （DCT-0927-N1 の次は N2）、他人になりすまして入場されるのを防ぐ目的で付けている。
 function currentEventId() {
   return process.env.CURRENT_EVENT_ID || 'EVENT';
+}
+
+// 受付コード末尾のランダム部分に使う文字。口頭で伝えることを想定して、
+// 聞き間違い・見間違いしやすい文字（0とO、1とI・L）は最初から除いてある。
+const ENTRY_CODE_ALPHABET = '23456789ABCDEFGHJKMNPQRSTUVWXYZ';
+const ENTRY_CODE_RANDOM_LENGTH = 4;
+
+function randomEntryCodeSuffix() {
+  let out = '';
+  for (let i = 0; i < ENTRY_CODE_RANDOM_LENGTH; i += 1) {
+    out += ENTRY_CODE_ALPHABET[crypto.randomInt(ENTRY_CODE_ALPHABET.length)];
+  }
+  return out;
 }
 
 // チケット名からカテゴリ（S=出店者 / N=来場者）を判定する。
@@ -38,7 +54,10 @@ function categoryFor(ticketName) {
   return 'X';
 }
 
-async function generateEntryCode(serviceClient, ticketName) {
+// 連番部分（DCT-0927-N1 まで）を発行する。ランダム部分は assignEntryCode 側で付ける。
+// 分けているのは、書き込みに失敗して再試行するときに連番まで取り直すと
+// 番号が飛んでしまう（1人しか買っていないのに N3 になる）ため。
+async function generateEntryCodePrefix(serviceClient, ticketName) {
   const eventId = currentEventId();
   const category = categoryFor(ticketName);
   const { data: seq, error } = await serviceClient.rpc('next_entry_seq', { p_event: eventId, p_category: category });
@@ -52,18 +71,19 @@ function escapeHtml(s) {
 
 // 受付コードのQR画像URL。外部の無料サービス（api.qrserver.com）に生成を任せる。
 // 追加のライブラリ・課金無しで済ませるためで、渡すのは受付コードだけ（氏名・メール等の個人情報は含まない）。
-// 注意: 受付コードはv10以降「イベントID+カテゴリ+連番」の推測できる値なので、これ単体を
-// 秘密の入場鍵として扱わないこと。当日は/checkinに出る氏名・メールと本人を突き合わせて確認する。
+// 受付コードの末尾4文字はランダムなので、他人のコードから次の人のコードを推測することはできない。
 function entryCodeQrUrl(code, size) {
   return `https://api.qrserver.com/v1/create-qr-code/?size=${size || 240}x${size || 240}&data=${encodeURIComponent(code)}`;
 }
 
-// purchases.entry_code はユニーク制約があるため、衝突したら別の連番で数回だけ再試行する
-// （next_entry_seq()はアトミックなので通常は衝突しないが、念のための保険）。
+// purchases.entry_code はユニーク制約があるため、衝突したらランダム部分だけ変えて数回再試行する。
+// 連番（prefix）は最初に1回だけ取る（再試行のたびに取り直すと番号が飛ぶため）。
 async function assignEntryCode(serviceClient, purchaseId, ticketName) {
+  const prefix = await generateEntryCodePrefix(serviceClient, ticketName);
+  if (!prefix) return null;
+
   for (let attempt = 0; attempt < 5; attempt++) {
-    const code = await generateEntryCode(serviceClient, ticketName);
-    if (!code) return null;
+    const code = `${prefix}-${randomEntryCodeSuffix()}`;
     const { data, error } = await serviceClient
       .from('purchases')
       .update({ entry_code: code })
@@ -71,6 +91,8 @@ async function assignEntryCode(serviceClient, purchaseId, ticketName) {
       .select('entry_code')
       .single();
     if (!error) return data.entry_code;
+    // 23505 = ユニーク制約違反。ランダム部分がたまたま既存と被った場合なので引き直す。
+    // それ以外のエラー（該当行が無い等）は引き直しても直らないので即あきらめる。
     if (error.code !== '23505') { console.error('entry_code assign failed:', error.message); return null; }
   }
   console.error('entry_code assign failed: 衝突が続いたため断念しました purchaseId=', purchaseId);

@@ -7,7 +7,7 @@
 0. **`supabase/schema_v11_notifications_update_guard.sql`が未実行**（セキュリティ・最優先）: 現状、ログイン中の会員が自分の通知の`title`/`body`/`body_html`を書き換えたり、`user_id`を他人のIDに付け替えて相手の通知欄に任意の文面を差し込んだりできる状態（`schema_v3`の`notifications_update_own`に`with check`と列制限が無いため）。クライアント側のコードは`read`しか更新しないが、ブラウザから直接Supabaseを叩けば何でも書ける。SQL Editorで実行すれば塞がる。
 
 1. **実地テスト一式が未実施**（最優先）:
-   - 実際の少額決済 → 決済直後の「ご購入ありがとうございました」画面 → 確認メール → 通知ドロワー → マイページ、すべてで受付コード・QRが正しい形式（`DCT-0927-N1`等）で表示されるか
+   - 実際の少額決済 → 決済直後の「ご購入ありがとうございました」画面 → 確認メール → 通知ドロワー → マイページ、すべてで受付コード・QRが正しい形式（`DCT-0927-N1-7K4M`等）で表示されるか
    - `/checkin`で実際にQRスキャン／手入力→「入場OK」（お名前＋メールアドレス表示）→もう一度同じコードで「入場済みです」→検索→「取り消す」、が一通り動くか
    - まだ私（Claude）側では実行できていない。ユーザー側での実施待ち。
 
@@ -288,7 +288,7 @@ Supabase接続・ヘッダーのマイページ/通知UI刷新・お知らせ投
   - 上記2箇所のトグルCSSはコンソール用に作った`.admin-item`系クラスをそのまま流用すると命名が紛らわしいため、`.toggle-item`にリネームして共通化（[`css/style.css`](../css/style.css)、[`admin-announcements.html`](../admin-announcements.html)側も追従）。
   - **未確認**: 実際に決済して、通知ドロワー・`members-only.html`の両方でQR付きの通知が正しく開閉表示されるか。
 - **（2026-08-03・未コミット→ユーザー承認後push予定）受付コードをイベント識別番号ベースに変更、`/checkin`のチェックイン履歴を実データ化**:
-  - **受付コードの形式変更**: `DCT-購入日-ランダム4文字`から`DCT-イベント識別番号-カテゴリ+連番`（例: `DCT-0927-S1`）に変更。詳細・運用ルールは上記「重要な仕様・決定事項」参照。[`supabase/schema_v10_event_sequence.sql`](../supabase/schema_v10_event_sequence.sql)（実行済み）で`entry_code_counters`テーブルと`next_entry_seq()`関数を追加。[`api/square-webhook.js`](../api/square-webhook.js)の`generateEntryCode`/`assignEntryCode`をこの関数を呼ぶ形に書き換え。[`.env.example`](../.env.example)に`CURRENT_EVENT_ID`を追加。
+  - **受付コードの形式変更**: `DCT-購入日-ランダム4文字`から`DCT-イベント識別番号-カテゴリ+連番-ランダム4文字`（例: `DCT-0927-S1-7K4M`）に変更（連番だけだと次の人のコードを推測できてしまうため、2026-08-03に末尾のランダム4文字を復活させた）。詳細・運用ルールは上記「重要な仕様・決定事項」参照。[`supabase/schema_v10_event_sequence.sql`](../supabase/schema_v10_event_sequence.sql)（実行済み）で`entry_code_counters`テーブルと`next_entry_seq()`関数を追加。[`api/square-webhook.js`](../api/square-webhook.js)の`generateEntryCode`/`assignEntryCode`をこの関数を呼ぶ形に書き換え。[`.env.example`](../.env.example)に`CURRENT_EVENT_ID`を追加。
   - **`/checkin`のチェックイン履歴を実データ化**: 背景はユーザーから「読み取り履歴にトグルと検索が欲しい、消せるようにもしてほしい」との要望。今までは`checkin.html`内のJS変数だけに溜めていた（ページ再読み込みで消える、検索も削除もできない）簡易ログだったのを、[`api/admin-checkin.js`](../api/admin-checkin.js)にGET（チェックイン済み一覧取得）と`{undo:true, id}`での取り消し機能を追加し、実際に`purchases.checked_in_at`から読み書きする形に変更。[`checkin.html`](../checkin.html)側は「本日のチェックイン一覧」をトグル（`.admin-toggle`）＋検索ボックス＋各行に「取り消す」ボタン、という構成にした。チェックインするたびに一覧を自動で再読み込みする。
   - **未確認**: `schema_v10_event_sequence.sql`実行後、実際に決済してコードが`DCT-{CURRENT_EVENT_ID}-{S|N}{連番}`の形式で発行されるか、`/checkin`で検索・取り消しが動くか、まだ実地テストしていない。`CURRENT_EVENT_ID`もまだVercelに設定していない（未設定だと`'EVENT'`という既定値になる）。
 
@@ -338,7 +338,7 @@ Supabase接続・ヘッダーのマイページ/通知UI刷新・お知らせ投
 - **announcements への書き込みは `/api/admin-announcements` 経由のみ**: RLSでinsert/deleteポリシーを意図的に作っておらず、サーバー側（service role）でしか書き込めない。理由: `purchases.status` と同じ考え方で、権限確認をクライアント任せにしない。
 - **お知らせ投稿ページ（`/console`）はチーム共通の合言葉方式**: `ADMIN_CONSOLE_PASSWORD` 1つを知っている人なら誰でも会員全員／個人宛てにお知らせ（サイト内通知＋メール）を送れる。個人アカウント単位の権限管理ではないため、「誰が送ったか」の記録は残らない。合言葉が漏れた場合は`ADMIN_CONSOLE_PASSWORD`を変更すれば、発行済みトークンも含めて即座に無効化される。
 - **Vercelのプロジェクトは`doress-code-tokyo-9qjj`が唯一の本番**: 過去に同じリポジトリを複数回インポートしてしまい、似た名前の重複プロジェクトができていたことがある（2026-07-25に発見・削除済み）。今後Vercelの環境変数を触るときは、必ずURLの末尾が`-9qjj`のプロジェクトを編集していることを確認する。原因切り分けには`/api/env-check`が使える。
-- **受付コード（entry_code）は「イベント識別番号」ベース、新しいイベントのたびに`CURRENT_EVENT_ID`を変えること**（2026-08-03決定）: 形式は`DCT-{イベント識別番号}-{カテゴリ}{連番}`（例: `DCT-0927-S1`＝2026.9.27開催イベントの出店者1人目、`DCT-0927-N1`＝同イベントの来場者1人目）。
+- **受付コード（entry_code）は「イベント識別番号」ベース、新しいイベントのたびに`CURRENT_EVENT_ID`を変えること**（2026-08-03決定）: 形式は`DCT-{イベント識別番号}-{カテゴリ}{連番}-{ランダム4文字}`（例: `DCT-0927-S1-7K4M`＝2026.9.27開催イベントの出店者1人目、`DCT-0927-N1-QX52`＝同イベントの来場者1人目）。
   - **イベント識別番号**（`0927`の部分）はVercel環境変数`CURRENT_EVENT_ID`で管理する。**MMDD形式**（同じ日に複数イベントを開催するときだけ`0927.01`のような枝番を足す）。**新しいイベントを開催するたびに、この値を新しいものに変更し、Redeployすること**（例: 次回が2026年12月1日開催なら`1201`）。値を変えると出店者(S)・来場者(N)の連番はどちらも自動的に1から再スタートする（`supabase/schema_v10_event_sequence.sql`の`entry_code_counters`テーブルが「イベントID×カテゴリ」ごとにカウンターを持っているため）。**同じイベント識別番号を使い続けている間は、番号は増え続ける**（出店が増えたらS2, S3…と自動的に増える）。
   - **カテゴリの判定はチケット名の文字列に依存**（`api/square-webhook.js`の`categoryFor()`）：チケット名に「出店」が含まれれば`S`、「入場」が含まれれば`N`、どちらでもなければ`X`。将来チケットの名前（`js/data.js`の`name`）を変える場合、この判定ロジックも見直すこと。
   - 環境変数の設定を忘れると`CURRENT_EVENT_ID`が未設定のまま`'EVENT'`という既定値が使われてしまうので、**イベントを開催する前に必ず`CURRENT_EVENT_ID`をVercelに設定/更新したか確認すること**。
