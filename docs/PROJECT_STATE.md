@@ -4,6 +4,8 @@
 
 ## 今まさに問題になっていること（未解決・進行中）
 
+0. **`supabase/schema_v11_notifications_update_guard.sql`が未実行**（セキュリティ・最優先）: 現状、ログイン中の会員が自分の通知の`title`/`body`/`body_html`を書き換えたり、`user_id`を他人のIDに付け替えて相手の通知欄に任意の文面を差し込んだりできる状態（`schema_v3`の`notifications_update_own`に`with check`と列制限が無いため）。クライアント側のコードは`read`しか更新しないが、ブラウザから直接Supabaseを叩けば何でも書ける。SQL Editorで実行すれば塞がる。
+
 1. **実地テスト一式が未実施**（最優先）:
    - 実際の少額決済 → 決済直後の「ご購入ありがとうございました」画面 → 確認メール → 通知ドロワー → マイページ、すべてで受付コード・QRが正しい形式（`DCT-0927-N1`等）で表示されるか
    - `/checkin`で実際にQRスキャン／手入力→「入場OK」（お名前＋メールアドレス表示）→もう一度同じコードで「入場済みです」→検索→「取り消す」、が一通り動くか
@@ -29,11 +31,26 @@
 
 ## 残タスク一覧（優先順）
 
-1. 実際の少額決済で一連の流れを通しテスト（決済→ありがとう画面→確認メール→通知→マイページ、受付コード/QRの表示確認）— ユーザーが「このあとテストする」と発言、実施待ち
-2. `/checkin`の動作を通しテスト（QRスキャン/手入力→入場OK（名前+メール表示）→再スキャンで入場済み→検索→取り消し）
-3. （保留中）Google OAuth再開
-4. （後片付け・急ぎではない）Sandboxテスト時代の「手続き中」テストデータを`purchases`から削除
-5. （任意）`tokutei-shotorihiki.html`の新しい条項を、可能であれば一度専門家（弁護士等）にレビューしてもらう
+1. **`supabase/schema_v11_notifications_update_guard.sql`をSQL Editorで実行**（上記0番のセキュリティ穴を塞ぐ）
+2. 実際の少額決済で一連の流れを通しテスト（決済→ありがとう画面→確認メール→通知→マイページ、受付コード/QRの表示確認）— ユーザーが「このあとテストする」と発言、実施待ち
+3. `/checkin`の動作を通しテスト（QRスキャン/手入力→入場OK（名前+メール表示）→再スキャンで入場済み→検索→取り消し）
+4. `js/data.js`のTSUBASAの紹介文（`desc`/`role`/`dept`）を入れる。プレースホルダーがそのまま公開されていたため2026-08-03に空にした。今は写真＋名前だけのカードになっている
+5. （未実装・以前の要望）`/checkin`のチェックイン履歴をイベントごとにトグルで分けて見られるようにする。今は全イベント分が1つの一覧に混ざる
+6. （保留中）Google OAuth再開
+7. （後片付け・急ぎではない）Sandboxテスト時代の「手続き中」テストデータを`purchases`から削除
+8. （任意）`tokutei-shotorihiki.html`の新しい条項を、可能であれば一度専門家（弁護士等）にレビューしてもらう
+
+## 2026-08-03 サイト全体の棚卸しで見つかったもの（未対応・急ぎではない）
+
+コードの矛盾・無駄の洗い出しをした際に見つかったが、今すぐの実害が無いため手を付けていないもの。
+
+- **孤立ページが3つ公開されている**: `member.html`（`js/render.js`のメンバーカードからリンクしていない）、`community-creator.html`、`community-exhibitor.html`（`js/data.js`の`community`配列でコメントアウト中）。URLを直接叩けば誰でも見られる。消すか、リンクを復活させるか、`noindex`のまま放置するかは運営判断。
+- **`api/env-check.js`が認証なしで誰でも叩ける**: 環境変数の値そのものは返さないが、設定済みか否かとデプロイのコミットSHAが分かる。他の管理系APIは全て`verifyAdminToken`で守られている。
+- **同じ処理のコピーが複数ある**: `resolveUsers()`が`api/admin-announcements.js`と`api/admin-checkin.js`に完全に同じものが2つ、メールからユーザーを探す処理が3箇所（`admin-announcements.js`/`check-email.js`/`scripts/simulate-payment-webhook.js`）にあり、エラー時の挙動が三者三様。ページング処理を直すときは全部直す必要がある。
+- **`escapeHtml`の実装が場所によって違う**: サーバー側（`lib/mailer.js`・`api/square-webhook.js`）は`& < > " '`の5文字、クライアント側の多くは`& < >`の3文字のみ。`js/render.js`は`js/data.js`の値をエスケープせずHTML属性に埋めている（データは自分たちで書いているので今は問題にならない）。
+- **`supabase/schema_v5_admin.sql`が丸ごと未使用**: `profiles.is_admin`はどのJSからも参照されていない（合言葉方式に移行したため）。
+- **古いスキーマファイルのコメントが実態と違う**: `schema_v8_entry_code.sql`のカラムコメントは`DCT-購入日-ランダム4文字`という廃止済みの形式を説明したまま（v10で変更）。`schema_v2_cart.sql`の`items`のコメントはsnake_caseだが実際に保存されるのはcamelCase。
+- **`js/auth.js`の単品購入ボタン経由の処理が到達不能**: `wireTicketButtons`/`recordPurchase`/`dct_pending_ticket`は、チケットに`catalogObjectId`が無いときだけ出るボタン用。今は両方のチケットに設定済みなので動かない。`catalogObjectId`を外せば復活するフォールバックなので残してある。
 
 # プロジェクト概要
 
