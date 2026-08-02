@@ -51,7 +51,7 @@
       <section class="checkin__scanner">
         <video id="checkin-video" playsinline muted hidden></video>
         <p id="checkin-camera-off" class="mypage__note">読み取りを開始するには下のボタンを押してください。</p>
-        <p id="checkin-unsupported" class="mypage__note" hidden>このブラウザはカメラでのQR読み取りに対応していません。下の欄にコードを手入力してください（Android/Chromeでは対応しています）。</p>
+        <p id="checkin-unsupported" class="mypage__note" hidden><strong>この端末ではカメラ読み取りが使えません。</strong>iPhone・iPadは（Chromeを入れても）対応していません。下の欄にコードを手入力するか、Android端末をお使いください。</p>
         <p id="checkin-camera-error" class="mypage__note" hidden>カメラを起動できませんでした。カメラの利用を許可しているか確認してください。手入力でも確認できます。</p>
         <button type="button" class="btn btn--outline" id="checkin-scan-btn">カメラで読み取る</button>
       </section>
@@ -64,6 +64,17 @@
       </form>
 
       <section id="checkin-result" class="checkin__result" hidden></section>
+
+      <!-- コードを出せない来場者を、お名前やメールアドレスから探して入場させるための欄。
+           当日いちばん起きやすい「携帯の充電が切れた」「メールが見つからない」への対応用。 -->
+      <section class="mypage__section">
+        <details class="admin-toggle" id="details-checkin-lookup">
+          <summary><h2>コードが分からない方を探す</h2></summary>
+          <p class="mypage__note">お名前やメールアドレスの一部を入れて検索し、ご本人の行の「入場させる」を押してください。まだ入場していない方も表示されます。</p>
+          <input type="search" class="admin-search" id="checkin-lookup-input" placeholder="お名前・メールアドレスの一部…">
+          <div id="checkin-lookup-list" class="mypage__notifications"></div>
+        </details>
+      </section>
 
       <section class="mypage__section">
         <details class="admin-toggle" id="details-checkin-history">
@@ -101,9 +112,12 @@
   <script>
     (function () {
       const TOKEN_KEY = 'dct_admin_token';
-      const getToken = () => sessionStorage.getItem(TOKEN_KEY);
-      const setToken = (t) => sessionStorage.setItem(TOKEN_KEY, t);
-      const clearToken = () => sessionStorage.removeItem(TOKEN_KEY);
+      // localStorage を使う。sessionStorage だと、スマホで別アプリに切り替えてタブが
+      // 破棄されるたびにログインし直しになり、当日その都度お客様の前で合言葉を口に出す
+      // ことになってしまうため（/console 側は従来通り sessionStorage）。
+      const getToken = () => localStorage.getItem(TOKEN_KEY);
+      const setToken = (t) => localStorage.setItem(TOKEN_KEY, t);
+      const clearToken = () => localStorage.removeItem(TOKEN_KEY);
       const esc = s => String(s == null ? '' : s).replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
 
       const locked = document.getElementById('checkin-locked');
@@ -115,6 +129,8 @@
       const historyEl = document.getElementById('checkin-history-list');
       const historyCountEl = document.getElementById('checkin-history-count');
       const historySearchEl = document.getElementById('checkin-history-search');
+      const lookupInputEl = document.getElementById('checkin-lookup-input');
+      const lookupListEl = document.getElementById('checkin-lookup-list');
       const manualForm = document.getElementById('checkin-manual-form');
       const manualInput = document.getElementById('checkin-manual-input');
       const scanBtn = document.getElementById('checkin-scan-btn');
@@ -160,20 +176,49 @@
       logoutBtns.forEach(b => b.addEventListener('click', showLocked));
 
       /* ---------- 結果表示・履歴 ---------- */
+      // 手が離せない受付でも分かるように、結果が出たら音と振動でも知らせる。
+      // （音はブラウザの制限で、一度画面を触ってからでないと鳴らない）
+      let audioCtx = null;
+      function feedback(kind) {
+        try { if (navigator.vibrate) navigator.vibrate(kind === 'ok' ? 80 : [180, 90, 180]); } catch (e) {}
+        try {
+          const Ctx = window.AudioContext || window.webkitAudioContext;
+          if (!Ctx) return;
+          audioCtx = audioCtx || new Ctx();
+          const osc = audioCtx.createOscillator();
+          const gain = audioCtx.createGain();
+          osc.connect(gain); gain.connect(audioCtx.destination);
+          osc.frequency.value = kind === 'ok' ? 880 : 300;
+          gain.gain.value = 0.06;
+          osc.start();
+          osc.stop(audioCtx.currentTime + (kind === 'ok' ? 0.12 : 0.32));
+        } catch (e) {}
+      }
+
+      // 送信中の表示。前の人の結果が残ったままだと、それを次の人の結果と読み違える。
+      function renderPending(code) {
+        resultEl.innerHTML = `<div class="checkin__badge checkin__badge--pending">確認中…</div>
+          <p class="checkin__code">${esc(code)}</p>`;
+        resultEl.hidden = false;
+      }
+
       function renderResult(state, code, data) {
-        const time = new Date().toLocaleTimeString('ja-JP');
         let html = '';
         const buyerLine = data.buyerName ? `${esc(data.buyerName)}　${esc(data.buyerEmail)}` : esc(data.buyerEmail);
-        // まとめ買い（1回の決済で複数枚）のときは、何人目かが分かるようにする。
+        // まとめ買い（1回の決済で複数枚）のときは、何人目か・あと何人かを大きく出す。
         const qty = Number(data.quantity) || 1;
         const done = Number(data.checkedInCount) || 0;
-        const countLine = qty > 1 ? `<p class="checkin__count">${done} / ${qty} 人目</p>` : '';
+        const remain = Math.max(qty - done, 0);
+        const countLine = qty > 1
+          ? `<p class="checkin__count">${done} / ${qty} 人目${remain > 0 ? `　<strong>あと${remain}人分このQRを読み取ってください</strong>` : '　（これで全員です）'}</p>`
+          : '';
         if (state === 'ok') {
           html = `<div class="checkin__badge checkin__badge--ok">入場OK</div>
             <p class="checkin__ticket">${esc(data.ticketName)}</p>
             ${countLine}
             <p class="checkin__buyer">${buyerLine}</p>
             <p class="checkin__code">${esc(code)}</p>`;
+          feedback('ok');
         } else if (state === 'used') {
           html = `<div class="checkin__badge checkin__badge--used">入場済みです</div>
             <p class="checkin__ticket">${esc(data.ticketName)}</p>
@@ -181,15 +226,26 @@
             <p class="checkin__buyer">${buyerLine}</p>
             <p class="mypage__note">最初の入場: ${new Date(data.checkedInAt).toLocaleString('ja-JP')}</p>
             <p class="checkin__code">${esc(code)}</p>`;
+          feedback('ng');
+        } else if (state === 'network') {
+          // 通信の問題を「無効なコード」と同じ赤で出すと、正規のお客様を追い返してしまう。
+          // 「このお客様が悪いのではない／もう一度試す」と分かる別の色・文言にする。
+          html = `<div class="checkin__badge checkin__badge--pending">通信できませんでした</div>
+            <p class="mypage__note">お客様のコードの問題ではありません。もう一度お試しください。</p>
+            <p class="checkin__code">${esc(code)}</p>`;
+          feedback('ng');
         } else {
           html = `<div class="checkin__badge checkin__badge--error">無効なコード</div>
             <p class="mypage__note">${esc(data && data.error ? data.error : 'そのコードは確認できませんでした')}</p>
             <p class="checkin__code">${esc(code)}</p>`;
+          feedback('ng');
         }
         resultEl.innerHTML = html;
         resultEl.hidden = false;
+        // 一覧を開いていると結果が画面外に出ることがあるので、必ず見える位置へ寄せる
+        try { resultEl.scrollIntoView({ block: 'center', behavior: 'smooth' }); } catch (e) {}
 
-        if (state !== 'error') loadHistory(); // チェックインが増えたので一覧を最新化する
+        if (state === 'ok' || state === 'used') loadHistory(); // チェックインが増えたので一覧を最新化する
       }
 
       /* ---------- 本日のチェックイン一覧（実データ・検索・取り消し可能） ---------- */
@@ -234,6 +290,61 @@
       }
       historySearchEl.addEventListener('input', filterHistory);
 
+      /* ---------- お名前・メールアドレスから探す（コードを出せない来場者用） ---------- */
+      let lookupTimer = null;
+      let lookupSeq = 0;
+
+      function renderLookup(results) {
+        if (!results.length) {
+          lookupListEl.innerHTML = '<p class="cards-empty">該当する方が見つかりませんでした。</p>';
+          return;
+        }
+        lookupListEl.innerHTML = results.map(r => {
+          const qty = Number(r.quantity) || 1;
+          const done = Number(r.checkedInCount) || 0;
+          const full = done >= qty;
+          const countText = qty > 1 ? `${done}/${qty}人 入場済み` : (full ? '入場済み' : '未入場');
+          return `
+          <div class="mypage__notification">
+            <div class="mypage__notification-head">
+              <h3>${r.buyerName ? esc(r.buyerName) : esc(r.buyerEmail)}</h3>
+              <span class="mypage__notification-date">${esc(countText)}</span>
+            </div>
+            <p>${r.buyerName ? esc(r.buyerEmail) + '　' : ''}${esc(r.ticketName)}</p>
+            <p class="checkin__code">${esc(r.entryCode)}</p>
+            <button type="button" class="btn btn--solid" data-lookup-code="${esc(r.entryCode)}"${full ? ' disabled' : ''}>${full ? '全員入場済み' : '入場させる'}</button>
+          </div>`;
+        }).join('');
+        lookupListEl.querySelectorAll('[data-lookup-code]').forEach(btn => {
+          btn.addEventListener('click', () => {
+            // 通常のスキャンとまったく同じ経路を通す（人数の数え方を1箇所に保つため）
+            submitCode(btn.getAttribute('data-lookup-code'));
+            runLookup();
+          });
+        });
+      }
+
+      function runLookup() {
+        const q = (lookupInputEl.value || '').trim();
+        if (q.length < 2) { lookupListEl.innerHTML = ''; return; }
+        const seq = ++lookupSeq;
+        lookupListEl.innerHTML = '<p class="cards-empty">検索中…</p>';
+        fetch('/api/admin-checkin?token=' + encodeURIComponent(getToken()) + '&lookup=' + encodeURIComponent(q))
+          .then(r => r.json().then(data => ({ ok: r.ok, status: r.status, data })))
+          .then(({ ok, status, data }) => {
+            if (seq !== lookupSeq) return; // 入力が変わった後に届いた古い結果は捨てる
+            if (status === 401) { showLocked(); return; }
+            if (!ok) { lookupListEl.innerHTML = '<p class="cards-empty">検索に失敗しました。</p>'; return; }
+            renderLookup(data.results || []);
+          })
+          .catch(() => { if (seq === lookupSeq) lookupListEl.innerHTML = '<p class="cards-empty">通信エラーが発生しました。</p>'; });
+      }
+
+      lookupInputEl.addEventListener('input', () => {
+        clearTimeout(lookupTimer);
+        lookupTimer = setTimeout(runLookup, 300); // 1文字ごとに投げないよう少し待つ
+      });
+
       function loadHistory() {
         fetch('/api/admin-checkin?token=' + encodeURIComponent(getToken()))
           .then(r => r.json().then(data => ({ ok: r.ok, status: r.status, data })))
@@ -246,13 +357,31 @@
           .catch(() => { historyEl.innerHTML = '<p class="cards-empty">通信エラーが発生しました。</p>'; });
       }
 
+      let inFlight = false;
+
       function submitCode(rawCode) {
         const code = String(rawCode || '').trim();
         if (!code) return;
+        // 連打・二重スキャン対策。1件処理し終わるまで次を受け付けない。
+        if (inFlight) return;
+        inFlight = true;
+        renderPending(code);
+
+        // 1回の読み取りごとに固有のIDを付ける。通信をやり直しても、
+        // サーバー側で「同じ読み取り」と分かるので人数が二重に減らない。
+        const requestId = (window.crypto && crypto.randomUUID)
+          ? crypto.randomUUID()
+          : String(Date.now()) + Math.random().toString(16).slice(2);
+
+        // 会場のWi-Fiが遅いと延々待たされるので、10秒で打ち切って結果を出す。
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), 10000);
+
         fetch('/api/admin-checkin', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ code, token: getToken() }),
+          body: JSON.stringify({ code, token: getToken(), requestId }),
+          signal: controller.signal,
         })
           .then(r => r.json().then(data => ({ ok: r.ok, status: r.status, data })))
           .then(({ ok, status, data }) => {
@@ -260,7 +389,8 @@
             if (!ok) { renderResult('error', code, data); return; }
             renderResult(data.alreadyCheckedIn ? 'used' : 'ok', code, data);
           })
-          .catch(() => renderResult('error', code, { error: '通信エラーが発生しました' }));
+          .catch(() => renderResult('network', code, {}))
+          .finally(() => { clearTimeout(timer); inFlight = false; });
       }
 
       manualForm.addEventListener('submit', function (e) {
@@ -299,17 +429,38 @@
         scanBtn.onclick = function () { stopScanner(stream); };
         await videoEl.play();
 
-        const detector = new BarcodeDetector({ formats: ['qr_code'] });
+        let detector;
+        try {
+          detector = new BarcodeDetector({ formats: ['qr_code'] });
+        } catch (e) {
+          // コンストラクタ自体が失敗する端末がある。カメラは映っているのに永久に
+          // 読み取れない状態になるので、はっきり手入力へ誘導する。
+          unsupportedEl.hidden = false;
+          stopScanner(stream);
+          return;
+        }
+
         scanning = true;
+        // 同じQRを連続で拾い続けないための記憶。カメラは止めないので、
+        // これが無いと1枚のQRで何度も送信してしまう。
+        let lastValue = '';
+        let lastAt = 0;
+
         const tick = async () => {
           if (!scanning) return;
           try {
             const codes = await detector.detect(videoEl);
             if (codes.length) {
               const value = codes[0].rawValue;
-              stopScanner(stream);
-              submitCode(value);
-              return;
+              const now = Date.now();
+              // 3秒以内の同じコードは無視。別のコードならすぐ受け付ける。
+              if (value !== lastValue || now - lastAt > 3000) {
+                lastValue = value;
+                lastAt = now;
+                // カメラは止めない。止めると1人ごとにボタンを押し直すことになり、
+                // 3人分のまとめ買いだと6タップ＋カメラ再起動3回になってしまう。
+                submitCode(value);
+              }
             }
           } catch (e) { /* 検出エラーは無視して続ける */ }
           requestAnimationFrame(tick);

@@ -26,6 +26,30 @@ grant execute on function public.undo_checkin(uuid) to service_role;
 grant execute on function public.next_entry_seq(text, text) to service_role;
 
 -- =========================================================
+-- 既存データの補正：まとめ買い済みの購入に、正しい人数を入れ直す
+-- ---------------------------------------------------------
+-- schema_v13 で quantity カラムを追加したとき、既存の行はすべて既定値の 1 になった。
+-- しかし v13 より前に「入場チケット×3」のようにまとめ買いした人が居た場合、
+-- その人の quantity も 1 のままなので、当日2人目以降が入場できない
+-- （まさに v13 で直したかった不具合が、過去の購入者にだけ残る）。
+--
+-- 購入時のカート内容は purchases.items にJSONで残っているので、そこから数量を数え直す。
+-- 何度実行しても同じ結果になる（items から計算し直すだけ）。
+-- =========================================================
+update public.purchases p
+   set quantity = greatest(
+         (select coalesce(sum((i ->> 'quantity')::int), 1)
+            from jsonb_array_elements(p.items) i),
+         1)
+ where p.items is not null
+   and jsonb_typeof(p.items) = 'array'
+   and jsonb_array_length(p.items) > 0;
+
+-- 補正後の確認用：2人分以上の購入があるか一覧する
+--   select id, ticket_name, quantity, checked_in_count, entry_code
+--     from public.purchases where quantity > 1 order by created_at desc;
+
+-- =========================================================
 -- 確認用：下のSELECTを実行すると、いま誰がこの3つの関数を実行できるかが見られる。
 -- 期待する状態:
 --   ・service_role が has_execute = true

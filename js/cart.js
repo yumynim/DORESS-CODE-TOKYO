@@ -140,19 +140,44 @@
      Googleログインは別画面へ丸ごと遷移する（=このページのJS状態は消える）ため、
      「カートのお会計をしようとしていた」という事実は sessionStorage に残しておき、
      ログインして戻ってきた時に自動でチェックアウトを再開する。 */
+  // localStorage を使う。確認メールのリンクは「別のタブ」で開かれるため、
+  // sessionStorage（タブごと）だと、そこで保留していた操作が消えてしまう。
+  // 古い保留が延々残らないよう、保存時刻も一緒に入れて一定時間で無効にする。
+  const PENDING_TTL_MS = 60 * 60 * 1000; // 1時間
+  function setPending(key, value) {
+    try { localStorage.setItem(key, JSON.stringify({ at: Date.now(), value: value })); } catch (e) {}
+  }
+  function takePending(key) {
+    var raw = null;
+    try { raw = localStorage.getItem(key); } catch (e) { return null; }
+    if (!raw) return null;
+    try { localStorage.removeItem(key); } catch (e) {}
+    try {
+      var parsed = JSON.parse(raw);
+      if (!parsed || typeof parsed.at !== 'number') return null;
+      if (Date.now() - parsed.at > PENDING_TTL_MS) return null;
+      return parsed.value;
+    } catch (e) { return null; }
+  }
+
   const PENDING_CHECKOUT_KEY = 'dct_pending_checkout';
   function startCheckout() {
     errorEl.hidden = true;
     const auth = window.DCT_AUTH;
     if (!auth || !auth.isConfigured()) { showError('ログイン機能が準備中のため、まだ購入できません。'); return; }
+    // ログイン確認が終わる前に判定すると、ログイン済みの人にも新規登録を出してしまう
+    auth.ready(function () { proceedCheckout(auth); });
+  }
+
+  function proceedCheckout(auth) {
     const session = auth.getSession();
     if (!session) {
-      sessionStorage.setItem(PENDING_CHECKOUT_KEY, '1');
+      setPending(PENDING_CHECKOUT_KEY, 1);
       closeCart();
       auth.openModal({ tab: 'signup', lead: 'カートのお会計にはログイン（または新規登録）が必要です。' });
       return;
     }
-    sessionStorage.removeItem(PENDING_CHECKOUT_KEY);
+    takePending(PENDING_CHECKOUT_KEY);
     const list = readCart();
     if (!list.length) return;
 
@@ -171,7 +196,9 @@
         checkoutBtn.disabled = false;
         checkoutBtn.textContent = 'レジに進む（Squareで決済）';
         if (!ok || !data.url) { showError(data.error || '決済ページの作成に失敗しました。時間をおいて再度お試しください。'); return; }
-        writeCart([]); // 決済ページへ渡した後はカートを空にする
+        // ここでカートを空にしない。Squareの画面で戻ったり、カード入力をやめたりすると、
+        // 「カートが空になっただけで何の説明も無い」状態になってしまうため。
+        // 支払いが完了した人には members-only.html?thanks=1 側で空にする。
         window.location.href = data.url;
       })
       .catch(() => {
@@ -197,9 +224,18 @@
         price: Number(btn.getAttribute('data-price')) || 0,
       };
       const auth = window.DCT_AUTH;
-      if (auth && auth.isConfigured() && !auth.getSession()) {
-        sessionStorage.setItem(PENDING_CART_ADD_KEY, JSON.stringify(item));
-        auth.openModal({ tab: 'signup', lead: 'カートに追加するにはログイン（または新規登録）が必要です。' });
+      if (auth && auth.isConfigured()) {
+        // ログイン確認はSupabaseへの問い合わせ（非同期）なので、ページを開いた直後は
+        // まだ結果が出ていない。ここで getSession() を直に見ると、ログイン済みの人にも
+        // 「新規登録」を出してしまうため、必ず ready() で確認の完了を待つ。
+        auth.ready(function () {
+          if (!auth.getSession()) {
+            setPending(PENDING_CART_ADD_KEY, item);
+            auth.openModal({ tab: 'signup', lead: 'カートに追加するにはログイン（または新規登録）が必要です。' });
+            return;
+          }
+          addToCart(item);
+        });
         return;
       }
       addToCart(item);
@@ -212,20 +248,19 @@
   if (document.readyState !== 'loading') { ensurePanel(); updateBadge(); }
 
   /* ---------- ログイン状態が変わったら、保留中のカート追加／チェックアウトがあれば自動で再開 ---------- */
+  function resumePending() {
+    const pendingAdd = takePending(PENDING_CART_ADD_KEY);
+    if (pendingAdd && pendingAdd.catalogObjectId) addToCart(pendingAdd);
+    if (takePending(PENDING_CHECKOUT_KEY) && readCart().length) startCheckout();
+  }
+
   function wireResumeCheckout() {
     if (!window.DCT_AUTH) return;
-    window.DCT_AUTH.onChange(function (session) {
-      if (!session) return;
-      const pendingAdd = sessionStorage.getItem(PENDING_CART_ADD_KEY);
-      if (pendingAdd) {
-        sessionStorage.removeItem(PENDING_CART_ADD_KEY);
-        try { addToCart(JSON.parse(pendingAdd)); } catch (e) {}
-      }
-      if (sessionStorage.getItem(PENDING_CHECKOUT_KEY) && readCart().length) {
-        sessionStorage.removeItem(PENDING_CHECKOUT_KEY);
-        startCheckout();
-      }
-    });
+    // ログイン直後（モーダルで完了した場合）
+    window.DCT_AUTH.onChange(function (session) { if (session) resumePending(); });
+    // 確認メールのリンクを別タブで開いてログイン済みになった場合は onChange が来ないので、
+    // ページを開いた時点でログイン済みなら、その場で保留分を処理する。
+    window.DCT_AUTH.ready(function (session) { if (session) resumePending(); });
   }
   if (window.DCT_AUTH) { wireResumeCheckout(); }
   else { document.addEventListener('DOMContentLoaded', wireResumeCheckout); }

@@ -150,7 +150,7 @@
               <h3>${esc(p.ticket_name)}</h3>
               <span class="mypage__purchase-date">${new Date(p.created_at).toLocaleDateString('ja-JP')}</span>
               ${(p.entry_code && p.status === 'paid') ? `<span class="mypage__purchase-entrycode">当日の受付コード: ${esc(p.entry_code)}</span>
-                <img class="mypage__purchase-qr" src="${entryCodeQrUrl(p.entry_code, 120)}" alt="受付QRコード" width="120" height="120" loading="lazy">` : ''}
+                <img class="mypage__purchase-qr" src="${entryCodeQrUrl(p.entry_code, 240)}" alt="受付QRコード ${esc(p.entry_code)}" width="120" height="120">` : ''}
             </div>
             <div class="mypage__purchase-side">
               <span class="mypage__purchase-price">${yen(p.price)}</span>
@@ -227,20 +227,26 @@
 
         const client = window.DCT_AUTH.getClient();
         let tries = 0;
-        const maxTries = 8; // 2秒間隔で最大16秒待つ
+        const maxTries = 20; // 2秒間隔で最大約40秒待つ（Webhookの処理とメール送信を待つため）
         function showConfirmed(p) {
+          // 支払いが確定したのでカートを空にする（決済ページへ送った時点では空にしない。
+          // Squareの画面で戻った人のカートまで消えてしまうため）。
+          try { localStorage.removeItem('dct_cart_v1'); } catch (e) {}
           body.innerHTML =
             '<p>お支払いが確認できました。ご購入内容の確認メールをお送りしております。届いていない場合は迷惑メールフォルダもご確認ください。</p>' +
             '<div class="thanks-banner__order"><h3>' + esc(p.ticket_name) + '</h3>' +
             '<p class="thanks-banner__price">' + yen(p.price) + '（税込）</p></div>' +
             (p.entry_code
+              // QRは表示サイズの2倍で取得する（スマホの高精細画面でぼやけず、受付で読み取りやすい）
               ? '<div class="thanks-banner__code"><span>当日の受付コード</span><strong>' + esc(p.entry_code) + '</strong>' +
-                '<img src="' + entryCodeQrUrl(p.entry_code, 160) + '" alt="受付QRコード" width="160" height="160" loading="lazy"></div>'
-              : '');
+                '<img src="' + entryCodeQrUrl(p.entry_code, 320) + '" alt="受付QRコード ' + esc(p.entry_code) + '" width="160" height="160"></div>'
+              : '<p class="mypage__note">受付コードは只今発行中です。数分後にこのページを再読み込みするか、確認メールをご覧ください。</p>');
           loadPurchases(session); // 一覧側の表示も最新化する
         }
         function showTimeout() {
-          body.innerHTML = '<p>お支払いの確認にお時間がかかっています。数分後にこのページの「購入したチケット」欄をご確認いただくか、確認メールをご覧ください。</p>';
+          body.innerHTML = '<p>お支払いの確認にお時間がかかっています。数分後にこのページを再読み込みして「購入したチケット」欄をご確認いただくか、確認メールをご覧ください。</p>' +
+            '<p class="mypage__note">10分たっても表示されない場合は、お手数ですが<a href="index.html#contact">お問い合わせ</a>よりご連絡ください。</p>' +
+            '<button type="button" class="btn btn--outline" onclick="location.reload()">再読み込みする</button>';
         }
         function poll() {
           client.from('purchases')

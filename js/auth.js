@@ -481,7 +481,7 @@
             '<span class="mypage__purchase-date">' + new Date(p.created_at).toLocaleDateString('ja-JP') + '</span>' +
             ((p.entry_code && p.status === 'paid')
               ? '<span class="mypage__purchase-entrycode">当日の受付コード: ' + escHtml(p.entry_code) + '</span>' +
-                '<img class="mypage__purchase-qr" src="https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=' + encodeURIComponent(p.entry_code) + '" alt="受付QRコード" width="120" height="120" loading="lazy">'
+                '<img class="mypage__purchase-qr" src="https://api.qrserver.com/v1/create-qr-code/?size=240x240&data=' + encodeURIComponent(p.entry_code) + '" alt="受付QRコード ' + escHtml(p.entry_code) + '" width="120" height="120">'
               : '') +
             '</div>' +
             '<div class="mypage__purchase-side"><span class="mypage__purchase-price">' + yen(p.price) + '</span>' +

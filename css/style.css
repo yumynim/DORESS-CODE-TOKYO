@@ -1326,11 +1326,13 @@ a.mcard__sns:hover { transform: translateY(-3px); }
 .cart-btn--mobile .cart-badge { position: static; margin-left: 4px; }
 
 /* 商品カードの「カートに追加」ボタン */
+/* 購入ボタン。以前は「もっと見る」と同じ枠線だけの見た目で、どちらが購入か
+   一目で分からず購入導線として弱かったため、塗りつぶしにして主役だと分かるようにする。 */
 .tcard__cart-add {
-  display: block; width: 100%; text-align: center; background: none; cursor: pointer;
-  font-family: var(--f-sans); font-size: 12.5px; letter-spacing: 0.08em; line-height: 40px; height: 40px;
-  color: var(--ink); border: 1px solid var(--ink); border-radius: 7px;
-  transition: background .3s var(--ease), color .3s var(--ease);
+  display: inline-flex; align-items: center; justify-content: center; width: 100%; height: 48px;
+  font-family: var(--f-sans); font-size: 12.5px; font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase;
+  background: var(--ink); color: #fff; border: 1px solid var(--ink); border-radius: 2px; cursor: pointer;
+  transition: opacity .3s;
 }
 .tcard__cart-add:hover { background: var(--ink); color: #fff; }
 
@@ -1373,13 +1375,17 @@ a.mcard__sns:hover { transform: translateY(-3px); }
 }
 .checkin__manual button { flex: none; height: 44px; }
 .checkin__result { margin-top: 28px; padding: 24px; border-radius: 10px; background: var(--bg-band); text-align: center; }
+/* 当日は屋内でもスマホの画面が見づらい。淡い色違いだと「入場OK」と「無効なコード」を
+   一瞬で見分けられず、有効なお客様を止めてしまうので、はっきりした塗りと大きな文字にする。 */
 .checkin__badge {
-  display: inline-block; font-family: var(--f-sans); font-weight: 700; font-size: 15px; letter-spacing: 0.08em;
-  padding: 8px 20px; border-radius: 30px; margin-bottom: 12px;
+  display: block; width: 100%; box-sizing: border-box;
+  font-family: var(--f-sans); font-weight: 700; font-size: 26px; letter-spacing: 0.06em;
+  padding: 18px 20px; border-radius: 8px; margin-bottom: 14px; color: #fff;
 }
-.checkin__badge--ok { background: #e4efe6; color: #2f6b43; }
-.checkin__badge--used { background: #f6efdc; color: #8a6d1f; }
-.checkin__badge--error { background: #f2e4e2; color: #a1402c; }
+.checkin__badge--ok { background: #1d7a41; }
+.checkin__badge--used { background: #b07a10; }
+.checkin__badge--error { background: #a52f1c; }
+.checkin__badge--pending { background: #46617d; }
 .checkin__ticket { font-family: var(--f-jp); font-weight: 700; font-size: 16px; color: var(--ink); }
 .checkin__buyer { margin-top: 4px; font-family: var(--f-sans); font-size: 13px; color: var(--ink-3); }
 .checkin__code { margin-top: 10px; font-family: var(--f-sans); font-size: 12px; letter-spacing: 0.1em; color: var(--muted); }

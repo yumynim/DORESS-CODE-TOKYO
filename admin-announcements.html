@@ -224,7 +224,7 @@
       function setToken(t) { sessionStorage.setItem(TOKEN_KEY, t); }
       function clearToken() { sessionStorage.removeItem(TOKEN_KEY); }
 
-      // トークンは「有効期限.署名」の形式。期限だけここでも確認し、
+      // トークンは「有効期限.権限.署名」の形式。期限だけここでも確認し、
       // 切れていればサーバーに問い合わせず入室画面に戻す。
       function tokenLooksValid(t) {
         if (!t) return false;

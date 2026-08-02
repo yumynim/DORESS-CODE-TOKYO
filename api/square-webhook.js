@@ -159,8 +159,10 @@ async function notifyPurchaser(serviceClient, purchase, newStatus) {
       subject: title,
       blocks: [
         { type: 'paragraph', text: body },
-        { type: 'image', url: entryCodeQrUrl(purchase.entry_code), alt: '受付QRコード ' + purchase.entry_code },
-        { type: 'button', label: 'マイページで確認する', url: SITE_URL },
+        // width を指定しないとメール側で幅いっぱい（536px）に引き伸ばされ、
+        // QRがぼやけて読み取りにくくなるため、実寸で表示させる
+        { type: 'image', url: entryCodeQrUrl(purchase.entry_code, 480), alt: '受付QRコード ' + purchase.entry_code, width: 240 },
+        { type: 'button', label: 'マイページで確認する', url: SITE_URL + '/members-only.html' },
       ],
     });
   } else {
@@ -169,7 +171,7 @@ async function notifyPurchaser(serviceClient, purchase, newStatus) {
       subject: title,
       text: body,
       ctaLabel: isPaid ? 'マイページで確認する' : 'サイトに戻る',
-      ctaUrl: SITE_URL,
+      ctaUrl: isPaid ? SITE_URL + '/members-only.html' : SITE_URL,
     });
   }
 

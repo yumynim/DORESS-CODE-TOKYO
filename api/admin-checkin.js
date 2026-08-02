@@ -42,20 +42,80 @@ async function resolveUsers(serviceClient, userIds) {
   return map;
 }
 
+// 今回のイベントの受付コードだけを対象にするための前方一致パターン。
+// CURRENT_EVENT_ID が未設定なら 'DCT-' 全体（＝絞らないのと同じ）になる。
+function eventCodePrefix() {
+  const eventId = process.env.CURRENT_EVENT_ID;
+  return eventId ? `DCT-${eventId}-` : 'DCT-';
+}
+
 module.exports = async function handler(req, res) {
   const serviceClient = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
 
   if (req.method === 'GET') {
     const token = req.query.token;
     if (!verifyAdminToken(token, 'checkin')) { res.status(401).json({ error: '認証が切れました。もう一度パスワードを入力してください' }); return; }
+
+    // ?lookup=... のときは「お名前・メールアドレスから購入を探す」モード。
+    // 当日、来場者がコードを出せない（携帯の充電切れ、メールが見つからない等）ときに
+    // 受付で本人を特定するために使う。まだ入場していない人も対象にする点が
+    // 下のチェックイン履歴一覧との違い。
+    const lookup = typeof req.query.lookup === 'string' ? req.query.lookup.trim() : '';
+    if (lookup) {
+      try {
+        if (lookup.length < 2) { res.status(200).json({ results: [] }); return; }
+
+        const { data: rows, error: lookupErr } = await serviceClient
+          .from('purchases')
+          .select('id, user_id, ticket_name, entry_code, checked_in_at, quantity, checked_in_count')
+          .eq('status', 'paid')
+          .not('entry_code', 'is', null)
+          .like('entry_code', eventCodePrefix() + '%')
+          .order('created_at', { ascending: false })
+          .limit(1000);
+        if (lookupErr) { console.error('admin-checkin lookup failed:', lookupErr.message); res.status(500).json({ error: '検索に失敗しました' }); return; }
+
+        const users = await resolveUsers(serviceClient, (rows || []).map((p) => p.user_id));
+        const q = lookup.toLowerCase();
+        const results = (rows || [])
+          .map((p) => {
+            const u = users.get(p.user_id);
+            return {
+              id: p.id,
+              entryCode: p.entry_code,
+              ticketName: p.ticket_name,
+              buyerEmail: (u && u.email) || '（不明）',
+              buyerName: (u && u.name) || '',
+              checkedInAt: p.checked_in_at,
+              quantity: p.quantity,
+              checkedInCount: p.checked_in_count,
+            };
+          })
+          .filter((r) =>
+            r.buyerName.toLowerCase().includes(q) ||
+            r.buyerEmail.toLowerCase().includes(q) ||
+            String(r.entryCode || '').toLowerCase().includes(q))
+          .slice(0, 20);
+
+        res.status(200).json({ results });
+      } catch (err) {
+        console.error('admin-checkin lookup handler error:', err);
+        res.status(500).json({ error: 'サーバー内部でエラーが発生しました' });
+      }
+      return;
+    }
+
     try {
       const { data, error } = await serviceClient
         .from('purchases')
         .select('id, user_id, ticket_name, entry_code, checked_in_at, quantity, checked_in_count')
         .eq('status', 'paid')
         .not('checked_in_at', 'is', null)
+        // 前回までのイベントのチェックインが混ざると、今回の分が上限に押し出されて
+        // 一覧から消える（＝取り消せなくなる）ので、今回のイベントのコードだけに絞る。
+        .like('entry_code', eventCodePrefix() + '%')
         .order('checked_in_at', { ascending: false })
-        .limit(200);
+        .limit(1000);
       if (error) { console.error('admin-checkin list failed:', error.message); res.status(500).json({ error: '読み込みに失敗しました' }); return; }
 
       const userByUserId = await resolveUsers(serviceClient, (data || []).map((p) => p.user_id));
@@ -85,7 +145,7 @@ module.exports = async function handler(req, res) {
     return;
   }
 
-  const { code, token, undo, id } = req.body || {};
+  const { code, token, undo, id, requestId } = req.body || {};
   if (!verifyAdminToken(token, 'checkin')) {
     res.status(401).json({ error: '認証が切れました。もう一度パスワードを入力してください' });
     return;
@@ -148,7 +208,11 @@ module.exports = async function handler(req, res) {
     // 入場のカウントアップはDBの関数の中で行ロック付きで行う。
     // ここで「読んでから書く」をやると、受付が複数台あるときに同じコードを
     // 同時に読んで両方入場させてしまうため（supabase/schema_v13_checkin_count.sql 参照）。
-    const { data: result, error: checkinErr } = await serviceClient.rpc('checkin_entry', { p_code: matchedCode });
+    const { data: result, error: checkinErr } = await serviceClient.rpc('checkin_entry', {
+      p_code: matchedCode,
+      // 同じ読み取りを通信のやり直しで2回送っても二重に数えないための目印
+      p_request_id: typeof requestId === 'string' && requestId ? requestId.slice(0, 64) : null,
+    });
     if (checkinErr) { console.error('checkin_entry failed:', checkinErr.message); res.status(500).json({ error: '記録に失敗しました' }); return; }
 
     const row = Array.isArray(result) ? result[0] : result;
