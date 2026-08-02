@@ -1,3 +1,33 @@
+# 引き継ぎメモ（2026-08-03時点・最優先で読むこと）
+
+**背景**: Square本番切り替え・受付コード(QR)・当日入場確認(`/checkin`)まで実装が終わり、今はSupabase Authenticationの「Confirm email」を有効化してテストしている最中。会話が長くなったための引き継ぎメモ。詳細な経緯は下の各セクション（特に「現在作業中の内容」）に書いてあるので、要点だけ知りたいときはここを読む。
+
+## 今まさに問題になっていること（未解決・進行中）
+
+1. **Confirm emailのテストで詰まっている**: 確認メールのリンクを開くと`localhost:3000/#error=access_denied&error_code=otp_expired&...`というエラーが出た。原因はSupabaseの Authentication → URL Configuration の「Site URL」が`http://localhost:3000`のまま、「Redirect URLs」も空だったこと。**ユーザーに以下を指示済み、実行結果はまだ確認していない**：
+   - Site URLを`https://dress-code-tokyo.com`に変更
+   - Redirect URLsに`https://dress-code-tokyo.com/**`を追加
+   - 直したあと、もう一度「新規登録→確認メール受信→リンクを開いて認証→ログイン可否」を最初からテストする必要がある
+2. **`supabase/schema_v10_event_sequence.sql`が未実行**: これを実行しないと受付コードの発行自体が失敗する（`next_entry_seq()`関数が存在しないため）。
+3. **Vercel環境変数`CURRENT_EVENT_ID`が未設定**: 今回のイベント用に`0927.01`を設定するようユーザーに案内済み、未確認。設定してVercelを再デプロイするまでは受付コードが`DCT-EVENT-...`という仮の値になる。
+4. **`/checkin`のチェックイン結果表示の仕様確認待ち**: 今はメールアドレスを表示しているが、ユーザーから「登録した名前の方がいいのでは」という話が出て、A（今のままメールでよい）／B（登録名に変える、または両方表示）のどちらか回答待ち。
+5. **実地テスト一式が未実施**: 上記1〜3が揃った後に、以下を通しで確認する必要がある
+   - 実際の少額決済 → 決済直後の「ご購入ありがとうございました」画面 → 確認メール → 通知ドロワー → マイページ、すべてで受付コード・QRが正しい形式（`DCT-0927.01-N1`等）で表示されるか
+   - `/checkin`で実際にQRスキャン／手入力→「入場OK」→もう一度同じコードで「入場済みです」→検索→「取り消す」、が一通り動くか
+
+## 残タスク一覧（優先順）
+
+1. Supabase URL Configuration修正（上記「今まさに問題になっていること」1番）— ユーザー作業中
+2. `supabase/schema_v10_event_sequence.sql`をSQL Editorで実行
+3. Vercel環境変数`CURRENT_EVENT_ID`を設定（例:`0927.01`）→ 再デプロイ
+4. Confirm emailの一連のテストを完遂（新規登録→確認メール→リンク→ログイン可否→誤入力メアドは使えないこと）
+5. `/checkin`のチェックイン結果表示（メールアドレス vs 登録名）についてユーザーに回答してもらい、必要なら実装
+6. 実際の少額決済で一連の流れを通しテスト（上記5番）
+7. `/checkin`の動作を通しテスト（上記5番）
+8. （公開判断待ち）`tokutei-shotorihiki.html`の`noindex`を外すか
+9. （保留中）Google OAuth再開
+10. （後片付け・急ぎではない）Sandboxテスト時代の「手続き中」テストデータを`purchases`から削除
+
 # プロジェクト概要
 
 DRESS CODE TOKYO のウェブサイト。もともと claudedesign 制作の 22MB 1枚 HTML（`DRESS CODE TOKYO.html`、バックアップとして保持）を、編集しやすい構成（HTML/CSS/JS 分離）に組み直したもの。見た目は元のまま。
