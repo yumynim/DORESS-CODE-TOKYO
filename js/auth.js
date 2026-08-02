@@ -23,6 +23,15 @@
   var listeners = [];              // ログイン状態が変わったときに呼ぶコールバック
   var PENDING_TICKET_KEY = 'dct_pending_ticket';
 
+  // ログイン状態の最初の確認（Supabaseへの問い合わせ）を、スクリプト読み込み時点で即座に開始する。
+  // DOMContentLoaded/load を待つ init() の中で呼ぶと、ページ側が「まだ確認中」のタイミングで
+  // getSession() を読んでしまい、実際はログイン中なのに未ログイン扱いされる競合状態が起きうる
+  // （Squareの決済ページから members-only.html に戻ってきた直後にこれが発生した）。
+  // 他のページはこの sessionReady を待ってから getSession() を読むこと（DCT_AUTH.ready参照）。
+  var sessionReady = (CONFIGURED && client)
+    ? client.auth.getSession().then(function (res) { session = res.data.session; return session; })
+    : Promise.resolve(null);
+
   // ログイン前にチケット購入を押した場合、ログイン後に再開するための一時保存。
   // Googleログインは別ドメインへ丸ごと画面遷移する（=JSの変数は消える）ので、
   // メモリ上の変数ではなく sessionStorage に保存しておく（戻ってきた後も読み出せる）。
@@ -370,8 +379,7 @@
     wireAuthButtons();
     wireTicketButtons();
     if (!CONFIGURED) { paintAuthButtons(); return; }
-    client.auth.getSession().then(function (res) {
-      session = res.data.session;
+    sessionReady.then(function () {
       paintAuthButtons();
       notify();
       // Googleログインからページ遷移して戻ってきた直後もここを通るので、
@@ -396,6 +404,9 @@
     isConfigured: function () { return CONFIGURED; },
     getClient: function () { return client; },
     getSession: function () { return session; },
+    // ログイン状態の最初の確認が終わってから fn を呼ぶ（getSessionを早読みして
+    // 未ログイン扱いになる競合状態を避けるため。ページ読み込み直後に判定する処理はこれを使うこと）。
+    ready: function (fn) { return sessionReady.then(fn); },
     onChange: function (fn) { listeners.push(fn); },
     signOut: function () { return client ? client.auth.signOut() : Promise.resolve(); },
     openModal: openModal,

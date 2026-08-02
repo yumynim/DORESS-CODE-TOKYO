@@ -203,6 +203,12 @@ Supabase接続・ヘッダーのマイページ/通知UI刷新・お知らせ投
   - [`api/checkout.js`](../api/checkout.js): Squareの`redirect_url`を`/members-only.html?thanks=1`に変更（決済ページから戻ってきたことの合図）。
   - [`members-only.html`](../members-only.html): `?thanks=1`があるときだけ「ご購入ありがとうございました」バナーを表示。Webhookの到達に多少タイムラグがあるため、直後は「お支払いの確認中です」と表示し、2秒おき最大8回（16秒）まで本人の最新の購入行を確認、`status='paid'`になった時点でチケット名・金額・受付コード（`entry_code`）を表示する。タイムアウトした場合は「購入したチケット」欄かメールを見るよう案内。表示後はURLから`?thanks=1`を消す（`history.replaceState`）ので、リロードでは再表示されない。
   - **未確認**: 実際にSquareの決済を完了させて、このバナー→受付コード表示までの流れをまだ実地確認していない。次にテストするタスク。
+- **（2026-08-02・未コミット→ユーザー承認後push予定）members-only.htmlで「ログインが必要です」が誤表示される競合状態を修正**:
+  - 背景: 上記の`?thanks=1`対応をテストする過程で、ログイン中のはずなのに`members-only.html`が「ログインが必要です」（ゲスト状態）を表示するとユーザーから報告。
+  - 原因: [`js/auth.js`](../js/auth.js)のログイン状態確認（`client.auth.getSession()`）は非同期で、従来は`init()`（DOMContentLoaded後）の中で呼んでいた。一方`members-only.html`は`window.addEventListener('load', ...)`（画像等の読み込み完了後）のタイミングで`DCT_AUTH.getSession()`を読んでいたが、`getSession()`はローカルの確認だけで完了するため`load`イベントより先に確定→`notify()`が呼ばれてしまい、その時点ではまだ`members-only.html`側の`onChange`リスナーが登録されていない、というタイミングのズレが起きていた（一度きりの`notify()`を取りこぼすと、次にログイン状態が変わるまで誤ったまま）。
+  - [`js/auth.js`](../js/auth.js): ログイン状態確認の`Promise`（`sessionReady`）をスクリプト読み込み時点（`init()`を待たず）で開始するように変更し、`DCT_AUTH.ready(fn)`という新しいAPIを追加（確認が終わってから`fn`を呼ぶ）。`init()`内部もこの`sessionReady`を再利用するよう統一。
+  - [`members-only.html`](../members-only.html): `window.addEventListener('load', ...)` + `DCT_AUTH.getSession()`直読みを、`DCT_AUTH.ready(fn)`に置き換え。
+  - **未確認**: この修正で実際に直ったかどうかは、もう一度Squareの決済を通してテストするまで確定していない。また、この不具合が本当に「決済ページから戻ってきた直後」特有のものか、単に直接URLを開いて未ログイン状態で見ていただけなのかは、ユーザーへの再現手順の確認待ち。
 
 # 未完了の作業（＝ユーザーが各サイトで行う作業）
 

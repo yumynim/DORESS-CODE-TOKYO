@@ -283,8 +283,11 @@
         });
       });
 
-      // auth.js の DOMContentLoaded 初期化を待ってから状態を判定する
-      window.addEventListener('load', function () {
+      // ログイン状態の最初の確認が終わるのを待ってから判定する。
+      // window.load（画像等の読み込み完了）を待つと、Squareの決済ページから戻ってきた直後など
+      // 確認がまだ終わっていないタイミングで getSession() を読んでしまい、
+      // 本当はログイン中なのに「ログインが必要です」と誤表示することがあったための修正。
+      window.DCT_AUTH.ready(function () {
         paint(window.DCT_AUTH.getSession());
         window.DCT_AUTH.onChange(paint);
       });
