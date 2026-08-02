@@ -32,6 +32,12 @@ function generateEntryCode() {
   return `DCT-${y}${m}${d}-${suffix}`;
 }
 
+// 受付コードのQR画像URL。外部の無料サービス（api.qrserver.com）に生成を任せる。
+// 追加のライブラリ・課金無しで済ませるためで、渡すのはランダムな受付コードのみ（個人情報は含まない）。
+function entryCodeQrUrl(code, size) {
+  return `https://api.qrserver.com/v1/create-qr-code/?size=${size || 240}x${size || 240}&data=${encodeURIComponent(code)}`;
+}
+
 // purchases.entry_code はユニーク制約があるため、衝突したら別の値で数回だけ再試行する
 // （同じ日にランダム部分だけで約70万通りなので実際に衝突することはほぼ無い）。
 async function assignEntryCode(serviceClient, purchaseId) {
@@ -82,13 +88,28 @@ async function notifyPurchaser(serviceClient, purchase, newStatus) {
   const { data, error } = await serviceClient.auth.admin.getUserById(purchase.user_id);
   const to = data && data.user && data.user.email;
   if (error || !to) { console.error('email skipped: user email not found', error && error.message); return; }
-  await sendEmail({
-    to,
-    subject: title,
-    text: body,
-    ctaLabel: isPaid ? 'マイページで確認する' : 'サイトに戻る',
-    ctaUrl: SITE_URL,
-  });
+
+  if (isPaid && purchase.entry_code) {
+    // 受付コードをQR画像付きで送る（当日スタッフがカメラで読み取れるように）。
+    // blocksを使う分岐に切り替えているだけで、届く見た目（黒×白のテンプレート）は他の通知と同じ。
+    await sendEmail({
+      to,
+      subject: title,
+      blocks: [
+        { type: 'paragraph', text: body },
+        { type: 'image', url: entryCodeQrUrl(purchase.entry_code), alt: '受付QRコード ' + purchase.entry_code },
+        { type: 'button', label: 'マイページで確認する', url: SITE_URL },
+      ],
+    });
+  } else {
+    await sendEmail({
+      to,
+      subject: title,
+      text: body,
+      ctaLabel: isPaid ? 'マイページで確認する' : 'サイトに戻る',
+      ctaUrl: SITE_URL,
+    });
+  }
 
   await notifyAdmin(purchase, newStatus, to);
 }

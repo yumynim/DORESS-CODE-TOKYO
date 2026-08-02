@@ -14,7 +14,9 @@ DORESS CODE TOKYO/
 ├── article.html               記事詳細ページ
 ├── member.html                 運用メンバー個人の紹介ページ
 ├── members-only.html           マイページ（購入したチケット・お知らせ。直リンク/ブックマーク用）
-├── admin-announcements.html    お知らせ投稿ページ（管理者専用。profiles.is_admin=trueの人だけ使える）
+├── admin-announcements.html    お知らせ投稿ページ（/console、合言葉方式）
+├── checkin.html                当日スタッフ向け入場確認ページ（/checkin、admin-announcementsと同じ合言葉方式）
+├── tokutei-shotorihiki.html    特定商取引法に基づく表記
 ├── community-creator.html      コミュニティ（クリエイター向け）ページ
 ├── community-exhibitor.html    コミュニティ（出展者向け）ページ
 ├── css/style.css               全体スタイル（:root にトークン集約）
@@ -36,6 +38,7 @@ DORESS CODE TOKYO/
 │   ├── admin-inquiries.js         GET/POST /api/admin-inquiries: /console のお問い合わせ一覧・返信（返信はinfo@から送信しinquiries.statusを更新）
 │   ├── admin-preview-email.js     POST /api/admin-preview-email: /console のブロックエディタのライブプレビュー用（送信は行わない）
 │   ├── admin-upload-image.js      POST /api/admin-upload-image: /console の画像ブロック用、Supabase Storageへアップロード
+│   ├── admin-checkin.js           POST /api/admin-checkin: /checkin から呼ぶ。受付コードを照合し未チェックインならchecked_in_atを記録
 │   └── env-check.js               GET /api/env-check: 環境変数が設定されているか（値は返さず真偽値のみ）を確認する診断用
 ├── lib/
 │   └── mailer.js                 Resend経由のメール送信の共通処理（購入通知・お知らせ配信・お問い合わせ対応で共用）。ブロック配列→HTML/テキスト変換、送信元アドレスの差し替えにも対応
@@ -47,7 +50,8 @@ DORESS CODE TOKYO/
 │   ├── schema_v5_admin.sql          profiles.is_admin カラム＋本人が自分では変更できないようにするガード（現在は未使用。合言葉方式に変更したため）
 │   ├── schema_v6_inquiries.sql      inquiries テーブル（サイトのお問い合わせフォームの内容・返信記録）
 │   ├── schema_v7_notification_html.sql  notifications/announcements に body_html カラムを追加（画像付きお知らせをサイト内でも正しく表示するため）
-│   └── schema_v8_entry_code.sql   purchases に entry_code カラムを追加（当日の入場確認用コード「DCT-購入日-ランダム4文字」、支払い完了時にAPI側で発行。★未実行★Supabaseで実行が必要）
+│   ├── schema_v8_entry_code.sql   purchases に entry_code カラムを追加（当日の入場確認用コード「DCT-購入日-ランダム4文字」、支払い完了時にAPI側で発行）
+│   └── schema_v9_checkin.sql      purchases に checked_in_at カラムを追加（当日のQR/手入力チェックイン記録。★未実行★Supabaseで実行が必要）
 ├── assets/images/                 画像
 ├── vercel.json                    セキュリティヘッダー設定
 ├── .env.example                   環境変数テンプレート（実値は Vercel の環境変数に設定する想定）
@@ -60,7 +64,7 @@ DORESS CODE TOKYO/
 
 - フロントエンド: 素の HTML/CSS/JS。ビルドステップなし。フォントは Google Fonts を `<link>` で読み込み（Cormorant Garamond / Jost / Zen Kaku Gothic New / Zen Old Mincho）。
 - 認証: Supabase Auth（メール/パスワード + Google OAuth）。プロジェクト作成済み（`dresscode-tokyo`, Tokyo region, Free）。`js/auth-config.js` に Project URL / Publishable Key を設定済み（2026-07-24、ローカルサーバーでログインモーダルが「準備中」ではなく実フォームで表示されることを確認済み）。Vercel環境変数（`SUPABASE_URL`/`SUPABASE_ANON_KEY`/`SUPABASE_SERVICE_ROLE_KEY`）も設定・Redeploy済み。Secret Keyはローテーション済み・Vercel側も更新済み。Google OAuthプロバイダ（Client ID/Secret）は未設定。
-- 決済: Square API（Create Payment Link、Orders APIのline_items経由）。Vercel環境変数（`SQUARE_ACCESS_TOKEN`/`SQUARE_LOCATION_ID`/`SQUARE_WEBHOOK_URL`/`SQUARE_WEBHOOK_SIGNATURE_KEY`/`SQUARE_APPLICATION_ID`/`SQUARE_ENVIRONMENT`）は全てSandbox用の値を設定済み（2026-08-01）。Sandboxでの実購入テスト（カート追加→決済→webhook→通知）まで成功済み。**現状`SQUARE_ENVIRONMENT`は`production`以外（未設定含む）ならSandboxホストを使う実装**（`api/checkout.js`）。詳細は「現在作業中の内容」「未完了の作業」参照。
+- 決済: Square API（Create Payment Link、Orders APIのline_items経由）。**2026-08-01にProductionへ切り替え済み**（Vercel環境変数`SQUARE_ACCESS_TOKEN`/`SQUARE_LOCATION_ID`/`SQUARE_APPLICATION_ID`/`SQUARE_WEBHOOK_SIGNATURE_KEY`/`SQUARE_ENVIRONMENT=production`、Production側の商品登録・Webhook Subscription作成、`js/data.js`の`catalogObjectId`もProduction用IDに差し替え済み）。`SQUARE_WEBHOOK_URL`はSandbox/Production共通で変更不要。実際の少額決済でのエンドツーエンド確認はまだ（詳細は「未完了の作業」参照）。
 - DB: Supabase Postgres。RLS 有効。`purchases.status` の更新は service role のみ許可（クライアントから直接書き換え不可）。
 - ホスティング/デプロイ: Vercel（`vercel.json`）。`api/` 配下が Vercel Functions として動く前提。
 - 依存パッケージ: `@supabase/supabase-js` のみ（`package.json`）。
@@ -209,10 +213,18 @@ Supabase接続・ヘッダーのマイページ/通知UI刷新・お知らせ投
   - [`js/auth.js`](../js/auth.js): ログイン状態確認の`Promise`（`sessionReady`）をスクリプト読み込み時点（`init()`を待たず）で開始するように変更し、`DCT_AUTH.ready(fn)`という新しいAPIを追加（確認が終わってから`fn`を呼ぶ）。`init()`内部もこの`sessionReady`を再利用するよう統一。
   - [`members-only.html`](../members-only.html): `window.addEventListener('load', ...)` + `DCT_AUTH.getSession()`直読みを、`DCT_AUTH.ready(fn)`に置き換え。
   - **未確認**: この修正で実際に直ったかどうかは、もう一度Squareの決済を通してテストするまで確定していない。また、この不具合が本当に「決済ページから戻ってきた直後」特有のものか、単に直接URLを開いて未ログイン状態で見ていただけなのかは、ユーザーへの再現手順の確認待ち。
+- **（2026-08-02・未コミット→ユーザー承認後push予定）当日の入場確認をQRコード対応にする一式を追加**:
+  - 背景: ユーザーが以前使っていた別サービス（TFM）と同様に、受付コードをQR化してスタッフが読み取れるようにしたいという要望。実装にあたり「npm依存を増やしたくない」という懸念が出たため、**追加ライブラリ0個**で実現する方針にした（QR生成は外部の無料サービス`api.qrserver.com`の画像URLを直接`<img>`で使う。読み取りはAndroid/Chromeがブラウザ標準搭載の`BarcodeDetector`機能を使い、対応していないSafari/iPhoneは既存の手入力検索にフォールバックする）。
+  - **[`supabase/schema_v9_checkin.sql`](../supabase/schema_v9_checkin.sql)（新規・★まだユーザーが未実行★）**: `purchases.checked_in_at`カラムを追加。実行するまで`/checkin`は動かない。
+  - **[`api/admin-checkin.js`](../api/admin-checkin.js)（新規）**: POST。`/console`と同じ合言葉トークン（`verifyAdminToken`）で認証。受付コードで`purchases`を検索（`status='paid'`のみ対象）→未チェックインならその場で`checked_in_at`を記録して購入者情報を返す→チェックイン済みなら「入場済みです（最初の入場時刻）」を返す→見つからなければ404。
+  - **[`checkin.html`](../checkin.html)（新規、`/checkin`でアクセス）**: `/console`と同じ合言葉ログイン画面（トークンは同じ`sessionStorage`キー`dct_admin_token`を共有）。カメラでのQR読み取り（`BarcodeDetector`対応ブラウザのみ、非対応時は案内文を表示）と、手入力フォームの両方に対応。結果は「入場OK／入場済みです／無効なコード」の3状態で大きく表示し、直近の読み取り履歴も一覧表示する。[`vercel.json`](../vercel.json)に`/checkin`→`/checkin.html`のrewriteを追加。`Permissions-Policy`ヘッダーが`camera=()`（全面禁止）になっていたため`camera=(self)`に変更（変更しないとカメラが起動できない）。主要ナビ・フッターにはリンクを置かず、`/console`と同様URLを直接知っている人だけが使う想定。
+  - **QRコードの表示側（購入者が見る側）を追加**: 受付コードが表示される4箇所（決済直後のありがとうございました画面・購入完了メール・ヘッダーのマイページドロワー・`members-only.html`の購入履歴）すべてに、コードのテキストと並べてQR画像（`https://api.qrserver.com/v1/create-qr-code/?data=...`）を表示するようにした（[`members-only.html`](../members-only.html)、[`js/auth.js`](../js/auth.js)、[`api/square-webhook.js`](../api/square-webhook.js)の`notifyPurchaser`。メールは`sendEmail`をblocks形式に切り替えて画像ブロックを追加）。
+  - **未確認**: `schema_v9_checkin.sql`実行後、実際にQRを読み取って`/checkin`でチェックインできるか・二重チェックイン時に正しく「入場済みです」と出るか、まだ実地テストしていない。
 
 # 未完了の作業（＝ユーザーが各サイトで行う作業）
 
 - **（ブロッカー）Supabase — `supabase/schema_v8_entry_code.sql`をSQL Editorで実行する**: 実行するまで受付コード機能（当日の入場確認用）が動かない。
+- **（ブロッカー）Supabase — `supabase/schema_v9_checkin.sql`をSQL Editorで実行する**: 実行するまで`/checkin`のチェックイン機能が動かない（v8実行後に続けて実行すればOK）。
 - **特定商取引法に基づく表記（[`tokutei-shotorihiki.html`](../tokutei-shotorihiki.html)）は必須項目を記入済み、公開判断待ち**:
   - ユーザーは個人事業主（屋号は無い）と確認。**販売事業者・運営統括責任者ともに本名「齋藤南」を記載**（2026-08-01）。「DRESS CODE TOKYO」は屋号ではないため事業者名としては使わない、とユーザーが判断。
   - メールアドレス: `info@dress-code-tokyo.com` 記入済み。

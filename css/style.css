@@ -1088,6 +1088,7 @@ a.mcard__sns:hover { transform: translateY(-3px); }
 }
 .thanks-banner__code span { font-family: var(--f-sans); font-size: 11px; letter-spacing: 0.12em; color: var(--muted); }
 .thanks-banner__code strong { font-family: var(--f-sans); font-weight: 700; font-size: 22px; letter-spacing: 0.06em; color: var(--ink); }
+.thanks-banner__code img { align-self: center; margin-top: 8px; }
 
 /* /console の各リストをNotionのトグルのように開閉できるようにする（増えてきても圧迫しないため） */
 .admin-toggle summary { cursor: pointer; list-style: none; }
@@ -1136,6 +1137,7 @@ a.mcard__sns:hover { transform: translateY(-3px); }
 .mypage__purchase-main h3 { font-family: var(--f-jp); font-weight: 700; font-size: 14.5px; color: var(--ink); }
 .mypage__purchase-date { display: block; margin-top: 4px; font-family: var(--f-sans); font-size: 11px; letter-spacing: 0.06em; color: var(--muted); }
 .mypage__purchase-entrycode { display: block; margin-top: 6px; font-family: var(--f-sans); font-size: 12.5px; font-weight: 700; letter-spacing: 0.06em; color: var(--ink); }
+.mypage__purchase-qr { display: block; margin-top: 8px; border-radius: 4px; }
 .mypage__purchase-side { display: flex; align-items: center; gap: 12px; }
 .mypage__purchase-price { font-family: var(--f-jp); font-weight: 700; font-size: 15px; color: var(--ink); }
 .mypage__purchase-status {
@@ -1350,3 +1352,28 @@ a.mcard__sns:hover { transform: translateY(-3px); }
 }
 .cart-checkout { margin-top: 16px; width: 100%; justify-content: center; border: none; }
 .cart-checkout:disabled { background: var(--line-2); color: var(--muted); pointer-events: none; }
+
+/* checkin.html（当日スタッフ向けの入場確認ページ） */
+.checkin__scanner { margin-top: 28px; text-align: center; }
+.checkin__scanner video { display: block; width: 100%; max-width: 420px; margin: 0 auto 16px; border-radius: 10px; background: #000; aspect-ratio: 1/1; object-fit: cover; }
+.checkin__manual {
+  margin-top: 28px; display: flex; flex-wrap: wrap; align-items: flex-end; gap: 12px;
+  padding-top: 20px; border-top: 1px solid var(--line);
+}
+.checkin__manual label { flex: 1; min-width: 220px; font-family: var(--f-sans); font-size: 12px; letter-spacing: 0.06em; color: var(--muted); }
+.checkin__manual input {
+  display: block; width: 100%; margin-top: 6px; box-sizing: border-box; font: inherit; font-size: 15px;
+  padding: 11px 12px; border: 1px solid var(--line-2); border-radius: 6px; letter-spacing: 0.08em;
+}
+.checkin__manual button { flex: none; height: 44px; }
+.checkin__result { margin-top: 28px; padding: 24px; border-radius: 10px; background: var(--bg-band); text-align: center; }
+.checkin__badge {
+  display: inline-block; font-family: var(--f-sans); font-weight: 700; font-size: 15px; letter-spacing: 0.08em;
+  padding: 8px 20px; border-radius: 30px; margin-bottom: 12px;
+}
+.checkin__badge--ok { background: #e4efe6; color: #2f6b43; }
+.checkin__badge--used { background: #f6efdc; color: #8a6d1f; }
+.checkin__badge--error { background: #f2e4e2; color: #a1402c; }
+.checkin__ticket { font-family: var(--f-jp); font-weight: 700; font-size: 16px; color: var(--ink); }
+.checkin__buyer { margin-top: 4px; font-family: var(--f-sans); font-size: 13px; color: var(--ink-3); }
+.checkin__code { margin-top: 10px; font-family: var(--f-sans); font-size: 12px; letter-spacing: 0.1em; color: var(--muted); }

@@ -328,7 +328,10 @@
           return '<div class="mypage__purchase">' +
             '<div class="mypage__purchase-main"><h3>' + escHtml(p.ticket_name) + '</h3>' +
             '<span class="mypage__purchase-date">' + new Date(p.created_at).toLocaleDateString('ja-JP') + '</span>' +
-            (p.entry_code ? '<span class="mypage__purchase-entrycode">当日の受付コード: ' + escHtml(p.entry_code) + '</span>' : '') +
+            (p.entry_code
+              ? '<span class="mypage__purchase-entrycode">当日の受付コード: ' + escHtml(p.entry_code) + '</span>' +
+                '<img class="mypage__purchase-qr" src="https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=' + encodeURIComponent(p.entry_code) + '" alt="受付QRコード" width="120" height="120" loading="lazy">'
+              : '') +
             '</div>' +
             '<div class="mypage__purchase-side"><span class="mypage__purchase-price">' + yen(p.price) + '</span>' +
             '<span class="mypage__purchase-status is-' + p.status + '">' + escHtml(ACCOUNT_STATUS_LABEL[p.status] || p.status) + '</span></div></div>';

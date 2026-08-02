@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>入場確認 — DRESS CODE TOKYO</title>
+  <meta name="description" content="DRESS CODE TOKYO 当日スタッフ向け：受付コードの入場確認ページ。">
+  <link rel="icon" href="assets/images/logo-square.jpg">
+  <link rel="apple-touch-icon" href="assets/images/logo-square.jpg">
+  <meta name="theme-color" content="#ffffff">
+  <meta name="robots" content="noindex,nofollow">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;1,300;1,400&family=Jost:wght@300;400;500;600&family=Zen+Kaku+Gothic+New:wght@400;500;700&family=Zen+Old+Mincho:wght@400;500;600;700&display=swap">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+  <header class="header">
+    <div class="header__inner">
+      <a href="index.html" class="logo"><img src="assets/images/logo.png" alt="DRESS CODE TOKYO"></a>
+      <nav id="nav-desktop" class="nav"></nav>
+      <button type="button" class="btn btn--outline header__cta" id="checkin-logout-btn" hidden>ログアウト</button>
+      <button id="menu-btn" class="menu-btn">MENU</button>
+    </div>
+    <div id="mobile-menu" class="mobile-menu">
+      <div id="nav-mobile"></div>
+      <button type="button" class="btn btn--outline" id="checkin-logout-btn-mobile" data-close hidden>ログアウト</button>
+    </div>
+  </header>
+
+  <main class="mypage checkin">
+    <!-- パスワード未入力／不一致のとき -->
+    <div id="checkin-locked" class="mypage__state">
+      <span class="kicker">Staff</span>
+      <h1 class="mypage__title">入場確認</h1>
+      <p class="mypage__note">このページは当日スタッフ専用です。管理者パスワードを入力してください。</p>
+      <form id="checkin-login-form" class="auth-form admin-form">
+        <label>管理者パスワード<input type="password" name="password" required autocomplete="current-password"></label>
+        <p class="auth-form__error" id="checkin-login-error" hidden></p>
+        <button type="submit" class="btn btn--solid auth-form__submit">ログイン</button>
+      </form>
+    </div>
+
+    <!-- パスワードが正しいとき -->
+    <div id="checkin-content" class="mypage__state" hidden>
+      <span class="kicker">Staff</span>
+      <h1 class="mypage__title">入場確認</h1>
+      <p class="mypage__note">受付コードをカメラで読み取るか、下の欄に手入力して確認してください。</p>
+
+      <section class="checkin__scanner">
+        <video id="checkin-video" playsinline muted hidden></video>
+        <p id="checkin-camera-off" class="mypage__note">読み取りを開始するには下のボタンを押してください。</p>
+        <p id="checkin-unsupported" class="mypage__note" hidden>このブラウザはカメラでのQR読み取りに対応していません。下の欄にコードを手入力してください（Android/Chromeでは対応しています）。</p>
+        <p id="checkin-camera-error" class="mypage__note" hidden>カメラを起動できませんでした。カメラの利用を許可しているか確認してください。手入力でも確認できます。</p>
+        <button type="button" class="btn btn--outline" id="checkin-scan-btn">カメラで読み取る</button>
+      </section>
+
+      <form id="checkin-manual-form" class="checkin__manual">
+        <label>受付コードを入力
+          <input type="text" id="checkin-manual-input" placeholder="DCT-20260802-7K4M" autocomplete="off" autocapitalize="characters">
+        </label>
+        <button type="submit" class="btn btn--solid">確認する</button>
+      </form>
+
+      <section id="checkin-result" class="checkin__result" hidden></section>
+
+      <section class="mypage__section">
+        <h2>直近の読み取り履歴</h2>
+        <div id="checkin-log" class="mypage__notifications">
+          <p class="cards-empty">まだ読み取りはありません。</p>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <footer class="footer">
+    <div class="footer__inner">
+      <div class="footer__grid">
+        <div>
+          <div class="brand-serif">DRESS CODE</div>
+          <div class="brand-sub">TOKYO</div>
+          <p class="blurb">Tokyo Fashion Market &amp; Culture Community. ファッションをきっかけに、人とカルチャーが出会う場所。</p>
+        </div>
+        <div class="footer__col"><h4>Sitemap</h4><div id="footer-sitemap" class="links"></div></div>
+        <div class="footer__col"><div id="footer-socials"></div></div>
+      </div>
+      <div class="footer__bar">
+        <span>© 2026 DRESS CODE TOKYO</span>
+        <span><a href="tokutei-shotorihiki.html">特定商取引法に基づく表記</a></span>
+      </div>
+    </div>
+  </footer>
+
+  <script src="js/data.js"></script>
+  <script src="js/render.js"></script>
+  <script>
+    (function () {
+      const TOKEN_KEY = 'dct_admin_token';
+      const getToken = () => sessionStorage.getItem(TOKEN_KEY);
+      const setToken = (t) => sessionStorage.setItem(TOKEN_KEY, t);
+      const clearToken = () => sessionStorage.removeItem(TOKEN_KEY);
+      const esc = s => String(s == null ? '' : s).replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
+
+      const locked = document.getElementById('checkin-locked');
+      const content = document.getElementById('checkin-content');
+      const loginForm = document.getElementById('checkin-login-form');
+      const loginError = document.getElementById('checkin-login-error');
+      const logoutBtns = [document.getElementById('checkin-logout-btn'), document.getElementById('checkin-logout-btn-mobile')];
+      const resultEl = document.getElementById('checkin-result');
+      const logEl = document.getElementById('checkin-log');
+      const manualForm = document.getElementById('checkin-manual-form');
+      const manualInput = document.getElementById('checkin-manual-input');
+      const scanBtn = document.getElementById('checkin-scan-btn');
+      const videoEl = document.getElementById('checkin-video');
+      const cameraOffEl = document.getElementById('checkin-camera-off');
+      const unsupportedEl = document.getElementById('checkin-unsupported');
+      const cameraErrorEl = document.getElementById('checkin-camera-error');
+
+      let scanning = false;
+      let logEntries = [];
+
+      function showLocked() { clearToken(); locked.hidden = false; content.hidden = true; logoutBtns.forEach(b => { b.hidden = true; }); }
+      function showContent() { locked.hidden = true; content.hidden = false; logoutBtns.forEach(b => { b.hidden = false; }); }
+
+      loginForm.addEventListener('submit', function (e) {
+        e.preventDefault();
+        loginError.hidden = true;
+        const password = loginForm.password.value;
+        const btn = loginForm.querySelector('.auth-form__submit');
+        btn.disabled = true;
+        btn.textContent = '確認中…';
+        fetch('/api/admin-login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ password }),
+        })
+          .then(r => r.json().then(data => ({ ok: r.ok, data })))
+          .then(({ ok, data }) => {
+            btn.disabled = false;
+            btn.textContent = 'ログイン';
+            if (!ok) { loginError.textContent = data.error || 'パスワードが違います'; loginError.hidden = false; return; }
+            setToken(data.token);
+            loginForm.reset();
+            showContent();
+          })
+          .catch(() => {
+            btn.disabled = false;
+            btn.textContent = 'ログイン';
+            loginError.textContent = '通信エラーが発生しました';
+            loginError.hidden = false;
+          });
+      });
+      logoutBtns.forEach(b => b.addEventListener('click', showLocked));
+
+      /* ---------- 結果表示・履歴 ---------- */
+      function renderResult(state, code, data) {
+        const time = new Date().toLocaleTimeString('ja-JP');
+        let html = '';
+        if (state === 'ok') {
+          html = `<div class="checkin__badge checkin__badge--ok">入場OK</div>
+            <p class="checkin__ticket">${esc(data.ticketName)}</p>
+            <p class="checkin__buyer">${esc(data.buyerEmail)}</p>
+            <p class="checkin__code">${esc(code)}</p>`;
+        } else if (state === 'used') {
+          html = `<div class="checkin__badge checkin__badge--used">入場済みです</div>
+            <p class="checkin__ticket">${esc(data.ticketName)}</p>
+            <p class="checkin__buyer">${esc(data.buyerEmail)}</p>
+            <p class="mypage__note">最初の入場: ${new Date(data.checkedInAt).toLocaleString('ja-JP')}</p>
+            <p class="checkin__code">${esc(code)}</p>`;
+        } else {
+          html = `<div class="checkin__badge checkin__badge--error">無効なコード</div>
+            <p class="mypage__note">${esc(data && data.error ? data.error : 'そのコードは確認できませんでした')}</p>
+            <p class="checkin__code">${esc(code)}</p>`;
+        }
+        resultEl.innerHTML = html;
+        resultEl.hidden = false;
+
+        logEntries.unshift({ state, code, time, ticketName: data && data.ticketName });
+        logEntries = logEntries.slice(0, 20);
+        logEl.innerHTML = logEntries.map(e => `
+          <div class="mypage__notification">
+            <div class="mypage__notification-head">
+              <h3>${e.state === 'ok' ? '✓ 入場OK' : e.state === 'used' ? '△ 入場済み' : '✕ 無効'} ${e.ticketName ? '— ' + esc(e.ticketName) : ''}</h3>
+              <span class="mypage__notification-date">${e.time}</span>
+            </div>
+            <p>${esc(e.code)}</p>
+          </div>`).join('');
+      }
+
+      function submitCode(rawCode) {
+        const code = String(rawCode || '').trim();
+        if (!code) return;
+        fetch('/api/admin-checkin', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ code, token: getToken() }),
+        })
+          .then(r => r.json().then(data => ({ ok: r.ok, status: r.status, data })))
+          .then(({ ok, status, data }) => {
+            if (status === 401) { showLocked(); return; }
+            if (!ok) { renderResult('error', code, data); return; }
+            renderResult(data.alreadyCheckedIn ? 'used' : 'ok', code, data);
+          })
+          .catch(() => renderResult('error', code, { error: '通信エラーが発生しました' }));
+      }
+
+      manualForm.addEventListener('submit', function (e) {
+        e.preventDefault();
+        submitCode(manualInput.value);
+        manualInput.value = '';
+        manualInput.focus();
+      });
+
+      /* ---------- カメラでのQR読み取り（対応ブラウザのみ。BarcodeDetector標準機能を利用、追加ライブラリ無し） ----------
+         scanBtn.onclick は常にこの2関数のどちらかを指す状態にする（start↔stopを都度貼り替える）。
+         成功検出時の自動停止も stopScanner を経由させ、次のクリックで確実に再開できるようにする。 */
+      function stopScanner(stream) {
+        scanning = false;
+        if (stream) stream.getTracks().forEach(t => t.stop());
+        videoEl.hidden = true;
+        cameraOffEl.hidden = false;
+        scanBtn.textContent = 'カメラで読み取る';
+        scanBtn.onclick = startScanner;
+      }
+
+      async function startScanner() {
+        if (!('BarcodeDetector' in window)) { unsupportedEl.hidden = false; return; }
+        cameraErrorEl.hidden = true;
+        let stream;
+        try {
+          stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+        } catch (e) {
+          cameraErrorEl.hidden = false;
+          return;
+        }
+        videoEl.srcObject = stream;
+        videoEl.hidden = false;
+        cameraOffEl.hidden = true;
+        scanBtn.textContent = '読み取りを止める';
+        scanBtn.onclick = function () { stopScanner(stream); };
+        await videoEl.play();
+
+        const detector = new BarcodeDetector({ formats: ['qr_code'] });
+        scanning = true;
+        const tick = async () => {
+          if (!scanning) return;
+          try {
+            const codes = await detector.detect(videoEl);
+            if (codes.length) {
+              const value = codes[0].rawValue;
+              stopScanner(stream);
+              submitCode(value);
+              return;
+            }
+          } catch (e) { /* 検出エラーは無視して続ける */ }
+          requestAnimationFrame(tick);
+        };
+        tick();
+      }
+      scanBtn.onclick = startScanner;
+
+      // トークンが残っていればログイン状態から始める（合言葉自体は都度聞かない）
+      if (getToken()) showContent(); else showLocked();
+    })();
+  </script>
+</body>
+</html>
