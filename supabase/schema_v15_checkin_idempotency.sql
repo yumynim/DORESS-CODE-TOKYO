@@ -20,18 +20,23 @@
 --     ・1人分の購入 … 2回目が「入場済みです」になり、本人が疑われる
 --     ・3人分の購入 … 1人目の受付だけで2枠消費され、3人目が入場できなくなる
 --   という事故が起きる。しかも画面上は正常に見えるので誰も気づけない。
---   そこで1回の読み取りごとに端末がランダムなIDを送り、直前と同じIDなら
---   数えずに前回と同じ結果を返す。
+--   そこで1回の読み取りごとに端末がランダムなIDを送り、すでに数えたIDが
+--   もう一度届いたら、数えずに前回と同じ結果を返す。
+--
+--   IDは「直前の1件」ではなく配列で全部覚える。直前の1件だけだと、
+--   受付が2台あって同じコードを交互に読んだとき（A→B→Aのやり直し）に
+--   Aのやり直しを新規と誤認して余計に数えてしまうため。
+--   配列は入場人数（quantity）までしか伸びないので肥大化しない。
 -- =========================================================
 
 -- ---------- 1. 列（v13の取りこぼし対策。すでにあれば何もしない） ----------
 alter table public.purchases add column if not exists quantity int not null default 1;
 alter table public.purchases add column if not exists checked_in_count int not null default 0;
-alter table public.purchases add column if not exists last_checkin_request_id text;
+alter table public.purchases add column if not exists checkin_request_ids text[] not null default '{}';
 
 comment on column public.purchases.quantity is 'この購入に含まれる点数（＝何人分入場できるか）。api/checkout.js が保存する。';
 comment on column public.purchases.checked_in_count is '当日すでに入場した人数。quantity に達すると、それ以上は入場できない。';
-comment on column public.purchases.last_checkin_request_id is '直近に処理したチェックイン要求のID。通信のやり直しで二重に数えるのを防ぐために使う。';
+comment on column public.purchases.checkin_request_ids is 'これまでに人数として数えたチェックイン要求のID一覧。通信のやり直しで二重に数えるのを防ぐために使う。';
 
 -- 既にチェックイン済みの行（この仕組みより前のデータ）は1人入場済みとして扱う
 update public.purchases
@@ -83,8 +88,8 @@ begin
     return; -- 0行 → 呼び出し側で「無効なコード」として扱う
   end if;
 
-  -- 同じ読み取りの再送。数えずに、前回この読み取りで通した結果をそのまま返す。
-  if p_request_id is not null and v_row.last_checkin_request_id = p_request_id then
+  -- すでに数えた読み取りの再送。数えずに、前回この読み取りで通した結果をそのまま返す。
+  if p_request_id is not null and p_request_id = any(v_row.checkin_request_ids) then
     return query select
       v_row.id, v_row.user_id, v_row.ticket_name,
       v_row.quantity, v_row.checked_in_count, v_row.checked_in_at, true;
@@ -96,7 +101,10 @@ begin
        set checked_in_count = v_row.checked_in_count + 1,
            -- checked_in_at は「最初に入場した時刻」として残す
            checked_in_at = coalesce(v_row.checked_in_at, now()),
-           last_checkin_request_id = p_request_id
+           checkin_request_ids = case
+             when p_request_id is null then v_row.checkin_request_ids
+             else array_append(v_row.checkin_request_ids, p_request_id)
+           end
      where purchases.id = v_row.id
      returning * into v_row;
     v_admitted := true;
@@ -110,7 +118,7 @@ $$;
 
 -- ---------- 取り消し：1人分だけ戻す ----------
 -- 0人になったら checked_in_at も消して、一覧から消えるようにする。
--- 直前の読み取りIDも消すので、取り消した直後に同じコードを読めばまた数えられる。
+-- 覚えている読み取りIDも消すので、取り消した直後に同じコードを読めばまた数えられる。
 create or replace function public.undo_checkin(p_id uuid)
 returns table (
   id uuid,
@@ -135,7 +143,7 @@ begin
   update public.purchases
      set checked_in_count = v_next,
          checked_in_at = case when v_next = 0 then null else v_row.checked_in_at end,
-         last_checkin_request_id = null
+         checkin_request_ids = '{}'
    where purchases.id = v_row.id
    returning * into v_row;
 
@@ -148,11 +156,23 @@ $$;
 -- サーバー（service_role）からは確実に呼べるようにする。
 revoke execute on function public.checkin_entry(text, text) from public, anon, authenticated;
 revoke execute on function public.undo_checkin(uuid)        from public, anon, authenticated;
-revoke execute on function public.next_entry_seq(text, text) from public, anon, authenticated;
 
 grant execute on function public.checkin_entry(text, text) to service_role;
 grant execute on function public.undo_checkin(uuid)        to service_role;
-grant execute on function public.next_entry_seq(text, text) to service_role;
+
+-- next_entry_seq は schema_v10 で作られる関数。万一 v10 未適用のDBでこのファイルを
+-- 流したとき、存在しない関数への revoke でここから先が丸ごと失敗しないように、
+-- 存在を確認してから権限を整える。
+do $do$
+begin
+  if to_regprocedure('public.next_entry_seq(text, text)') is not null then
+    revoke execute on function public.next_entry_seq(text, text) from public, anon, authenticated;
+    grant  execute on function public.next_entry_seq(text, text) to service_role;
+  else
+    raise warning 'next_entry_seq が存在しません。schema_v10_event_sequence.sql を先に実行してください（受付コードの連番発行に必須です）。';
+  end if;
+end
+$do$;
 
 -- ---------- 5. 返金ステータスを許可 ----------
 alter table public.purchases drop constraint if exists purchases_status_check;

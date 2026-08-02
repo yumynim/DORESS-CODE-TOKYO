@@ -273,6 +273,6 @@ window.SITE = {
     { label: 'TikTok',    sub: '@dress.code_tokyo',                        href: 'https://www.tiktok.com/@dress.code_tokyo' },
     { label: 'LINE',      sub: 'DRESS CODE TOKYO',                         href: 'https://line.me/R/ti/p/@799fggke' },
   ],
-  /* ※お問い合わせは各「ご用件」の＋から Google フォーム(iframe)を開く方式に変更済み。
-     旧・自作フォーム(contactForm)は廃止しました。 */
+  /* ※お問い合わせは、各「ご用件」の＋を開くとサイト内蔵のフォーム（js/render.js が生成、
+     送信先は /api/contact）が出る方式。以前の Google フォーム iframe 方式は廃止済み。 */
 };

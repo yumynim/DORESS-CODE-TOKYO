@@ -210,7 +210,7 @@
         const done = Number(data.checkedInCount) || 0;
         const remain = Math.max(qty - done, 0);
         const countLine = qty > 1
-          ? `<p class="checkin__count">${done} / ${qty} 人目${remain > 0 ? `　<strong>あと${remain}人分このQRを読み取ってください</strong>` : '　（これで全員です）'}</p>`
+          ? `<p class="checkin__count">${done} / ${qty} 人目${remain > 0 ? `　<strong>あと${remain}人分 — QRを一度カメラから外し、もう一度かざしてください</strong>` : '　（これで全員です）'}</p>`
           : '';
         if (state === 'ok') {
           html = `<div class="checkin__badge checkin__badge--ok">入場OK</div>
@@ -318,8 +318,15 @@
         lookupListEl.querySelectorAll('[data-lookup-code]').forEach(btn => {
           btn.addEventListener('click', () => {
             // 通常のスキャンとまったく同じ経路を通す（人数の数え方を1箇所に保つため）
-            submitCode(btn.getAttribute('data-lookup-code'));
-            runLookup();
+            const req = submitCode(btn.getAttribute('data-lookup-code'));
+            if (!req) {
+              // 別の処理中で受け付けられなかったことを黙って握りつぶさない
+              // （押したのに何も起きないと、スタッフは入場済みになったと思い込む）
+              alert('ほかの読み取りを処理中です。1〜2秒待ってからもう一度押してください。');
+              return;
+            }
+            // 入場処理が終わってから検索結果を取り直す（先に取り直すと入場前の人数が表示される）
+            req.then(runLookup);
           });
         });
       }
@@ -329,7 +336,8 @@
         if (q.length < 2) { lookupListEl.innerHTML = ''; return; }
         const seq = ++lookupSeq;
         lookupListEl.innerHTML = '<p class="cards-empty">検索中…</p>';
-        fetch('/api/admin-checkin?token=' + encodeURIComponent(getToken()) + '&lookup=' + encodeURIComponent(q))
+        // トークンはURLではなくヘッダーで送る（URLに入れるとサーバーのアクセスログに残ってしまう）
+        fetch('/api/admin-checkin?lookup=' + encodeURIComponent(q), { headers: { 'x-admin-token': getToken() } })
           .then(r => r.json().then(data => ({ ok: r.ok, status: r.status, data })))
           .then(({ ok, status, data }) => {
             if (seq !== lookupSeq) return; // 入力が変わった後に届いた古い結果は捨てる
@@ -346,7 +354,7 @@
       });
 
       function loadHistory() {
-        fetch('/api/admin-checkin?token=' + encodeURIComponent(getToken()))
+        fetch('/api/admin-checkin', { headers: { 'x-admin-token': getToken() } })
           .then(r => r.json().then(data => ({ ok: r.ok, status: r.status, data })))
           .then(({ ok, status, data }) => {
             if (status === 401) { showLocked(); return; }
@@ -358,26 +366,33 @@
       }
 
       let inFlight = false;
+      // 通信に失敗した読み取りを覚えておく。同じコードをもう一度送るときは
+      // 同じIDを使い回す。これが無いと、1回目が実はサーバーに届いていた場合に
+      // やり直しが「新しい読み取り」として二重に数えられてしまう
+      // （二重カウント防止の仕組みそのものが機能しなくなる）。
+      let failedRequest = null; // { code, requestId }
 
       function submitCode(rawCode) {
         const code = String(rawCode || '').trim();
-        if (!code) return;
+        if (!code) return null;
         // 連打・二重スキャン対策。1件処理し終わるまで次を受け付けない。
-        if (inFlight) return;
+        if (inFlight) return null;
         inFlight = true;
         renderPending(code);
 
         // 1回の読み取りごとに固有のIDを付ける。通信をやり直しても、
         // サーバー側で「同じ読み取り」と分かるので人数が二重に減らない。
-        const requestId = (window.crypto && crypto.randomUUID)
-          ? crypto.randomUUID()
-          : String(Date.now()) + Math.random().toString(16).slice(2);
+        const requestId = (failedRequest && failedRequest.code === code)
+          ? failedRequest.requestId
+          : ((window.crypto && crypto.randomUUID)
+            ? crypto.randomUUID()
+            : String(Date.now()) + Math.random().toString(16).slice(2));
 
         // 会場のWi-Fiが遅いと延々待たされるので、10秒で打ち切って結果を出す。
         const controller = new AbortController();
         const timer = setTimeout(() => controller.abort(), 10000);
 
-        fetch('/api/admin-checkin', {
+        return fetch('/api/admin-checkin', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ code, token: getToken(), requestId }),
@@ -385,11 +400,15 @@
         })
           .then(r => r.json().then(data => ({ ok: r.ok, status: r.status, data })))
           .then(({ ok, status, data }) => {
+            failedRequest = null; // サーバーの返事が届いた＝この読み取りは決着した
             if (status === 401) { showLocked(); return; }
             if (!ok) { renderResult('error', code, data); return; }
             renderResult(data.alreadyCheckedIn ? 'used' : 'ok', code, data);
           })
-          .catch(() => renderResult('network', code, {}))
+          .catch(() => {
+            failedRequest = { code, requestId };
+            renderResult('network', code, {});
+          })
           .finally(() => { clearTimeout(timer); inFlight = false; });
       }
 
@@ -441,26 +460,39 @@
         }
 
         scanning = true;
-        // 同じQRを連続で拾い続けないための記憶。カメラは止めないので、
-        // これが無いと1枚のQRで何度も送信してしまう。
+        // 同じQRを映しっぱなしにしても1回しか数えないための記憶。
+        // 以前は「3秒たてば同じコードでも再送信」だったが、それだと受付が
+        // 一瞬よそ見しただけで、まとめ買いのQRから勝手に2人目・3人目が
+        // 消費されてしまう。同じコードをもう一度数えるには、いったんカメラから
+        // 外して（約1秒）もう一度かざす、というスタッフの明確な動作を要求する。
+        // 別のコードなら即座に受け付ける。カメラ自体は止めない
+        // （止めると1人ごとにボタンを押し直すことになるため）。
         let lastValue = '';
-        let lastAt = 0;
+        let lastSeenAt = 0;
+        let needsGap = false; // true の間は、同じコードを読んでも送信しない
+        const GAP_MS = 1200;
 
         const tick = async () => {
           if (!scanning) return;
           try {
             const codes = await detector.detect(videoEl);
+            const now = Date.now();
             if (codes.length) {
               const value = codes[0].rawValue;
-              const now = Date.now();
-              // 3秒以内の同じコードは無視。別のコードならすぐ受け付ける。
-              if (value !== lastValue || now - lastAt > 3000) {
+              if (value !== lastValue) {
                 lastValue = value;
-                lastAt = now;
-                // カメラは止めない。止めると1人ごとにボタンを押し直すことになり、
-                // 3人分のまとめ買いだと6タップ＋カメラ再起動3回になってしまう。
+                needsGap = true;
+                lastSeenAt = now;
                 submitCode(value);
+              } else if (!needsGap) {
+                needsGap = true;
+                lastSeenAt = now;
+                submitCode(value);
+              } else {
+                lastSeenAt = now; // まだ映りっぱなし。送信はしない
               }
+            } else if (needsGap && now - lastSeenAt > GAP_MS) {
+              needsGap = false; // 十分な時間カメラから外れた。次に映ったらまた数える
             }
           } catch (e) { /* 検出エラーは無視して続ける */ }
           requestAnimationFrame(tick);

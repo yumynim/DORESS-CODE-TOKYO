@@ -52,16 +52,6 @@
     `<div><div class="enjoy__no">${e.no}</div><h4>${e.title}</h4><p>${e.body}</p></div>`
   ).join(''));
 
-  /* ---------- Gallery ---------- */
-  fill('gallery', (S.gallery || []).map(g => {
-    // masonry（縦に流れる）レイアウト。写真は自然な高さで並ぶので動きが出る。
-    // 写真が無い項目だけ ratio で高さを確保（プレースホルダー用）。
-    const img = g.img
-      ? `<img src="${g.img}" alt="${g.label}" loading="lazy" decoding="async">`
-      : `<div class="gallery__ph" style="aspect-ratio:${g.ratio}"></div>`;
-    return `<div class="gallery__item reveal${g.img ? ' has-img' : ''}">${img}<span class="label">${g.label}</span></div>`;
-  }).join(''));
-
   /* ---------- Magazine: カテゴリ名の対応表（key→表示ラベル） ---------- */
   const MAGCATS = S.magCats || [{ key: 'fashion', label: 'Fashion' }, { key: 'shop', label: 'Shop' }];
   function magCatLabel(key) { const m = MAGCATS.find(c => c.key === key); return m ? m.label : (key || ''); }

@@ -216,8 +216,13 @@
         const params = new URLSearchParams(location.search);
         if (params.get('thanks') !== '1') return;
         thanksHandled = true;
+        // pid = 今回の注文の購入記録ID（api/checkout.js が戻りURLに付ける）。
+        // これがあると「この注文」の確定だけを監視できる。無い場合（古いリンク等）は
+        // 従来どおり一番新しい購入を監視する。
+        const purchaseId = params.get('pid') || '';
         // 一度表示したらURLから消す（再読み込みのたびに出ないように）
         params.delete('thanks');
+        params.delete('pid');
         const qs = params.toString();
         history.replaceState(null, '', location.pathname + (qs ? '?' + qs : ''));
 
@@ -249,11 +254,15 @@
             '<button type="button" class="btn btn--outline" onclick="location.reload()">再読み込みする</button>';
         }
         function poll() {
-          client.from('purchases')
+          let query = client.from('purchases')
             .select('ticket_name, price, status, entry_code, created_at')
-            .eq('user_id', session.user.id)
-            .order('created_at', { ascending: false })
-            .limit(1)
+            .eq('user_id', session.user.id);
+          // pid があればその注文だけを見る。別タブで次の注文を始めていても、
+          // このサンクス画面が監視する対象は変わらない。
+          query = purchaseId
+            ? query.eq('id', purchaseId)
+            : query.order('created_at', { ascending: false }).limit(1);
+          query
             .then(res => {
               const p = res.data && res.data[0];
               if (!res.error && p && p.status === 'paid') { showConfirmed(p); return; }

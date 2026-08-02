@@ -88,6 +88,9 @@ module.exports = async function handler(req, res) {
 
     // ---------- Squareへ Payment Link 作成をリクエスト ----------
     const idempotencyKey = crypto.randomUUID(); // 二重決済防止：この注文1回だけを表すキー
+    // 購入記録の行IDは（DB任せにせず）先に決めておく。Squareに渡す戻りURLへ
+    // このIDを含める必要があり、URLは Payment Link 作成時にしか指定できないため。
+    const purchaseId = crypto.randomUUID();
     const squareRes = await fetch(`${SQUARE_API_BASE}/v2/online-checkout/payment-links`, {
       method: 'POST',
       headers: {
@@ -107,12 +110,16 @@ module.exports = async function handler(req, res) {
         checkout_options: {
           // 決済完了後に戻ってくる先。?thanks=1 は「Squareから戻ってきた直後」の合図
           // （members-only.htmlがこれを見て「ありがとうございました」表示を出す。詳細は同ファイル参照）。
+          // &pid= はこの注文の購入記録のID。サンクス画面が「この注文」の支払い確定だけを
+          // 監視できるようにするため（無いと「一番新しい購入」を見るしかなく、別タブで
+          // 次の注文を始めた場合などにそちらを監視してしまう）。IDはUUIDで、本人しか
+          // 自分の購入記録を読めない（RLS）ので、URLに載っても他人には使えない。
           //
           // 以前は req.headers.origin をそのまま使っていたが、Originヘッダは送信側が
           // 自由に付けられるため、攻撃者が別サイトを指定すると「Squareの本物の決済ページから
           // 攻撃者のサイトへ遷移する」導線を作れてしまう（フィッシングに悪用できる）。
           // 戻り先は必ずこちらで決め打ちにする。
-          redirect_url: `${SITE_URL}/members-only.html?thanks=1`,
+          redirect_url: `${SITE_URL}/members-only.html?thanks=1&pid=${purchaseId}`,
         },
       }),
     });
@@ -138,6 +145,7 @@ module.exports = async function handler(req, res) {
     const summaryName = resolvedItems.map(it => `${it.name}×${it.quantity}`).join(', ');
     const serviceClient = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
     const { error: insertErr } = await serviceClient.from('purchases').insert({
+      id: purchaseId,
       user_id: userId,
       ticket_name: summaryName,
       price: total,

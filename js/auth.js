@@ -23,6 +23,11 @@
   var listeners = [];              // ログイン状態が変わったときに呼ぶコールバック
   var PENDING_TICKET_KEY = 'dct_pending_ticket';
 
+  // パスワード再設定リンク経由かどうかは、スクリプト読み込みの時点でURLから覚えておく。
+  // supabase-js はトークン処理後にURLのハッシュを消すため、init()（DOMContentLoaded後）で
+  // 読もうとしたときには #type=recovery が既に無くなっていることがある。
+  var IS_RECOVERY_LINK = /[#&]type=recovery(&|$)/.test(location.hash || '');
+
   // ログイン状態の最初の確認（Supabaseへの問い合わせ）を、スクリプト読み込み時点で即座に開始する。
   // DOMContentLoaded/load を待つ init() の中で呼ぶと、ページ側が「まだ確認中」のタイミングで
   // getSession() を読んでしまい、実際はログイン中なのに未ログイン扱いされる競合状態が起きうる
@@ -182,8 +187,12 @@
 
   function clearFormErrors() {
     modal.querySelectorAll('.auth-form__error').forEach(function (p) { p.hidden = true; p.textContent = ''; });
-    var resendBtn = modal.querySelector('.auth-form__resend');
-    if (resendBtn) { resendBtn.hidden = true; resendBtn.textContent = '確認メールを再送する'; resendBtn.disabled = false; }
+    // 再送ボタンはログイン・新規登録の両フォームに1つずつある。全部リセットしないと、
+    // 前回の送信先メールアドレスに配線されたままのボタンが残り、アドレスを打ち直して
+    // 再送したつもりが古いアドレス宛てに届く、という取り違えが起きる。
+    modal.querySelectorAll('.auth-form__resend').forEach(function (b) {
+      b.hidden = true; b.textContent = '確認メールを再送する'; b.disabled = false;
+    });
     var hint = modal.querySelector('#auth-signup-email-hint');
     if (hint) hint.hidden = true;
   }
@@ -559,6 +568,16 @@
       notify();
       if (wasLoggedOut && session) resumePendingTicket();
     });
+    // PASSWORD_RECOVERY イベントは、URLのトークン処理がこの購読より先に終わると
+    // 発火済みで受け取れないことがある（端末の速さに依存するレース）。取りこぼすと、
+    // 回復用セッションでただ「ログイン済み」に見えるだけで、新パスワードを入力する
+    // 画面がどこにも出ない。イベント頼みにせず、再設定リンク経由かどうかを
+    // URL自体（#type=recovery、読み込み時に退避済み）でも判定して、確実に開く。
+    if (IS_RECOVERY_LINK) {
+      sessionReady.then(function () {
+        if (session) openModal({ tab: 'newpassword' });
+      });
+    }
   }
 
   if (document.readyState === 'loading') {
