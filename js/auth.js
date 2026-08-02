@@ -85,6 +85,7 @@
       '    <label>メールアドレス<input type="email" name="email" required autocomplete="email"></label>' +
       '    <label>パスワード（6文字以上）<input type="password" name="password" required minlength="6" autocomplete="new-password"></label>' +
       '    <p class="auth-form__error" hidden></p>' +
+      '    <button type="button" class="btn-link auth-form__resend" hidden>確認メールを再送する</button>' +
       '    <button type="submit" class="btn btn--solid auth-form__submit">登録する</button>' +
       '  </form>' +
       '</div>';
@@ -180,12 +181,41 @@
     btn.textContent = busy ? '処理中…' : label;
   }
 
-  // Confirm email を有効にしてから、メール未確認のままログインしようとする人が出てくるため、
-  // その場合だけ「確認メールを再送する」を出す（見分け方はSupabaseのエラーコード／文言に依存）。
+  // Confirm email を有効にしてから、メール未確認のままログインしようとする人や、
+  // 未確認のまま同じメールで登録し直そうとする人が出てくるため、その場合に
+  // 「確認メールを再送する」を出す（見分け方はSupabaseのエラーコード／文言に依存）。
   function isUnconfirmedEmailError(error) {
     if (!error) return false;
     if (error.code === 'email_not_confirmed') return true;
     return /email not confirmed/i.test(error.message || '');
+  }
+  function isAlreadyRegisteredError(error) {
+    if (!error) return false;
+    if (error.code === 'user_already_exists') return true;
+    return /already registered/i.test(error.message || '');
+  }
+
+  // form内の「確認メールを再送する」ボタンを、指定のメール宛てに再送するよう配線する。
+  function wireResendButton(f, email) {
+    var resendBtn = f.querySelector('.auth-form__resend');
+    if (!resendBtn) return;
+    resendBtn.hidden = false;
+    resendBtn.disabled = false;
+    resendBtn.textContent = '確認メールを再送する';
+    resendBtn.onclick = function () {
+      resendBtn.disabled = true;
+      resendBtn.textContent = '送信中…';
+      client.auth.resend({ type: 'signup', email: email }).then(function (resendRes) {
+        if (resendRes.error) {
+          resendBtn.disabled = false;
+          resendBtn.textContent = '確認メールを再送する';
+          showFormError(f, '再送に失敗しました：' + resendRes.error.message);
+          return;
+        }
+        resendBtn.disabled = true;
+        resendBtn.textContent = '再送しました（メールをご確認ください）';
+      });
+    };
   }
 
   function handleSignin(e) {
@@ -200,23 +230,8 @@
       setButtonBusy(btn, false, 'ログイン');
       if (res.error) {
         if (isUnconfirmedEmailError(res.error)) {
-          showFormError(f, 'まだメールアドレスが確認されていません。確認メール内のリンクを開いてください。');
-          var resendBtn = f.querySelector('.auth-form__resend');
-          resendBtn.hidden = false;
-          resendBtn.onclick = function () {
-            resendBtn.disabled = true;
-            resendBtn.textContent = '送信中…';
-            client.auth.resend({ type: 'signup', email: email }).then(function (resendRes) {
-              if (resendRes.error) {
-                resendBtn.disabled = false;
-                resendBtn.textContent = '確認メールを再送する';
-                showFormError(f, '再送に失敗しました：' + resendRes.error.message);
-                return;
-              }
-              resendBtn.disabled = true;
-              resendBtn.textContent = '再送しました（メールをご確認ください）';
-            });
-          };
+          showFormError(f, 'まだメールアドレスが確認されていません。確認メール内のリンクを開いてください。届いていない場合は下のボタンから再送できます。');
+          wireResendButton(f, email);
           return;
         }
         showFormError(f, 'ログインできませんでした：' + res.error.message);
@@ -240,11 +255,20 @@
       options: { data: { display_name: displayName } }
     }).then(function (res) {
       setButtonBusy(btn, false, '登録する');
-      if (res.error) { showFormError(f, '登録できませんでした：' + res.error.message); return; }
+      if (res.error) {
+        if (isAlreadyRegisteredError(res.error)) {
+          showFormError(f, 'このメールアドレスは既に登録されています。確認メールがまだの場合は下のボタンから再送できます（すでに確認済みの場合は「ログイン」タブからお試しください）。');
+          wireResendButton(f, email);
+          return;
+        }
+        showFormError(f, '登録できませんでした：' + res.error.message);
+        return;
+      }
       if (res.data.session) { onAuthed(res.data.session); return; }
       // メール確認が必須の設定の場合はセッションが返らない
       elNotice.hidden = false;
-      elNotice.textContent = '確認メールを送りました。メール内のリンクを開いて登録を完了してください。';
+      elNotice.textContent = '確認メールを送りました。メール内のリンクを開いて登録を完了してください。届かない場合は下のボタンから再送できます。';
+      wireResendButton(f, email);
     });
   }
 
