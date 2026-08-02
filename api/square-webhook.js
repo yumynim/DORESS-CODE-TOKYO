@@ -17,6 +17,7 @@
 const crypto = require('crypto');
 const { createClient } = require('@supabase/supabase-js');
 const { sendEmail, SITE_URL } = require('../lib/mailer');
+const { categoryFromItems } = require('../lib/catalog');
 
 // 当日の入場確認用コード。「DCT-イベント識別番号-カテゴリ+連番-ランダム4文字」の形式
 // （例: 2026年9月27日開催のイベントなら DCT-0927-S1-7K4M（出店者1人目）、DCT-0927-N1-QX52（来場者1人目）…）。
@@ -44,11 +45,21 @@ function randomEntryCodeSuffix() {
   return out;
 }
 
-// チケット名からカテゴリ（S=出店者 / N=来場者）を判定する。
-// js/data.js のticketsB（出店料）/ticketsC（1日入場チケット）の名前に含まれる語で判定しているだけなので、
-// 将来チケットの名前を変えるときはこの判定も見直すこと。どちらにも一致しない場合はXにする。
-function categoryFor(ticketName) {
-  const name = String(ticketName || '');
+// カテゴリ（S=出店者 / N=来場者）は、購入時に保存した items の catalogObjectId から
+// lib/catalog.js（サーバー側の正本）を引いて決める。
+//
+// 以前はチケット名に「出店」「入場」が含まれるかで判定していたが、その名前は
+// ブラウザから送られてきた値をそのまま保存していたため、
+//   1,000円の入場チケットを買いながら name だけ「出店料…」と送る
+//   → 5,000円の出店者用コード(S)が発行される
+// という抜け道があった。名前は表示用と割り切り、判定には使わない。
+//
+// itemsが無い古い購入記録のためだけに、名前による判定を残してある。
+function categoryFor(purchase) {
+  const fromItems = categoryFromItems(purchase && purchase.items);
+  if (fromItems) return fromItems;
+
+  const name = String((purchase && purchase.ticket_name) || '');
   if (name.includes('出店')) return 'S';
   if (name.includes('入場')) return 'N';
   return 'X';
@@ -57,9 +68,9 @@ function categoryFor(ticketName) {
 // 連番部分（DCT-0927-N1 まで）を発行する。ランダム部分は assignEntryCode 側で付ける。
 // 分けているのは、書き込みに失敗して再試行するときに連番まで取り直すと
 // 番号が飛んでしまう（1人しか買っていないのに N3 になる）ため。
-async function generateEntryCodePrefix(serviceClient, ticketName) {
+async function generateEntryCodePrefix(serviceClient, purchase) {
   const eventId = currentEventId();
-  const category = categoryFor(ticketName);
+  const category = categoryFor(purchase);
   const { data: seq, error } = await serviceClient.rpc('next_entry_seq', { p_event: eventId, p_category: category });
   if (error) { console.error('next_entry_seq failed:', error.message); return null; }
   return `DCT-${eventId}-${category}${seq}`;
@@ -78,8 +89,8 @@ function entryCodeQrUrl(code, size) {
 
 // purchases.entry_code はユニーク制約があるため、衝突したらランダム部分だけ変えて数回再試行する。
 // 連番（prefix）は最初に1回だけ取る（再試行のたびに取り直すと番号が飛ぶため）。
-async function assignEntryCode(serviceClient, purchaseId, ticketName) {
-  const prefix = await generateEntryCodePrefix(serviceClient, ticketName);
+async function assignEntryCode(serviceClient, purchase) {
+  const prefix = await generateEntryCodePrefix(serviceClient, purchase);
   if (!prefix) return null;
 
   for (let attempt = 0; attempt < 5; attempt++) {
@@ -87,7 +98,7 @@ async function assignEntryCode(serviceClient, purchaseId, ticketName) {
     const { data, error } = await serviceClient
       .from('purchases')
       .update({ entry_code: code })
-      .eq('id', purchaseId)
+      .eq('id', purchase.id)
       .select('entry_code')
       .single();
     if (!error) return data.entry_code;
@@ -95,7 +106,7 @@ async function assignEntryCode(serviceClient, purchaseId, ticketName) {
     // それ以外のエラー（該当行が無い等）は引き直しても直らないので即あきらめる。
     if (error.code !== '23505') { console.error('entry_code assign failed:', error.message); return null; }
   }
-  console.error('entry_code assign failed: 衝突が続いたため断念しました purchaseId=', purchaseId);
+  console.error('entry_code assign failed: 衝突が続いたため断念しました purchaseId=', purchase.id);
   return null;
 }
 
@@ -174,7 +185,9 @@ async function notifyAdmin(purchase, newStatus, buyerEmail) {
     return;
   }
   const isPaid = newStatus === 'paid';
-  const subject = isPaid ? `【購入通知】${purchase.ticket_name}` : `【キャンセル通知】${purchase.ticket_name}`;
+  // 件名に改行が混ざらないようにする（ticket_nameはカタログ由来だが、念のため）
+  const safeName = String(purchase.ticket_name || '').replace(/[\r\n]+/g, ' ');
+  const subject = isPaid ? `【購入通知】${safeName}` : `【キャンセル通知】${safeName}`;
   const lines = [
     `${purchase.ticket_name} が${isPaid ? 'ご購入' : 'キャンセル'}されました。`,
     `購入者: ${buyerEmail}`,
@@ -187,19 +200,34 @@ async function notifyAdmin(purchase, newStatus, buyerEmail) {
   }
 }
 
+// チャンクをBufferのまま集めてから最後に文字列化する。
+// `data += chunk` のように1チャンクずつ文字列化すると、日本語などのマルチバイト文字が
+// チャンクの境目で分断されたときに文字化けし、署名計算の対象がSquareの送った本文と
+// 変わってしまう（＝正規の通知なのに署名不一致で弾かれ、決済が反映されなくなる）。
 function readRawBody(req) {
   return new Promise((resolve, reject) => {
-    let data = '';
-    req.on('data', chunk => { data += chunk; });
-    req.on('end', () => resolve(data));
+    const chunks = [];
+    req.on('data', chunk => { chunks.push(Buffer.from(chunk)); });
+    req.on('end', () => resolve(Buffer.concat(chunks).toString('utf8')));
     req.on('error', reject);
   });
 }
 
 function isValidSignature(rawBody, signatureHeader) {
   if (!signatureHeader) return false;
+
+  // 署名鍵が未設定・空文字なら必ず false を返す（＝全部拒否する）。
+  // 空文字のままだと createHmac は例外を投げずに動いてしまい、「鍵が空文字」という
+  // 誰でも知っている鍵で署名を検証することになる。つまりVercelの環境変数を
+  // うっかり空で保存しただけで、誰でも「決済が完了しました」を送り込めるようになる。
+  const secret = process.env.SQUARE_WEBHOOK_SIGNATURE_KEY;
+  if (!secret) {
+    console.error('SQUARE_WEBHOOK_SIGNATURE_KEY が未設定です。Webhookをすべて拒否します。');
+    return false;
+  }
+
   const notificationUrl = process.env.SQUARE_WEBHOOK_URL || '';
-  const hmac = crypto.createHmac('sha256', process.env.SQUARE_WEBHOOK_SIGNATURE_KEY);
+  const hmac = crypto.createHmac('sha256', secret);
   hmac.update(notificationUrl + rawBody);
   const expected = hmac.digest('base64');
   // timingSafeEqual でタイミング攻撃を防ぐ（単純な文字列比較 === は避ける）
@@ -247,13 +275,13 @@ async function handler(req, res) {
             .from('purchases')
             .update({ status: newStatus })
             .eq('square_order_id', orderId)
-            .select('id, user_id, ticket_name, entry_code')
+            .select('id, user_id, ticket_name, entry_code, items')
             .single();
           if (error) console.error('purchases update failed:', error.message);
           else if (purchase) {
             // 受付コードは支払い完了(paid)の最初の1回だけ発行する（再送で毎回変わらないように既存値があれば使う）
             if (newStatus === 'paid' && !purchase.entry_code) {
-              purchase.entry_code = await assignEntryCode(serviceClient, purchase.id, purchase.ticket_name);
+              purchase.entry_code = await assignEntryCode(serviceClient, purchase);
             }
             await notifyPurchaser(serviceClient, purchase, newStatus);
           }

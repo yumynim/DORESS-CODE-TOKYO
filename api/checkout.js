@@ -14,6 +14,12 @@
    ========================================================= */
 const crypto = require('crypto');
 const { createClient } = require('@supabase/supabase-js');
+const { getCatalogItem } = require('../lib/catalog');
+const { SITE_URL } = require('../lib/mailer');
+
+// 1回の注文で受け付ける上限。無制限だと巨大な配列を投げつけられる。
+const MAX_LINE_ITEMS = 20;
+const MAX_QUANTITY_PER_ITEM = 20;
 
 // SandboxとProductionでAPIホストが異なる（トークンの種類では自動判別されない）。
 // SQUARE_ENVIRONMENT=production のときだけ本番ホストを使い、それ以外（未設定含む）はSandboxホストを使う。
@@ -32,15 +38,39 @@ module.exports = async function handler(req, res) {
     const { items, access_token } = req.body || {};
 
     // ---------- 入力チェック ----------
+    // ブラウザから受け取るのは「どの商品を何個か」だけ。商品名と価格は信用せず、
+    // lib/catalog.js（サーバー側の正本）から引き直す。
+    // ここを緩めると、安い商品を買いながら高い商品の名前で記録させて、
+    // 出店者用の受付コードを取る、といった抜け道ができる。
     if (!Array.isArray(items) || items.length === 0) {
       res.status(400).json({ error: 'カートが空です' });
       return;
     }
+    if (items.length > MAX_LINE_ITEMS) {
+      res.status(400).json({ error: '一度にお申し込みできる商品の種類が多すぎます' });
+      return;
+    }
+
+    const resolvedItems = [];
     for (const it of items) {
-      if (!it.catalogObjectId || !Number.isInteger(it.quantity) || it.quantity < 1) {
-        res.status(400).json({ error: '商品データが不正です（catalogObjectId / quantity を確認してください）' });
+      const catalogObjectId = it && it.catalogObjectId;
+      const quantity = it && it.quantity;
+      if (!Number.isInteger(quantity) || quantity < 1 || quantity > MAX_QUANTITY_PER_ITEM) {
+        res.status(400).json({ error: '数量が正しくありません' });
         return;
       }
+      const entry = getCatalogItem(catalogObjectId);
+      if (!entry) {
+        console.warn('checkout: 未知のcatalogObjectIdを拒否しました:', catalogObjectId);
+        res.status(400).json({ error: 'お取り扱いのない商品が含まれています' });
+        return;
+      }
+      resolvedItems.push({
+        catalogObjectId,
+        quantity,
+        name: entry.name,
+        price: entry.price,
+      });
     }
     if (!access_token) {
       res.status(401).json({ error: 'ログインが必要です' });
@@ -69,7 +99,7 @@ module.exports = async function handler(req, res) {
         idempotency_key: idempotencyKey,
         order: {
           location_id: process.env.SQUARE_LOCATION_ID,
-          line_items: items.map(it => ({
+          line_items: resolvedItems.map(it => ({
             catalog_object_id: it.catalogObjectId,
             quantity: String(it.quantity), // Square APIは数量を文字列で受け取る
           })),
@@ -77,7 +107,12 @@ module.exports = async function handler(req, res) {
         checkout_options: {
           // 決済完了後に戻ってくる先。?thanks=1 は「Squareから戻ってきた直後」の合図
           // （members-only.htmlがこれを見て「ありがとうございました」表示を出す。詳細は同ファイル参照）。
-          redirect_url: `${req.headers.origin || ''}/members-only.html?thanks=1`,
+          //
+          // 以前は req.headers.origin をそのまま使っていたが、Originヘッダは送信側が
+          // 自由に付けられるため、攻撃者が別サイトを指定すると「Squareの本物の決済ページから
+          // 攻撃者のサイトへ遷移する」導線を作れてしまう（フィッシングに悪用できる）。
+          // 戻り先は必ずこちらで決め打ちにする。
+          redirect_url: `${SITE_URL}/members-only.html?thanks=1`,
         },
       }),
     });
@@ -98,8 +133,9 @@ module.exports = async function handler(req, res) {
     }
 
     // ---------- 購入記録を保存（status: 'initiated'。決済完了はWebhookが 'paid' に更新） ----------
-    const total = items.reduce((sum, it) => sum + (it.price || 0) * it.quantity, 0);
-    const summaryName = items.map(it => `${it.name}×${it.quantity}`).join(', ');
+    // 名前と価格は resolvedItems（＝lib/catalog.js から引いた正しい値）を使う。
+    const total = resolvedItems.reduce((sum, it) => sum + it.price * it.quantity, 0);
+    const summaryName = resolvedItems.map(it => `${it.name}×${it.quantity}`).join(', ');
     const serviceClient = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
     const { error: insertErr } = await serviceClient.from('purchases').insert({
       user_id: userId,
@@ -109,11 +145,14 @@ module.exports = async function handler(req, res) {
       square_url: checkoutUrl,
       square_order_id: squareOrderId,
       square_checkout_id: paymentLink.id,
-      items: items,
+      items: resolvedItems,
     });
     if (insertErr) {
-      // 記録に失敗しても決済自体は進められるので、ログだけ残して処理は続行する
+      // 記録できないまま決済させると、Webhookが購入者を特定できず受付コードを発行できない
+      // （square_order_idで購入記録を突き止める設計のため）。決済ページを返さずここで止める。
       console.error('purchases insert failed:', insertErr.message);
+      res.status(500).json({ error: 'お申し込みの記録に失敗しました。お手数ですが少し時間をおいて再度お試しください' });
+      return;
     }
 
     res.status(200).json({ url: checkoutUrl });

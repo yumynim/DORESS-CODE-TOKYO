@@ -1,0 +1,35 @@
+-- =========================================================
+-- DRESS CODE TOKYO — purchases へのクライアント直接INSERTを禁止する
+-- ---------------------------------------------------------
+-- Supabase の SQL Editor に貼って Run するだけ。
+--
+-- 直す問題：
+--   schema.sql の purchases_insert_own は
+--     with check (auth.uid() = user_id and status = 'initiated')
+--   だけで、**どの列に何を入れるかを制限していなかった**。
+--   status が 'initiated' に固定されるだけなので、ログイン中の会員は
+--   ブラウザから直接Supabaseを叩いて、以下のような行を自由に作れてしまった：
+--     - price を 0 や 9999999 にした偽の購入記録
+--     - ticket_name を好きな文字列にした行（/console の購入者一覧が汚れる）
+--     - entry_code を自分で指定した行
+--       → まだ発行されていない受付コードを先に埋めて、正規購入者への
+--         コード発行を失敗させる嫌がらせができる（entry_codeは一意制約のため）
+--     - square_order_id を自分で指定した行
+--     - 上記を大量にINSERTしてテーブルを膨らませる
+--
+-- なぜ消してよいか：
+--   実際の購入記録は api/checkout.js が service role で作っている（RLSを通らない）。
+--   クライアント側から purchases に INSERT していたのは js/auth.js の
+--   recordPurchase() だけで、これは catalogObjectId 未設定の商品用の
+--   旧・単品リンク方式でしか呼ばれず、現在どの商品からも到達しない。
+--   同コミットでそのコードも削除したため、このポリシーは不要になった。
+--
+--   ※ 将来また「カートを通さない単品購入」を作る場合は、このポリシーを
+--     復活させるのではなく、api/ 側（service role）で記録すること。
+--     クライアントに書かせると、上に書いた問題がそのまま戻ってくる。
+-- =========================================================
+
+drop policy if exists "purchases_insert_own" on public.purchases;
+
+-- 念のため現状を確認したいとき用（purchasesに残るポリシーはselectのみになるはず）:
+--   select policyname, cmd from pg_policies where tablename = 'purchases';

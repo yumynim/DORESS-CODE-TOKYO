@@ -24,7 +24,7 @@ module.exports = async function handler(req, res) {
   }
 
   const token = req.method === 'GET' ? req.query.token : (req.body || {}).token;
-  if (!verifyAdminToken(token)) {
+  if (!verifyAdminToken(token, 'admin')) {
     res.status(401).json({ error: '認証が切れました。もう一度パスワードを入力してください' });
     return;
   }

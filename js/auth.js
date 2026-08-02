@@ -389,21 +389,7 @@
   function resumePendingTicket() {
     var t = takePendingTicket();
     if (!t) return;
-    recordPurchase(t);
     window.open(t.url, '_blank', 'noopener');
-  }
-
-  function recordPurchase(t) {
-    if (!client || !session) return;
-    client.from('purchases').insert({
-      user_id: session.user.id,
-      ticket_name: t.name,
-      price: t.price,
-      status: 'initiated',
-      square_url: t.url,
-    }).then(function (res) {
-      if (res.error) console.warn('purchases insert failed:', res.error.message);
-    });
   }
 
   /* ---------- ヘッダーの「ログイン」ボタン ⇄ マイページアイコンの出し分け ----------
@@ -493,7 +479,7 @@
           return '<div class="mypage__purchase">' +
             '<div class="mypage__purchase-main"><h3>' + escHtml(p.ticket_name) + '</h3>' +
             '<span class="mypage__purchase-date">' + new Date(p.created_at).toLocaleDateString('ja-JP') + '</span>' +
-            (p.entry_code
+            ((p.entry_code && p.status === 'paid')
               ? '<span class="mypage__purchase-entrycode">当日の受付コード: ' + escHtml(p.entry_code) + '</span>' +
                 '<img class="mypage__purchase-qr" src="https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=' + encodeURIComponent(p.entry_code) + '" alt="受付QRコード" width="120" height="120" loading="lazy">'
               : '') +
@@ -521,24 +507,28 @@
     document.body.style.overflow = '';
   }
 
-  /* ---------- チケット購入ボタン：未ログインならログインへ誘導、ログイン中なら履歴を記録 ---------- */
+  /* ---------- チケット購入ボタン：未ログインならログインへ誘導 ----------
+     これは catalogObjectId 未設定の商品にだけ出る旧・単品リンク方式のボタン
+     （js/render.js参照）。現在はどちらの商品もカート決済なので出番は無い。
+
+     以前はここで purchases に購入記録をクライアントから直接insertしていたが、
+     RLSのinsertポリシーが列を制限できず、会員が price や entry_code を
+     好きな値にした行を作れてしまうため廃止した
+     （supabase/schema_v12_purchases_insert_lockdown.sql）。
+     単品リンク方式を復活させる場合は、記録はサーバー側（api/）で行うこと。 */
   function wireTicketButtons() {
     document.addEventListener('click', function (e) {
       var btn = e.target.closest && e.target.closest('.tcard__buy[data-ticket-name]');
       if (!btn) return;
       if (!CONFIGURED) return; // 未設定時は今まで通りそのままリンクを開く
-      var ticket = {
+      if (session) return;     // ログイン済みならそのままSquareのリンクを開かせる
+      e.preventDefault();
+      setPendingTicket({
         name: btn.getAttribute('data-ticket-name'),
         price: Number(btn.getAttribute('data-ticket-price')) || 0,
         url: btn.getAttribute('href'),
-      };
-      if (!session) {
-        e.preventDefault();
-        setPendingTicket(ticket);
-        openModal({ tab: 'signup', lead: 'チケットの購入にはログイン（または新規登録）が必要です。' });
-        return;
-      }
-      recordPurchase(ticket); // リンクはそのまま開かせる（購入自体はSquare側で完結）
+      });
+      openModal({ tab: 'signup', lead: 'チケットの購入にはログイン（または新規登録）が必要です。' });
     });
   }
 

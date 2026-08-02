@@ -10,10 +10,18 @@
    このAPIは「送信前に分かるようにした」だけで、新たに漏れる情報の種類は増えていない。
    ========================================================= */
 const { createClient } = require('@supabase/supabase-js');
+const { isRateLimited } = require('../lib/rateLimit');
 
 module.exports = async function handler(req, res) {
   if (req.method !== 'POST') {
     res.status(405).json({ error: 'このメソッドは対応していません' });
+    return;
+  }
+
+  // 存在確認は1回ごとにSupabaseの利用者一覧を走査する重い処理なので、
+  // 連打されるとこちらの負荷・費用がかさむ（かつ、登録済みメールの総当たり調査にも使われうる）。
+  if (isRateLimited('check-email', req, { windowMs: 60 * 1000, max: 10 })) {
+    res.status(429).json({ error: 'リクエストが多すぎます。しばらくしてからお試しください' });
     return;
   }
 

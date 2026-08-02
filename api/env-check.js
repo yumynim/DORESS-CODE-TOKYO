@@ -7,9 +7,19 @@
    環境変数を追加したのに動かない、というときに、
    スペルミスやデプロイのタイミングの問題を素早く切り分けるために使う。
    ========================================================= */
+const { verifyAdminToken } = require('../lib/adminAuth');
+
 module.exports = async function handler(req, res) {
   if (req.method !== 'GET') {
     res.status(405).json({ error: 'このメソッドは対応していません' });
+    return;
+  }
+
+  // 以前は誰でも開けたが、どの外部サービスと繋がっているか・どのコミットが動いているかが
+  // 分かってしまい、攻撃の下調べに使えるため管理者トークンを必須にした。
+  // 使い方: /api/env-check?token=（/console にログインしたときに発行されるトークン）
+  if (!verifyAdminToken(req.query.token)) {
+    res.status(404).end();
     return;
   }
 

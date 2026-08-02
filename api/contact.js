@@ -76,7 +76,8 @@ module.exports = async function handler(req, res) {
   const cleanName = String(name || '').trim().slice(0, MAX_NAME);
   const cleanEmail = String(email || '').trim().slice(0, MAX_EMAIL);
   const cleanMessage = String(message || '').trim().slice(0, MAX_MESSAGE);
-  const cleanReason = String(reason || 'お問い合わせ').trim().slice(0, MAX_REASON) || 'お問い合わせ';
+  // 改行が残ったままメールの件名に使うと、ヘッダーを分断される恐れがあるので潰しておく
+  const cleanReason = String(reason || 'お問い合わせ').replace(/[\r\n]+/g, ' ').trim().slice(0, MAX_REASON) || 'お問い合わせ';
 
   if (!cleanName || !cleanMessage) {
     res.status(400).json({ error: 'お名前とお問い合わせ内容をご記入ください' });
@@ -136,9 +137,13 @@ module.exports = async function handler(req, res) {
       from: INQUIRY_FROM_EMAIL,
       blocks: [
         { type: 'paragraph', text: `${cleanName} 様` },
-        { type: 'paragraph', text: 'このたびはお問い合わせいただき、誠にありがとうございます。以下の内容で受け付けました。24時間以内にご返信させていただきますので、今しばらくお待ちください。' },
+        { type: 'paragraph', text: 'このたびはお問い合わせいただき、誠にありがとうございます。内容を確認のうえ、24時間以内にご返信させていただきますので、今しばらくお待ちください。' },
         { type: 'divider' },
-        { type: 'callout', text: `ご用件: ${cleanReason}\n\nお問い合わせ内容:\n${cleanMessage}` },
+        // お問い合わせ本文はここに載せない。
+        // このメールの宛先は送信者が自由に指定できるため、本文をそのまま載せると、
+        // 「当社の認証済みドメインから、第三者へ、攻撃者が書いた文章を送る」ことが
+        // できてしまう（フィッシングの踏み台になる）。控えが必要な方には個別に返信する。
+        { type: 'callout', text: `ご用件: ${cleanReason}` },
       ],
       replyTo: process.env.CONTACT_TO_EMAIL || undefined,
       footerNote: 'このメールは自動送信されています。',

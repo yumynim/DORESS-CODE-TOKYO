@@ -17,7 +17,7 @@ module.exports = function handler(req, res) {
   }
 
   const { token, title, blocks } = req.body || {};
-  if (!verifyAdminToken(token)) {
+  if (!verifyAdminToken(token, 'admin')) {
     res.status(401).json({ error: '認証が切れました。もう一度パスワードを入力してください' });
     return;
   }

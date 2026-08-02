@@ -47,11 +47,12 @@ module.exports = async function handler(req, res) {
 
   if (req.method === 'GET') {
     const token = req.query.token;
-    if (!verifyAdminToken(token)) { res.status(401).json({ error: '認証が切れました。もう一度パスワードを入力してください' }); return; }
+    if (!verifyAdminToken(token, 'checkin')) { res.status(401).json({ error: '認証が切れました。もう一度パスワードを入力してください' }); return; }
     try {
       const { data, error } = await serviceClient
         .from('purchases')
         .select('id, user_id, ticket_name, entry_code, checked_in_at')
+        .eq('status', 'paid')
         .not('checked_in_at', 'is', null)
         .order('checked_in_at', { ascending: false })
         .limit(200);
@@ -83,7 +84,7 @@ module.exports = async function handler(req, res) {
   }
 
   const { code, token, undo, id } = req.body || {};
-  if (!verifyAdminToken(token)) {
+  if (!verifyAdminToken(token, 'checkin')) {
     res.status(401).json({ error: '認証が切れました。もう一度パスワードを入力してください' });
     return;
   }
@@ -98,17 +99,40 @@ module.exports = async function handler(req, res) {
       return;
     }
 
+    // 記号以外を取り除いてから照合する。スタッフが手入力するとき、
+    // 区切りのハイフンを抜いたり空白を入れたりしがちなため（DCT 0927 N1 7K4M 等）。
+    const normalize = (v) => String(v || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
     const entryCode = String(code || '').trim().toUpperCase();
     if (!entryCode) {
       res.status(400).json({ error: 'コードを入力してください' });
       return;
     }
 
-    const { data: purchase, error } = await serviceClient
+    // 今回のイベントのコードか確認する。これが無いと、前回のイベントで買って
+    // 使わなかったコード（または取り消されたコード）が次のイベントでもそのまま通ってしまう。
+    const eventId = process.env.CURRENT_EVENT_ID;
+    if (eventId && !normalize(entryCode).startsWith(normalize(`DCT-${eventId}-`))) {
+      res.status(404).json({ error: '今回のイベントの受付コードではありません' });
+      return;
+    }
+
+    let { data: purchase, error } = await serviceClient
       .from('purchases')
       .select('id, user_id, ticket_name, status, checked_in_at')
       .eq('entry_code', entryCode)
       .maybeSingle();
+
+    // そのままの文字列で見つからない場合、記号を無視した比較で探し直す
+    // （ハイフンを抜いて入力された、全角が混ざった、等を救済する）。
+    if (!error && !purchase) {
+      const target = normalize(entryCode);
+      const { data: candidates } = await serviceClient
+        .from('purchases')
+        .select('id, user_id, ticket_name, status, checked_in_at, entry_code')
+        .not('entry_code', 'is', null)
+        .eq('status', 'paid');
+      purchase = (candidates || []).find((row) => normalize(row.entry_code) === target) || null;
+    }
 
     if (error) { console.error('admin-checkin lookup failed:', error.message); res.status(500).json({ error: '確認中にエラーが発生しました' }); return; }
     if (!purchase || purchase.status !== 'paid') {
@@ -131,12 +155,36 @@ module.exports = async function handler(req, res) {
       return;
     }
 
+    // 「まだチェックインしていない行だけ」を条件に更新し、実際に更新できたかで判定する。
+    // 上のselectを見てからupdateするだけだと、受付が2台に分かれていて同じコードを
+    // 同時にスキャンした場合、どちらのselectも checked_in_at = null を読んでしまい、
+    // 両方に「入場OK」を出す（＝1枚のチケットで2人入れる）ことになる。
+    // .is('checked_in_at', null) を付けると、後から来た方は0行更新となり弾ける。
     const checkedInAt = new Date().toISOString();
-    const { error: updateErr } = await serviceClient
+    const { data: updated, error: updateErr } = await serviceClient
       .from('purchases')
       .update({ checked_in_at: checkedInAt })
-      .eq('id', purchase.id);
+      .eq('id', purchase.id)
+      .is('checked_in_at', null)
+      .select('id, checked_in_at');
     if (updateErr) { console.error('admin-checkin update failed:', updateErr.message); res.status(500).json({ error: '記録に失敗しました' }); return; }
+
+    if (!updated || updated.length === 0) {
+      // ほぼ同時に別の端末がチェックインを完了させていた。現在の記録を読み直して「入場済み」として返す。
+      const { data: current } = await serviceClient
+        .from('purchases')
+        .select('checked_in_at')
+        .eq('id', purchase.id)
+        .maybeSingle();
+      res.status(200).json({
+        alreadyCheckedIn: true,
+        ticketName: purchase.ticket_name,
+        buyerEmail,
+        buyerName,
+        checkedInAt: (current && current.checked_in_at) || checkedInAt,
+      });
+      return;
+    }
 
     res.status(200).json({ alreadyCheckedIn: false, id: purchase.id, ticketName: purchase.ticket_name, buyerEmail, buyerName, checkedInAt });
   } catch (err) {
