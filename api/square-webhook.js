@@ -204,6 +204,32 @@ async function notifyAdmin(purchase, newStatus, buyerEmail) {
 // `data += chunk` のように1チャンクずつ文字列化すると、日本語などのマルチバイト文字が
 // チャンクの境目で分断されたときに文字化けし、署名計算の対象がSquareの送った本文と
 // 変わってしまう（＝正規の通知なのに署名不一致で弾かれ、決済が反映されなくなる）。
+// 受付コードを発行できなかったときに運営へ知らせる。
+// これを出さないと、購入者にはコードの無いメールが届くだけで、
+// こちらは当日その人が受付に来るまで気づけない。
+async function notifyEntryCodeFailure(purchase) {
+  const adminTo = process.env.CONTACT_TO_EMAIL || process.env.NOTIFY_FROM_EMAIL;
+  if (!adminTo) return;
+  const safeName = String(purchase.ticket_name || '').replace(/[\r\n]+/g, ' ');
+  try {
+    await sendEmail({
+      to: adminTo,
+      subject: '【要対応】受付コードを発行できませんでした',
+      text: [
+        `${safeName} の決済は完了しましたが、受付コードを発行できませんでした。`,
+        `購入ID: ${purchase.id}`,
+        '',
+        'このままだと当日この方が入場できません。Supabaseで下記を確認し、手動で対応してください。',
+        "  select id, user_id, ticket_name, created_at from purchases where status='paid' and entry_code is null;",
+        '',
+        'よくある原因: CURRENT_EVENT_ID の未設定、next_entry_seq 関数の権限不足（schema_v14参照）。',
+      ].join('\n'),
+    });
+  } catch (e) {
+    console.error('entry code failure notify email failed:', e);
+  }
+}
+
 // 返金が確定したときに運営へ知らせる。すでに入場済みだった場合は特に目立つようにする
 // （入場した人に返金した、という状況は人手での確認が要るため）。
 async function notifyRefund(purchase) {
@@ -302,6 +328,9 @@ async function handler(req, res) {
             // 受付コードは支払い完了(paid)の最初の1回だけ発行する（再送で毎回変わらないように既存値があれば使う）
             if (newStatus === 'paid' && !purchase.entry_code) {
               purchase.entry_code = await assignEntryCode(serviceClient, purchase);
+              // 発行に失敗しても決済自体は成立しているので処理は続ける（購入者には通知が届く）。
+              // ただしコード無しのまま放置すると当日その人が入場できないので、運営に知らせる。
+              if (!purchase.entry_code) await notifyEntryCodeFailure(purchase);
             }
             await notifyPurchaser(serviceClient, purchase, newStatus);
           }
