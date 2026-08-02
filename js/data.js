@@ -191,7 +191,7 @@ window.SITE = {
   ],
 
   /* ▼ 運用メンバー（Members）— 写真カード（右下にSNSアイコン）＋キャッチコピー＋氏名/役職/所属
-     ※テキストはサンプルです。実際の内容に書き換えてください。
+     ※TSUBASAの紹介文（desc/role/dept）は未入力。入力するまで写真＋名前だけのカードになる。
      - photo : カードの写真
      - sns   : 右下のアイコンとリンク先。{ type:'Instagram', href:'https://...' }
                type は Instagram / X / LinkedIn / TikTok / Facebook / LINE が使えます。
@@ -219,11 +219,12 @@ window.SITE = {
       slug: 'tubasa', name: 'TSUBASA',
       photo: 'assets/images/member-tubasa.jpg',
       sns: { type: 'Instagram', href: '' },
-      catch: 'キャッチコピーが入りますキャッチコピーが入ります',
-      role: '（役職）',
-      dept: '○○○○○○○○○○○○○○○○○○',
-      intro: '（ここに一言紹介を入れてください）',
-      bio: ['（ここにプロフィール文を入れてください）'],
+      // desc / role / dept は本人の紹介文が決まり次第入れる。
+      // 未入力のまま置くとプレースホルダーがそのまま公開ページに出てしまうため、
+      // 空にしてカードを写真＋名前だけの表示にしている（render.jsが空なら省略する）。
+      desc: [],
+      intro: '',
+      bio: [],
       gallery: [],
     },
     {

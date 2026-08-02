@@ -3,7 +3,7 @@
    ---------------------------------------------------------
    Squareから「決済が完了しました」等の通知を受け取るエンドポイント。
    Square Developer Dashboard → Webhooks で、このURLを通知先として登録する
-   （例: https://dresscode-tokyo.vercel.app/api/square-webhook）。
+   （例: https://dress-code-tokyo.com/api/square-webhook）。
 
    最重要：署名を検証してから処理すること。
    検証しないと、誰でもこのURLに偽の「決済完了しました」を送りつけて、
@@ -19,7 +19,7 @@ const { createClient } = require('@supabase/supabase-js');
 const { sendEmail, SITE_URL } = require('../lib/mailer');
 
 // 当日の入場確認用コード。「DCT-イベント識別番号-カテゴリ+連番」の形式
-// （例: 2026年9月27日開催のイベントなら DCT-0927.01-S1（出店者1人目）、DCT-0927.01-N1（来場者1人目）…）。
+// （例: 2026年9月27日開催のイベントなら DCT-0927-S1（出店者1人目）、DCT-0927-N1（来場者1人目）…）。
 // イベント識別番号はイベントごとにVercelの環境変数 CURRENT_EVENT_ID を変えるだけで良く、
 // 変えると出店者(S)・来場者(N)の連番はどちらも1から自動的に再スタートする
 // （supabase/schema_v10_event_sequence.sql の next_entry_seq() がイベントID×カテゴリ単位で数える）。
@@ -51,7 +51,9 @@ function escapeHtml(s) {
 }
 
 // 受付コードのQR画像URL。外部の無料サービス（api.qrserver.com）に生成を任せる。
-// 追加のライブラリ・課金無しで済ませるためで、渡すのはランダムな受付コードのみ（個人情報は含まない）。
+// 追加のライブラリ・課金無しで済ませるためで、渡すのは受付コードだけ（氏名・メール等の個人情報は含まない）。
+// 注意: 受付コードはv10以降「イベントID+カテゴリ+連番」の推測できる値なので、これ単体を
+// 秘密の入場鍵として扱わないこと。当日は/checkinに出る氏名・メールと本人を突き合わせて確認する。
 function entryCodeQrUrl(code, size) {
   return `https://api.qrserver.com/v1/create-qr-code/?size=${size || 240}x${size || 240}&data=${encodeURIComponent(code)}`;
 }

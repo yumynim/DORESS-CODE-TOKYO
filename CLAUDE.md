@@ -12,7 +12,7 @@ DRESS CODE TOKYO のウェブサイト。静的サイト（素の HTML/CSS/JS）
 - フロントエンド: 素の HTML/CSS/JS（フレームワークなし、ビルドステップなし）。`js/data.js` にコンテンツデータ、`js/render.js` が描画。
 - 認証: Supabase Auth（`js/auth.js`, `js/auth-config.js`）。Google サインイン対応。
 - 決済: Square（Payment Link）。`js/cart.js` → `api/checkout.js` → Square API → `api/square-webhook.js` が決済完了を検知して DB を更新。
-- DB: Supabase Postgres（`supabase/schema.sql` 〜 `schema_v7_notification_html.sql`。最新の一覧は`docs/PROJECT_STATE.md`の「現在の構成」参照）。RLS 前提。
+- DB: Supabase Postgres（`supabase/schema.sql` 〜 `schema_v11_notifications_update_guard.sql`。最新の一覧は`docs/PROJECT_STATE.md`の「現在の構成」参照）。RLS 前提。
 - ホスティング: Vercel（`vercel.json` にセキュリティヘッダー設定）。
 
 ## 必ず守る開発ルール

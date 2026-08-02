@@ -26,6 +26,11 @@ module.exports = async function handler(req, res) {
     'NOTIFY_FROM_EMAIL',
     'CONTACT_TO_EMAIL',
     'ADMIN_CONSOLE_PASSWORD',
+    // 下の2つは未設定でもエラーにならず既定値で動いてしまう（＝気づきにくい）ので、特にここで見えるようにしておく。
+    // CURRENT_EVENT_ID: 未設定だと受付コードが DCT-EVENT-... という仮の値で発行されてしまう
+    // SITE_URL: 未設定だとメール内のボタンのリンク先が既定のドメインになる
+    'CURRENT_EVENT_ID',
+    'SITE_URL',
   ];
 
   const status = {};

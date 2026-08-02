@@ -112,8 +112,17 @@ async function main() {
   };
   const rawBody = JSON.stringify(event);
 
-  const hmac = crypto.createHmac('sha256', process.env.SQUARE_WEBHOOK_SIGNATURE_KEY);
-  hmac.update(process.env.SQUARE_WEBHOOK_URL + rawBody);
+  // 403になった場合の切り分け用。鍵の中身は出さず、長さと前後の空白有無だけ見せる
+  // （コピペ時に混入しやすい末尾の改行・空白がないか確認するため）。
+  const rawKey = process.env.SQUARE_WEBHOOK_SIGNATURE_KEY;
+  const rawUrl = process.env.SQUARE_WEBHOOK_URL;
+  console.log('   [debug] SQUARE_WEBHOOK_URL        = "' + rawUrl + '"');
+  console.log('   [debug] SQUARE_WEBHOOK_SIGNATURE_KEY length = ' + rawKey.length + ' (trimmed length = ' + rawKey.trim().length + ')');
+  if (rawKey !== rawKey.trim()) console.warn('   [debug] 警告: SIGNATURE_KEY の前後に空白/改行が混入しています');
+  if (rawUrl !== rawUrl.trim()) console.warn('   [debug] 警告: WEBHOOK_URL の前後に空白/改行が混入しています');
+
+  const hmac = crypto.createHmac('sha256', rawKey);
+  hmac.update(rawUrl + rawBody);
   const signature = hmac.digest('base64');
 
   console.log('3) /api/square-webhook へ送信中…');
