@@ -476,27 +476,49 @@
 
   function loadAccountPurchases() {
     var yen = function (n) { return (isFinite(n) && n > 0) ? '¥' + Number(n).toLocaleString('ja-JP') : String(n || ''); };
-    client.from('purchases')
-      .select('ticket_name, price, status, created_at, entry_code')
-      .eq('user_id', session.user.id)
-      .order('created_at', { ascending: false })
-      .then(function (res) {
-        if (res.error) { accountPurchasesEl.innerHTML = '<p class="cards-empty">読み込みに失敗しました。</p>'; return; }
-        var list = res.data || [];
-        if (!list.length) { accountPurchasesEl.innerHTML = '<p class="cards-empty">まだチケットの購入履歴はありません。</p>'; return; }
-        accountPurchasesEl.innerHTML = list.map(function (p) {
-          return '<div class="mypage__purchase">' +
-            '<div class="mypage__purchase-main"><h3>' + escHtml(p.ticket_name) + '</h3>' +
-            '<span class="mypage__purchase-date">' + new Date(p.created_at).toLocaleDateString('ja-JP') + '</span>' +
-            ((p.entry_code && p.status === 'paid')
-              ? '<span class="mypage__purchase-entrycode">当日の受付コード: ' + escHtml(p.entry_code) + '</span>' +
-                '<img class="mypage__purchase-qr" src="https://api.qrserver.com/v1/create-qr-code/?size=240x240&data=' + encodeURIComponent(p.entry_code) + '" alt="受付QRコード ' + escHtml(p.entry_code) + '" width="120" height="120">'
-              : '') +
-            '</div>' +
-            '<div class="mypage__purchase-side"><span class="mypage__purchase-price">' + yen(p.price) + '</span>' +
-            '<span class="mypage__purchase-status is-' + p.status + '">' + escHtml(ACCOUNT_STATUS_LABEL[p.status] || p.status) + '</span></div></div>';
-        }).join('');
+    // 受付コードは1人1つ（entry_passes テーブル）。購入一覧と自分のコード一覧を
+    // 一緒に取ってきて、購入ごとにまとめて表示する。旧方式の購入（entry_passes に
+    // 行が無い）は purchases.entry_code をそのまま出す。
+    Promise.all([
+      client.from('purchases')
+        .select('id, ticket_name, price, status, created_at, entry_code')
+        .eq('user_id', session.user.id)
+        .order('created_at', { ascending: false }),
+      client.from('entry_passes')
+        .select('purchase_id, code, status, checked_in_at')
+        .eq('user_id', session.user.id)
+        .order('code'),
+    ]).then(function (results) {
+      var res = results[0];
+      var passesRes = results[1];
+      if (res.error) { accountPurchasesEl.innerHTML = '<p class="cards-empty">読み込みに失敗しました。</p>'; return; }
+      var list = res.data || [];
+      if (!list.length) { accountPurchasesEl.innerHTML = '<p class="cards-empty">まだチケットの購入履歴はありません。</p>'; return; }
+      var passesByPurchase = {};
+      ((passesRes && passesRes.data) || []).forEach(function (x) {
+        if (x.status !== 'valid') return;
+        (passesByPurchase[x.purchase_id] = passesByPurchase[x.purchase_id] || []).push({ code: x.code, used: !!x.checked_in_at });
       });
+      accountPurchasesEl.innerHTML = list.map(function (p) {
+        var codes = passesByPurchase[p.id] || [];
+        if (!codes.length && p.entry_code) codes = [{ code: p.entry_code, used: false }];
+        var codesHtml = '';
+        if (p.status === 'paid' && codes.length) {
+          codesHtml = codes.map(function (c, i) {
+            return '<span class="mypage__purchase-entrycode">' + (codes.length > 1 ? (i + 1) + '人目の' : '当日の') + '受付コード: ' + escHtml(c.code) + (c.used ? '（入場済み）' : '') + '</span>' +
+              '<img class="mypage__purchase-qr" src="https://api.qrserver.com/v1/create-qr-code/?size=240x240&data=' + encodeURIComponent(c.code) + '" alt="受付QRコード ' + escHtml(c.code) + '" width="120" height="120">';
+          }).join('');
+          if (codes.length > 1) codesHtml += '<span class="mypage__purchase-entrycode">※コードはお一人1つ・1回のみ有効です。ご同行者にお渡しください。</span>';
+        }
+        return '<div class="mypage__purchase">' +
+          '<div class="mypage__purchase-main"><h3>' + escHtml(p.ticket_name) + '</h3>' +
+          '<span class="mypage__purchase-date">' + new Date(p.created_at).toLocaleDateString('ja-JP') + '</span>' +
+          codesHtml +
+          '</div>' +
+          '<div class="mypage__purchase-side"><span class="mypage__purchase-price">' + yen(p.price) + '</span>' +
+          '<span class="mypage__purchase-status is-' + p.status + '">' + escHtml(ACCOUNT_STATUS_LABEL[p.status] || p.status) + '</span></div></div>';
+      }).join('');
+    });
   }
 
   function openAccountDrawer() {

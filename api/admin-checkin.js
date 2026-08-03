@@ -49,6 +49,39 @@ function eventCodePrefix() {
   return eventId ? `DCT-${eventId}-` : 'DCT-';
 }
 
+// 日本時間の今日の日付（YYYY-MM-DD）。サーバーはUTCで動くので+9時間して切り出す。
+function jstToday() {
+  return new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().slice(0, 10);
+}
+
+// 入場は開催日当日だけ有効にする（日付単位のゲート）。
+// これが無いと、前日や翌日にコードを読んでも「入場OK」が出てしまい、
+// 例えば前日の設営中に試し読みしたコードが当日「入場済み」になる事故が起きる。
+//
+// 開催日の決め方（優先順）:
+//   1. 環境変数 EVENT_DATE（YYYY-MM-DD）。テストで日付を変えたいときはこれを使う。
+//      EVENT_DATE=any にするとゲート無効（通しテスト用。テスト後は必ず消すこと）。
+//   2. 未設定なら CURRENT_EVENT_ID（例: 0927 = 9月27日）から今年の日付を組み立てる。
+//   3. どちらも無ければゲート無し。
+// 入場できない日は null ではなくエラーメッセージを返す。
+function eventDateGateError() {
+  // 「2026/09/27」のように書かれても黙って無視しないよう、区切りを揃えてから判定する
+  const raw = String(process.env.EVENT_DATE || '').trim().toLowerCase().replace(/\//g, '-');
+  if (raw === 'any') return null;
+
+  let target = raw;
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(target)) {
+    const m = /^(\d{2})(\d{2})$/.exec(String(process.env.CURRENT_EVENT_ID || '').trim());
+    if (!m) return null; // 開催日を決められない → ゲート無し（従来どおり）
+    target = `${jstToday().slice(0, 4)}-${m[1]}-${m[2]}`;
+  }
+
+  const today = jstToday();
+  if (today === target) return null;
+  const [, mm, dd] = target.split('-');
+  return `本日は開催日（${Number(mm)}月${Number(dd)}日）ではないため入場受付できません。テストの場合は Vercel の環境変数 EVENT_DATE を今日の日付（${today}）にして再デプロイしてください。`;
+}
+
 module.exports = async function handler(req, res) {
   const serviceClient = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
 
@@ -67,37 +100,37 @@ module.exports = async function handler(req, res) {
       try {
         if (lookup.length < 2) { res.status(200).json({ results: [] }); return; }
 
+        // 1人1コード方式：コード（entry_passes）1枚ずつが検索結果の1行になる。
+        // 購入者情報は purchases → auth ユーザーから引く。
         const { data: rows, error: lookupErr } = await serviceClient
-          .from('purchases')
-          .select('id, user_id, ticket_name, entry_code, checked_in_at, quantity, checked_in_count')
-          .eq('status', 'paid')
-          .not('entry_code', 'is', null)
-          .like('entry_code', eventCodePrefix() + '%')
+          .from('entry_passes')
+          .select('id, code, status, checked_in_at, user_id, purchases ( ticket_name, status )')
+          .eq('status', 'valid')
+          .like('code', eventCodePrefix() + '%')
           .order('created_at', { ascending: false })
           .limit(1000);
         if (lookupErr) { console.error('admin-checkin lookup failed:', lookupErr.message); res.status(500).json({ error: '検索に失敗しました' }); return; }
 
-        const users = await resolveUsers(serviceClient, (rows || []).map((p) => p.user_id));
+        const paidRows = (rows || []).filter((p) => p.purchases && p.purchases.status === 'paid');
+        const users = await resolveUsers(serviceClient, paidRows.map((p) => p.user_id));
         const q = lookup.toLowerCase();
-        const results = (rows || [])
+        const results = paidRows
           .map((p) => {
             const u = users.get(p.user_id);
             return {
-              id: p.id,
-              entryCode: p.entry_code,
-              ticketName: p.ticket_name,
+              passId: p.id,
+              entryCode: p.code,
+              ticketName: (p.purchases && p.purchases.ticket_name) || '',
               buyerEmail: (u && u.email) || '（不明）',
               buyerName: (u && u.name) || '',
               checkedInAt: p.checked_in_at,
-              quantity: p.quantity,
-              checkedInCount: p.checked_in_count,
             };
           })
           .filter((r) =>
             r.buyerName.toLowerCase().includes(q) ||
             r.buyerEmail.toLowerCase().includes(q) ||
             String(r.entryCode || '').toLowerCase().includes(q))
-          .slice(0, 20);
+          .slice(0, 30);
 
         res.status(200).json({ results });
       } catch (err) {
@@ -109,13 +142,12 @@ module.exports = async function handler(req, res) {
 
     try {
       const { data, error } = await serviceClient
-        .from('purchases')
-        .select('id, user_id, ticket_name, entry_code, checked_in_at, quantity, checked_in_count')
-        .eq('status', 'paid')
+        .from('entry_passes')
+        .select('id, code, checked_in_at, user_id, purchases ( ticket_name )')
         .not('checked_in_at', 'is', null)
         // 前回までのイベントのチェックインが混ざると、今回の分が上限に押し出されて
         // 一覧から消える（＝取り消せなくなる）ので、今回のイベントのコードだけに絞る。
-        .like('entry_code', eventCodePrefix() + '%')
+        .like('code', eventCodePrefix() + '%')
         .order('checked_in_at', { ascending: false })
         .limit(1000);
       if (error) { console.error('admin-checkin list failed:', error.message); res.status(500).json({ error: '読み込みに失敗しました' }); return; }
@@ -124,14 +156,12 @@ module.exports = async function handler(req, res) {
       const checkins = (data || []).map((p) => {
         const u = userByUserId.get(p.user_id);
         return {
-          id: p.id,
-          entryCode: p.entry_code,
-          ticketName: p.ticket_name,
+          id: p.id, // 取り消しに使うのは「このコード1枚」のID
+          entryCode: p.code,
+          ticketName: (p.purchases && p.purchases.ticket_name) || '',
           buyerEmail: (u && u.email) || '（不明）',
           buyerName: (u && u.name) || '',
           checkedInAt: p.checked_in_at,
-          quantity: p.quantity,
-          checkedInCount: p.checked_in_count,
         };
       });
       res.status(200).json({ checkins });
@@ -156,13 +186,19 @@ module.exports = async function handler(req, res) {
   try {
     if (undo) {
       // スタッフの誤操作（間違ったコードを読み取ってチェックインしてしまった等）を取り消す。
+      // 取り消すのは「そのコード1枚」の入場記録だけ。
       if (!id) { res.status(400).json({ error: 'idが必要です' }); return; }
-      // 1人分だけ戻す（3人分の購入で2人入場済みなら1人に戻す）。
-      // 0人になったら checked_in_at も消えるので、一覧からも消える。
-      const { data: undone, error } = await serviceClient.rpc('undo_checkin', { p_id: id });
+      const { data: undone, error } = await serviceClient.rpc('undo_pass', { p_pass_id: id });
       if (error) { console.error('admin-checkin undo failed:', error.message); res.status(500).json({ error: '取り消しに失敗しました' }); return; }
       const undoneRow = Array.isArray(undone) ? undone[0] : undone;
-      res.status(200).json({ ok: true, checkedInCount: undoneRow ? undoneRow.checked_in_count : null });
+      res.status(200).json({ ok: true, undone: !!undoneRow });
+      return;
+    }
+
+    // 開催日当日以外は入場を受け付けない（取り消し・一覧・検索は日付に関係なく使える）。
+    const gateError = eventDateGateError();
+    if (gateError) {
+      res.status(403).json({ error: gateError });
       return;
     }
 
@@ -186,45 +222,43 @@ module.exports = async function handler(req, res) {
     // 入力ゆれを吸収するため、まずはそのまま、見つからなければ記号を無視して探す。
     let matchedCode = entryCode;
     const { data: exact } = await serviceClient
-      .from('purchases')
-      .select('entry_code')
-      .eq('entry_code', entryCode)
-      .eq('status', 'paid')
+      .from('entry_passes')
+      .select('code')
+      .eq('code', entryCode)
       .maybeSingle();
 
     if (!exact) {
       const target = normalize(entryCode);
       const { data: candidates } = await serviceClient
-        .from('purchases')
-        .select('entry_code')
-        .not('entry_code', 'is', null)
-        .eq('status', 'paid')
+        .from('entry_passes')
+        .select('code')
         // 今回のイベントのコードだけに絞る。絞らないと、過去イベントも含めた全行を
         // 取りに行き、Supabase既定の1000行上限に達した時点で「有効なのに見つからない」
         // が起きうる（しかも件数が増えるまで誰も気づけない）。
-        .like('entry_code', eventCodePrefix() + '%')
+        .like('code', eventCodePrefix() + '%')
         .limit(2000);
-      const hit = (candidates || []).find((row) => normalize(row.entry_code) === target);
+      const hit = (candidates || []).find((row) => normalize(row.code) === target);
       if (!hit) {
         res.status(404).json({ error: 'そのコードの購入が見つかりませんでした（支払い未完了、または無効なコードです）' });
         return;
       }
-      matchedCode = hit.entry_code;
+      matchedCode = hit.code;
     }
 
-    // 入場のカウントアップはDBの関数の中で行ロック付きで行う。
+    // 入場の判定・記録はDBの関数の中で行ロック付きで行う。
     // ここで「読んでから書く」をやると、受付が複数台あるときに同じコードを
-    // 同時に読んで両方入場させてしまうため（supabase/schema_v13_checkin_count.sql 参照）。
-    const { data: result, error: checkinErr } = await serviceClient.rpc('checkin_entry', {
+    // 同時に読んで両方入場させてしまうため（supabase/schema_v16_entry_passes.sql 参照）。
+    const { data: result, error: checkinErr } = await serviceClient.rpc('checkin_pass', {
       p_code: matchedCode,
-      // 同じ読み取りを通信のやり直しで2回送っても二重に数えないための目印
+      // 同じ読み取りを通信のやり直しで2回送っても二重に処理しないための目印
       p_request_id: typeof requestId === 'string' && requestId ? requestId.slice(0, 64) : null,
     });
-    if (checkinErr) { console.error('checkin_entry failed:', checkinErr.message); res.status(500).json({ error: '記録に失敗しました' }); return; }
+    if (checkinErr) { console.error('checkin_pass failed:', checkinErr.message); res.status(500).json({ error: '記録に失敗しました' }); return; }
 
     const row = Array.isArray(result) ? result[0] : result;
     if (!row) {
-      res.status(404).json({ error: 'そのコードの購入が見つかりませんでした（支払い未完了、または無効なコードです）' });
+      // コード自体は存在しても、返金で無効化済み・支払い未完了の場合はここに来る
+      res.status(404).json({ error: 'そのコードは無効です（返金済み、または支払いが完了していません）' });
       return;
     }
 
@@ -234,13 +268,14 @@ module.exports = async function handler(req, res) {
 
     res.status(200).json({
       alreadyCheckedIn: !row.admitted,
-      id: row.id,
+      id: row.pass_id,
+      code: row.code,
       ticketName: row.ticket_name,
       buyerEmail,
       buyerName,
       checkedInAt: row.checked_in_at,
-      quantity: row.quantity,
-      checkedInCount: row.checked_in_count,
+      groupTotal: row.group_total,
+      groupUsed: row.group_used,
     });
   } catch (err) {
     console.error('admin-checkin handler error:', err);

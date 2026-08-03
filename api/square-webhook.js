@@ -17,7 +17,7 @@
 const crypto = require('crypto');
 const { createClient } = require('@supabase/supabase-js');
 const { sendEmail, SITE_URL } = require('../lib/mailer');
-const { categoryFromItems } = require('../lib/catalog');
+const { categoryFromItems, getCatalogItem } = require('../lib/catalog');
 
 // 当日の入場確認用コード。「DCT-イベント識別番号-カテゴリ+連番-ランダム4文字」の形式
 // （例: 2026年9月27日開催のイベントなら DCT-0927-S1-7K4M（出店者1人目）、DCT-0927-N1-QX52（来場者1人目）…）。
@@ -30,19 +30,6 @@ const { categoryFromItems } = require('../lib/catalog');
 // （DCT-0927-N1 の次は N2）、他人になりすまして入場されるのを防ぐ目的で付けている。
 function currentEventId() {
   return process.env.CURRENT_EVENT_ID || 'EVENT';
-}
-
-// 受付コード末尾のランダム部分に使う文字。口頭で伝えることを想定して、
-// 聞き間違い・見間違いしやすい文字（0とO、1とI・L）は最初から除いてある。
-const ENTRY_CODE_ALPHABET = '23456789ABCDEFGHJKMNPQRSTUVWXYZ';
-const ENTRY_CODE_RANDOM_LENGTH = 4;
-
-function randomEntryCodeSuffix() {
-  let out = '';
-  for (let i = 0; i < ENTRY_CODE_RANDOM_LENGTH; i += 1) {
-    out += ENTRY_CODE_ALPHABET[crypto.randomInt(ENTRY_CODE_ALPHABET.length)];
-  }
-  return out;
 }
 
 // カテゴリ（S=出店者 / N=来場者）は、購入時に保存した items の catalogObjectId から
@@ -65,15 +52,40 @@ function categoryFor(purchase) {
   return 'X';
 }
 
-// 連番部分（DCT-0927-N1 まで）を発行する。ランダム部分は assignEntryCode 側で付ける。
-// 分けているのは、書き込みに失敗して再試行するときに連番まで取り直すと
-// 番号が飛んでしまう（1人しか買っていないのに N3 になる）ため。
-async function generateEntryCodePrefix(serviceClient, purchase) {
-  const eventId = currentEventId();
-  const category = categoryFor(purchase);
-  const { data: seq, error } = await serviceClient.rpc('next_entry_seq', { p_event: eventId, p_category: category });
-  if (error) { console.error('next_entry_seq failed:', error.message); return null; }
-  return `DCT-${eventId}-${category}${seq}`;
+// 1枚ごとのカテゴリ一覧を作る。「出店料1＋入場2」の混載カートで全部が出店者(S)コードに
+// なると、受付で入場者2人が「出店者コード」に見えて現場が混乱するため、
+// 出店料の枚数分は S、入場チケットの枚数分は N、と1枚ずつ正しく割り当てる。
+function passCategoriesFor(purchase) {
+  const items = Array.isArray(purchase && purchase.items) ? purchase.items : [];
+  const cats = [];
+  for (const it of items) {
+    const entry = getCatalogItem(it && it.catalogObjectId);
+    const qty = Number(it && it.quantity);
+    if (!entry || !Number.isInteger(qty) || qty < 1) continue;
+    for (let i = 0; i < qty && cats.length < 400; i += 1) cats.push(entry.category);
+  }
+  // 出店者(S)を先に並べる（連番と「1人目/2人目」ラベルが種類ごとにまとまるように）
+  cats.sort().reverse();
+  return cats;
+}
+
+// 受付コードの発行。数量2で買ったら別々のコードを2つ発行する（1コード＝1人＝1回入場）。
+// 実際の生成・保存はDB関数 issue_entry_passes（supabase/schema_v16_entry_passes.sql）が
+// 行ロック付きで行うので、Squareが同じ通知を再送して同時に2回呼ばれても二重発行にならない
+// （2回目は発行済みのコードがそのまま返る）。
+async function issueEntryPasses(serviceClient, purchase) {
+  const categories = passCategoriesFor(purchase);
+  const { data, error } = await serviceClient.rpc('issue_entry_passes', {
+    p_purchase_id: purchase.id,
+    p_event: currentEventId(),
+    p_category: categoryFor(purchase), // 1枚ごとの割り当てが作れない古い購入用の予備
+    p_categories: categories.length ? categories : null,
+  });
+  if (error) { console.error('issue_entry_passes failed:', error.message); return []; }
+  // returns setof text は文字列の配列で返る（PostgRESTの仕様が変わっても拾えるよう両対応）
+  return (data || [])
+    .map((r) => (typeof r === 'string' ? r : (r && (r.issue_entry_passes || r.code))))
+    .filter(Boolean);
 }
 
 function escapeHtml(s) {
@@ -87,48 +99,19 @@ function entryCodeQrUrl(code, size) {
   return `https://api.qrserver.com/v1/create-qr-code/?size=${size || 240}x${size || 240}&data=${encodeURIComponent(code)}`;
 }
 
-// purchases.entry_code はユニーク制約があるため、衝突したらランダム部分だけ変えて数回再試行する。
-// 連番（prefix）は最初に1回だけ取る（再試行のたびに取り直すと番号が飛ぶため）。
-async function assignEntryCode(serviceClient, purchase) {
-  const prefix = await generateEntryCodePrefix(serviceClient, purchase);
-  if (!prefix) return null;
-
-  for (let attempt = 0; attempt < 5; attempt++) {
-    const code = `${prefix}-${randomEntryCodeSuffix()}`;
-    const { data, error } = await serviceClient
-      .from('purchases')
-      .update({ entry_code: code })
-      .eq('id', purchase.id)
-      // まだコードが無い行だけを更新する。Squareは応答が遅いと同じ通知を再送するため、
-      // 1通目の処理が終わる前に2通目が走ると、この条件が無い場合は後から来たほうが
-      // コードを上書きし、メールと通知で違うコードが届く（有効なのは最後の1つだけ）事故になる。
-      .is('entry_code', null)
-      .select('entry_code')
-      .maybeSingle();
-    if (error) {
-      // 23505 = ユニーク制約違反。ランダム部分がたまたま既存と被った場合なので引き直す。
-      // それ以外のエラーは引き直しても直らないので即あきらめる。
-      if (error.code !== '23505') { console.error('entry_code assign failed:', error.message); return null; }
-      continue;
-    }
-    if (data && data.entry_code) return data.entry_code;
-    // 更新対象が0行 ＝ 並行して走っていた別の処理が先にコードを発行済み。それを読んで返す。
-    const { data: existing } = await serviceClient
-      .from('purchases')
-      .select('entry_code')
-      .eq('id', purchase.id)
-      .maybeSingle();
-    return (existing && existing.entry_code) || null;
-  }
-  console.error('entry_code assign failed: 衝突が続いたため断念しました purchaseId=', purchase.id);
-  return null;
-}
 
 async function notifyPurchaser(serviceClient, purchase, newStatus) {
   const isPaid = newStatus === 'paid';
   const title = isPaid ? 'ご購入ありがとうございます' : 'お支払いがキャンセルされました';
+  // 受付コードは1人1つ（数量2なら2つ）。issue_entry_passes の結果が入っている。
+  const codes = Array.isArray(purchase.entry_codes) ? purchase.entry_codes : [];
+  const codesText = codes.length
+    ? (codes.length === 1
+      ? `当日の受付コードは「${codes[0]}」です。`
+      : `当日の受付コードは ${codes.map((c) => `「${c}」`).join(' ')} の${codes.length}つです。コードはお一人につき1つ・1回のみ有効です。ご同行者にはそれぞれのコード（QR）をお渡しください。`)
+    : '';
   const body = isPaid
-    ? `${purchase.ticket_name} のお支払いが完了しました。${purchase.entry_code ? `当日の受付コードは「${purchase.entry_code}」です。` : ''}マイページから購入内容を確認できます。`
+    ? `${purchase.ticket_name} のお支払いが完了しました。${codesText}マイページから購入内容を確認できます。`
     : `${purchase.ticket_name} のお支払いがキャンセル、または失敗しました。お手数ですが再度お手続きください。`;
 
   // Squareはこちらの応答が遅いと同じ通知を再送してくることがある。
@@ -147,9 +130,11 @@ async function notifyPurchaser(serviceClient, purchase, newStatus) {
 
   // 通知ベルのドロワーは body_html があればそれを表示する（無ければ body のプレーンテキスト）。
   // 受付コードがある場合はQR画像もその場で見られるようにする（メール・マイページと同じ扱い）。
-  const bodyHtml = (isPaid && purchase.entry_code)
-    ? `<p>${escapeHtml(body)}</p><p style="margin-top:10px; font-weight:700;">${escapeHtml(purchase.entry_code)}</p>` +
-      `<img src="${entryCodeQrUrl(purchase.entry_code, 140)}" alt="受付QRコード" width="140" height="140" style="margin-top:8px;">`
+  const bodyHtml = (isPaid && codes.length)
+    ? `<p>${escapeHtml(body)}</p>` + codes.map((c, i) =>
+        `<p style="margin-top:10px; font-weight:700;">${codes.length > 1 ? `${i + 1}人目：` : ''}${escapeHtml(c)}</p>` +
+        `<img src="${entryCodeQrUrl(c, 140)}" alt="受付QRコード ${escapeHtml(c)}" width="140" height="140" style="margin-top:4px;">`
+      ).join('')
     : null;
 
   const { error: notifErr } = await serviceClient.from('notifications').insert({
@@ -166,20 +151,18 @@ async function notifyPurchaser(serviceClient, purchase, newStatus) {
   if (error || !to) { console.error('email skipped: user email not found', error && error.message); return; }
 
   let sent;
-  if (isPaid && purchase.entry_code) {
+  if (isPaid && codes.length) {
     // 受付コードをQR画像付きで送る（当日スタッフがカメラで読み取れるように）。
-    // blocksを使う分岐に切り替えているだけで、届く見た目（黒×白のテンプレート）は他の通知と同じ。
-    sent = await sendEmail({
-      to,
-      subject: title,
-      blocks: [
-        { type: 'paragraph', text: body },
-        // width を指定しないとメール側で幅いっぱい（536px）に引き伸ばされ、
-        // QRがぼやけて読み取りにくくなるため、実寸で表示させる
-        { type: 'image', url: entryCodeQrUrl(purchase.entry_code, 480), alt: '受付QRコード ' + purchase.entry_code, width: 240 },
-        { type: 'button', label: 'マイページで確認する', url: SITE_URL + '/members-only.html' },
-      ],
+    // まとめ買いのときは1人分ずつ「◯人目」のラベルを付けて全コードを載せる。
+    const blocks = [{ type: 'paragraph', text: body }];
+    codes.forEach((c, i) => {
+      if (codes.length > 1) blocks.push({ type: 'paragraph', text: `── ${i + 1}人目 ──　${c}` });
+      // width を指定しないとメール側で幅いっぱい（536px）に引き伸ばされ、
+      // QRがぼやけて読み取りにくくなるため、実寸で表示させる
+      blocks.push({ type: 'image', url: entryCodeQrUrl(c, 480), alt: '受付QRコード ' + c, width: 240 });
     });
+    blocks.push({ type: 'button', label: 'マイページで確認する', url: SITE_URL + '/members-only.html' });
+    sent = await sendEmail({ to, subject: title, blocks });
   } else {
     sent = await sendEmail({
       to,
@@ -203,7 +186,7 @@ async function notifyPurchaser(serviceClient, purchase, newStatus) {
           subject: '【要対応】購入確認メールを送信できませんでした',
           text: [
             `${purchase.ticket_name} の購入確認メールを ${to} に送信できませんでした（Resendのエラー）。`,
-            `受付コード: ${purchase.entry_code || '（未発行）'}`,
+            `受付コード: ${codes.length ? codes.join(' / ') : '（未発行）'}`,
             'サイト内通知（マイページのお知らせ）には同じ内容が入っています。',
             '必要ならこのお客様に手動でメールしてください。',
           ].join('\n'),
@@ -231,7 +214,8 @@ async function notifyAdmin(purchase, newStatus, buyerEmail) {
     `${purchase.ticket_name} が${isPaid ? 'ご購入' : 'キャンセル'}されました。`,
     `購入者: ${buyerEmail}`,
   ];
-  if (isPaid && purchase.entry_code) lines.push(`受付コード: ${purchase.entry_code}`);
+  const adminCodes = Array.isArray(purchase.entry_codes) ? purchase.entry_codes : [];
+  if (isPaid && adminCodes.length) lines.push(`受付コード: ${adminCodes.join(' / ')}`);
   try {
     await sendEmail({ to: adminTo, subject, text: lines.join('\n') });
   } catch (e) {
@@ -259,9 +243,10 @@ async function notifyEntryCodeFailure(purchase) {
         `購入ID: ${purchase.id}`,
         '',
         'このままだと当日この方が入場できません。Supabaseで下記を確認し、手動で対応してください。',
-        "  select id, user_id, ticket_name, created_at from purchases where status='paid' and entry_code is null;",
+        "  select p.id, p.user_id, p.ticket_name, p.created_at from purchases p",
+        "   where p.status='paid' and not exists (select 1 from entry_passes ep where ep.purchase_id = p.id);",
         '',
-        'よくある原因: CURRENT_EVENT_ID の未設定、next_entry_seq 関数の権限不足（schema_v14参照）。',
+        'よくある原因: CURRENT_EVENT_ID の未設定、schema_v16_entry_passes.sql の未実行、issue_entry_passes 関数の権限不足。',
       ].join('\n'),
     });
   } catch (e) {
@@ -271,16 +256,18 @@ async function notifyEntryCodeFailure(purchase) {
 
 // 返金が確定したときに運営へ知らせる。すでに入場済みだった場合は特に目立つようにする
 // （入場した人に返金した、という状況は人手での確認が要るため）。
-async function notifyRefund(purchase) {
+async function notifyRefund(purchase, passRows) {
   const adminTo = process.env.CONTACT_TO_EMAIL || process.env.NOTIFY_FROM_EMAIL;
   if (!adminTo) return;
   const safeName = String(purchase.ticket_name || '').replace(/[\r\n]+/g, ' ');
+  const passes = Array.isArray(passRows) ? passRows : [];
+  const usedPasses = passes.filter((p) => p.checked_in_at);
   const lines = [
     `${safeName} が返金されました。受付コードを無効にしました。`,
-    purchase.entry_code ? `無効にしたコード: ${purchase.entry_code}` : '',
-    purchase.checked_in_at
-      ? `※このお客様は ${new Date(purchase.checked_in_at).toLocaleString('ja-JP')} に入場済みです。ご確認ください。`
-      : '',
+    passes.length ? `無効にしたコード: ${passes.map((p) => p.code).join(' / ')}` : (purchase.entry_code ? `無効にしたコード: ${purchase.entry_code}` : ''),
+    usedPasses.length
+      ? `※このうち ${usedPasses.length} 枚はすでに入場済みです（${usedPasses.map((p) => `${p.code}: ${new Date(p.checked_in_at).toLocaleString('ja-JP')}`).join(' / ')}）。ご確認ください。`
+      : (purchase.checked_in_at ? `※このお客様は ${new Date(purchase.checked_in_at).toLocaleString('ja-JP')} に入場済みです。ご確認ください。` : ''),
   ].filter(Boolean);
   try {
     await sendEmail({ to: adminTo, subject: `【返金】${safeName}`, text: lines.join('\n') });
@@ -290,20 +277,25 @@ async function notifyRefund(purchase) {
 }
 
 // 一部返金（全額未満）のときは自動処理せず、運営に判断を求める。
-async function notifyPartialRefund(purchase, refundAmount) {
+async function notifyPartialRefund(purchase, refundAmount, passRows) {
   const adminTo = process.env.CONTACT_TO_EMAIL || process.env.NOTIFY_FROM_EMAIL;
   if (!adminTo) return;
   const safeName = String(purchase.ticket_name || '').replace(/[\r\n]+/g, ' ');
+  const passes = Array.isArray(passRows) ? passRows : [];
+  const codesLine = passes.length
+    ? `この購入の受付コード: ${passes.map((p) => `${p.code}${p.status !== 'valid' ? '（無効化済み）' : p.checked_in_at ? '（入場済み）' : ''}`).join(' / ')}`
+    : (purchase.entry_code ? `この購入の受付コード: ${purchase.entry_code}` : 'この購入に受付コードはありません。');
   try {
     await sendEmail({
       to: adminTo,
       subject: `【要対応】一部返金がありました（自動処理していません）`,
       text: [
         `${safeName}（合計 ${purchase.price}円）に対して ${refundAmount}円 の一部返金が確定しました。`,
-        `受付コード: ${purchase.entry_code || '（無し）'} は有効なままです。`,
+        codesLine,
+        'コードはすべて有効なままです。',
         '',
         '全額返金ではないため、受付コードの失効は自動では行っていません。',
-        '入場人数を減らす・コードを無効にする等が必要な場合は、Supabaseで手動対応してください。',
+        '1枚だけ無効にする場合は、Supabaseで該当コードの entry_passes.status を revoked に更新してください。',
         `購入ID: ${purchase.id}`,
       ].join('\n'),
     });
@@ -409,12 +401,13 @@ async function handler(req, res) {
               if (existing && existing.status === 'paid') purchase = existing;
             }
             if (purchase) {
-              // 受付コードは支払い完了(paid)の最初の1回だけ発行する（再送で毎回変わらないように既存値があれば使う）
-              if (newStatus === 'paid' && !purchase.entry_code) {
-                purchase.entry_code = await assignEntryCode(serviceClient, purchase);
+              if (newStatus === 'paid') {
+                // 受付コードを人数分発行する（1人1コード）。発行済みなら既存のコードが返るだけ
+                // なので、Squareの再送で毎回コードが変わることはない。
+                purchase.entry_codes = await issueEntryPasses(serviceClient, purchase);
                 // 発行に失敗しても決済自体は成立しているので処理は続ける（購入者には通知が届く）。
                 // ただしコード無しのまま放置すると当日その人が入場できないので、運営に知らせる。
-                if (!purchase.entry_code) await notifyEntryCodeFailure(purchase);
+                if (!purchase.entry_codes.length) await notifyEntryCodeFailure(purchase);
               }
               await notifyPurchaser(serviceClient, purchase, newStatus);
             }
@@ -453,16 +446,33 @@ async function handler(req, res) {
           // 例：「出店料＋入場×2」の注文で入場1枚分だけ返金したとき、全員のコードを
           // 消してしまうと、返金していない人まで入場できなくなる。何をどう減らすかは
           // 注文の中身によるので、機械的に決めず運営に判断を委ねる。
-          await notifyPartialRefund(purchase, refundAmount);
+          const { data: partialPassRows } = await serviceClient
+            .from('entry_passes')
+            .select('code, status, checked_in_at')
+            .eq('purchase_id', purchase.id);
+          await notifyPartialRefund(purchase, refundAmount, partialPassRows || []);
         } else {
-          // 受付コードを外して入場できないようにする。
-          // 入場後に返金された場合は checked_in_at が残るので、運営が後から気づける。
+          // 順序が重要：先に受付コード（entry_passes）を無効化し、成功してから
+          // purchases を refunded にする。逆にすると、無効化が一時エラーで失敗したとき
+          // Squareの再送が「返金処理済み」としてスキップされ、返金した相手のコードが
+          // 永久に有効なまま残る（当日入場できてしまう）。この順序なら、途中で失敗しても
+          // status がまだ refunded ではないので、再送でやり直される。
+          const { data: passRows } = await serviceClient
+            .from('entry_passes')
+            .select('code, checked_in_at')
+            .eq('purchase_id', purchase.id);
+          const { error: revokeErr } = await serviceClient
+            .from('entry_passes')
+            .update({ status: 'revoked' })
+            .eq('purchase_id', purchase.id);
+          if (revokeErr) { console.error('entry_passes revoke failed（Squareの再送でやり直されます）:', revokeErr.message); res.status(500).json({ error: 'internal error' }); return; }
+
           const { error: updateErr } = await serviceClient
             .from('purchases')
             .update({ status: 'refunded', entry_code: null })
             .eq('id', purchase.id);
-          if (updateErr) console.error('refund update failed:', updateErr.message);
-          else {
+          if (updateErr) { console.error('refund update failed（Squareの再送でやり直されます）:', updateErr.message); res.status(500).json({ error: 'internal error' }); return; }
+          {
             // 購入時の「ご購入ありがとうございます」通知にはコードとQRが残っている。
             // そのままだと、返金後もマイページの通知欄に有効そうなQRが表示され続けて
             // 混乱のもとになる（コード自体はDB側で無効化済みなので入場はできない）。
@@ -494,7 +504,7 @@ async function handler(req, res) {
               });
             }
 
-            await notifyRefund(purchase);
+            await notifyRefund(purchase, passRows || []);
           }
         }
       }

@@ -141,34 +141,55 @@
       // 当日の入場確認用QR画像（外部の無料サービスで生成。受付コード自体は個人情報を含まないランダムな文字列）
       const entryCodeQrUrl = (code, size) => 'https://api.qrserver.com/v1/create-qr-code/?size=' + (size || 160) + 'x' + (size || 160) + '&data=' + encodeURIComponent(code);
 
-      function renderPurchases(list) {
+      function renderPurchases(list, passesByPurchase) {
         const el = document.getElementById('mypage-purchases');
         if (!list.length) { el.innerHTML = '<p class="cards-empty">まだチケットの購入履歴はありません。</p>'; return; }
-        el.innerHTML = list.map(p => `
+        el.innerHTML = list.map(p => {
+          // 受付コードは1人1つ（entry_passes）。旧方式の購入は purchases.entry_code に残っている。
+          let codes = (passesByPurchase.get(p.id) || [])
+            .filter(x => x.status === 'valid')
+            .map(x => ({ code: x.code, used: !!x.checked_in_at }));
+          if (!codes.length && p.entry_code) codes = [{ code: p.entry_code, used: false }];
+          const codesHtml = (p.status === 'paid' && codes.length)
+            ? codes.map((c, i) => `<span class="mypage__purchase-entrycode">${codes.length > 1 ? (i + 1) + '人目の' : '当日の'}受付コード: ${esc(c.code)}${c.used ? '（入場済み）' : ''}</span>
+                <img class="mypage__purchase-qr" src="${entryCodeQrUrl(c.code, 240)}" alt="受付QRコード ${esc(c.code)}" width="120" height="120">`).join('') +
+              (codes.length > 1 ? '<span class="mypage__purchase-entrycode">※コードはお一人1つ・1回のみ有効です。ご同行者にお渡しください。</span>' : '')
+            : '';
+          return `
           <div class="mypage__purchase">
             <div class="mypage__purchase-main">
               <h3>${esc(p.ticket_name)}</h3>
               <span class="mypage__purchase-date">${new Date(p.created_at).toLocaleDateString('ja-JP')}</span>
-              ${(p.entry_code && p.status === 'paid') ? `<span class="mypage__purchase-entrycode">当日の受付コード: ${esc(p.entry_code)}</span>
-                <img class="mypage__purchase-qr" src="${entryCodeQrUrl(p.entry_code, 240)}" alt="受付QRコード ${esc(p.entry_code)}" width="120" height="120">` : ''}
+              ${codesHtml}
             </div>
             <div class="mypage__purchase-side">
               <span class="mypage__purchase-price">${yen(p.price)}</span>
               <span class="mypage__purchase-status is-${p.status}">${esc(STATUS_LABEL[p.status] || p.status)}</span>
             </div>
-          </div>`).join('');
+          </div>`;
+        }).join('');
       }
 
       function loadPurchases(session) {
         const client = window.DCT_AUTH.getClient();
-        client.from('purchases')
-          .select('ticket_name, price, status, created_at, entry_code')
-          .eq('user_id', session.user.id)
-          .order('created_at', { ascending: false })
-          .then(res => {
-            if (res.error) { document.getElementById('mypage-purchases').innerHTML = '<p class="cards-empty">読み込みに失敗しました。</p>'; return; }
-            renderPurchases(res.data || []);
+        Promise.all([
+          client.from('purchases')
+            .select('id, ticket_name, price, status, created_at, entry_code')
+            .eq('user_id', session.user.id)
+            .order('created_at', { ascending: false }),
+          client.from('entry_passes')
+            .select('purchase_id, code, status, checked_in_at')
+            .eq('user_id', session.user.id)
+            .order('code'),
+        ]).then(([purchasesRes, passesRes]) => {
+          if (purchasesRes.error) { document.getElementById('mypage-purchases').innerHTML = '<p class="cards-empty">読み込みに失敗しました。</p>'; return; }
+          const passesByPurchase = new Map();
+          ((passesRes && passesRes.data) || []).forEach(x => {
+            if (!passesByPurchase.has(x.purchase_id)) passesByPurchase.set(x.purchase_id, []);
+            passesByPurchase.get(x.purchase_id).push(x);
           });
+          renderPurchases(purchasesRes.data || [], passesByPurchase);
+        });
       }
 
       /* ---------- お知らせ（決済完了/キャンセル時にWebhookが作る通知） ---------- */
@@ -237,16 +258,48 @@
           // 支払いが確定したのでカートを空にする（決済ページへ送った時点では空にしない。
           // Squareの画面で戻った人のカートまで消えてしまうため）。
           try { localStorage.removeItem('dct_cart_v1'); } catch (e) {}
-          body.innerHTML =
-            '<p>お支払いが確認できました。ご購入内容の確認メールをお送りしております。届いていない場合は迷惑メールフォルダもご確認ください。</p>' +
-            '<div class="thanks-banner__order"><h3>' + esc(p.ticket_name) + '</h3>' +
-            '<p class="thanks-banner__price">' + yen(p.price) + '（税込）</p></div>' +
-            (p.entry_code
-              // QRは表示サイズの2倍で取得する（スマホの高精細画面でぼやけず、受付で読み取りやすい）
-              ? '<div class="thanks-banner__code"><span>当日の受付コード</span><strong>' + esc(p.entry_code) + '</strong>' +
-                '<img src="' + entryCodeQrUrl(p.entry_code, 320) + '" alt="受付QRコード ' + esc(p.entry_code) + '" width="160" height="160"></div>'
-              : '<p class="mypage__note">受付コードは只今発行中です。数分後にこのページを再読み込みするか、確認メールをご覧ください。</p>');
-          loadPurchases(session); // 一覧側の表示も最新化する
+          // 受付コードは1人1つ（entry_passes）。この購入の分だけ取りに行く。
+          // 支払い確定の直後はまだ発行が終わっていないことがある（Webhookが
+          // 「支払い済みに更新 → コード発行」の順で動くため）。その場合は
+          // 2秒おきに数回だけ自動で取り直す（お客様に再読み込みさせない）。
+          let codeTries = 0;
+          function renderConfirmed(codes) {
+            const codesHtml = codes.length
+              ? codes.map((c, i) =>
+                  // QRは表示サイズの2倍で取得する（スマホの高精細画面でぼやけず、受付で読み取りやすい）
+                  '<div class="thanks-banner__code"><span>' + (codes.length > 1 ? (i + 1) + '人目の受付コード' : '当日の受付コード') + '</span><strong>' + esc(c) + '</strong>' +
+                  '<img src="' + entryCodeQrUrl(c, 320) + '" alt="受付QRコード ' + esc(c) + '" width="160" height="160"></div>'
+                ).join('') +
+                (codes.length > 1 ? '<p class="mypage__note">コードはお一人につき1つ・1回のみ有効です。ご同行者にはそれぞれのコード（QR画像）をお渡しください。</p>' : '')
+              : (codeTries > 0
+                ? '<p class="mypage__note">受付コードは只今発行中です。数分後にこのページを再読み込みするか、確認メールをご覧ください。</p>'
+                : '<p class="mypage__note">受付コードを確認しています…</p>');
+            body.innerHTML =
+              '<p>お支払いが確認できました。ご購入内容の確認メールをお送りしております。届いていない場合は迷惑メールフォルダもご確認ください。</p>' +
+              '<div class="thanks-banner__order"><h3>' + esc(p.ticket_name) + '</h3>' +
+              '<p class="thanks-banner__price">' + yen(p.price) + '（税込）</p></div>' +
+              codesHtml;
+          }
+          function fetchCodes() {
+            client.from('entry_passes')
+              .select('code, status')
+              .eq('purchase_id', p.id)
+              .order('code')
+              .then(res => {
+                const codes = ((res && res.data) || []).filter(x => x.status === 'valid').map(x => x.code);
+                // 旧方式で発行された購入（entry_passes に行が無い）へのフォールバック
+                if (!codes.length && p.entry_code) codes.push(p.entry_code);
+                if (!codes.length && codeTries < 10) {
+                  codeTries += 1;
+                  renderConfirmed([]);
+                  setTimeout(fetchCodes, 2000);
+                  return;
+                }
+                renderConfirmed(codes);
+                loadPurchases(session); // 一覧側の表示も最新化する
+              });
+          }
+          fetchCodes();
         }
         function showTimeout() {
           body.innerHTML = '<p>お支払いの確認にお時間がかかっています。数分後にこのページを再読み込みして「購入したチケット」欄をご確認いただくか、確認メールをご覧ください。</p>' +
@@ -255,7 +308,7 @@
         }
         function poll() {
           let query = client.from('purchases')
-            .select('ticket_name, price, status, entry_code, created_at')
+            .select('id, ticket_name, price, status, entry_code, created_at')
             .eq('user_id', session.user.id);
           // pid があればその注文だけを見る。別タブで次の注文を始めていても、
           // このサンクス画面が監視する対象は変わらない。

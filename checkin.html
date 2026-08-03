@@ -70,7 +70,7 @@
       <section class="mypage__section">
         <details class="admin-toggle" id="details-checkin-lookup">
           <summary><h2>コードが分からない方を探す</h2></summary>
-          <p class="mypage__note">お名前やメールアドレスの一部を入れて検索し、ご本人の行の「入場させる」を押してください。まだ入場していない方も表示されます。</p>
+          <p class="mypage__note">お名前やメールアドレスの一部を入れて検索し、「未入場」の行の「入場させる」を押してください。まとめ買いの方はコードが人数分並びます（未入場の行ならどれを選んでも構いません。後からご同行者が来て「入場済み」と出た場合も、ここでお名前を検索して残りの未入場コードで入場させられます）。</p>
           <input type="search" class="admin-search" id="checkin-lookup-input" placeholder="お名前・メールアドレスの一部…">
           <div id="checkin-lookup-list" class="mypage__notifications"></div>
         </details>
@@ -142,8 +142,15 @@
       let scanning = false;
       let allCheckins = [];
 
-      function showLocked() { clearToken(); locked.hidden = false; content.hidden = true; logoutBtns.forEach(b => { b.hidden = true; }); }
+      // message を渡すと、ログイン画面に「なぜ弾かれたのか」を表示する。
+      // 黙ってログイン画面に戻すと、列の途中でスタッフが「今の読み取りはどうなった？」
+      // と分からなくなるため（直前の読み取りが記録されていない旨も必ず伝える）。
+      function showLocked(message) {
+        clearToken(); locked.hidden = false; content.hidden = true; logoutBtns.forEach(b => { b.hidden = true; });
+        if (message) { loginError.textContent = message; loginError.hidden = false; }
+      }
       function showContent() { locked.hidden = true; content.hidden = false; logoutBtns.forEach(b => { b.hidden = false; }); loadHistory(); }
+      const EXPIRED_MSG = 'ログインの有効期限が切れました（24時間で切れます）。もう一度パスワードを入力してください。';
 
       loginForm.addEventListener('submit', function (e) {
         e.preventDefault();
@@ -173,7 +180,7 @@
             loginError.hidden = false;
           });
       });
-      logoutBtns.forEach(b => b.addEventListener('click', showLocked));
+      logoutBtns.forEach(b => b.addEventListener('click', () => showLocked()));
 
       /* ---------- 結果表示・履歴 ---------- */
       // 手が離せない受付でも分かるように、結果が出たら音と振動でも知らせる。
@@ -205,12 +212,13 @@
       function renderResult(state, code, data) {
         let html = '';
         const buyerLine = data.buyerName ? `${esc(data.buyerName)}　${esc(data.buyerEmail)}` : esc(data.buyerEmail);
-        // まとめ買い（1回の決済で複数枚）のときは、何人目か・あと何人かを大きく出す。
-        const qty = Number(data.quantity) || 1;
-        const done = Number(data.checkedInCount) || 0;
-        const remain = Math.max(qty - done, 0);
-        const countLine = qty > 1
-          ? `<p class="checkin__count">${done} / ${qty} 人目${remain > 0 ? `　<strong>あと${remain}人分 — QRを一度カメラから外し、もう一度かざしてください</strong>` : '　（これで全員です）'}</p>`
+        // まとめ買い（1回の決済で複数枚＝複数コード）のときは、同じ購入の残り枚数を出す。
+        // コードは1人1つなので、同じQRを読み直す必要はない（読み直すと「入場済み」になる）。
+        const total = Number(data.groupTotal) || 1;
+        const used = Number(data.groupUsed) || 0;
+        const remain = Math.max(total - used, 0);
+        const countLine = total > 1
+          ? `<p class="checkin__count">この購入の入場: ${used} / ${total} 人${remain > 0 ? `　<strong>ご同行者の分があと${remain}枚（別のコード）あります</strong>` : '　（全員入場済み）'}</p>`
           : '';
         if (state === 'ok') {
           html = `<div class="checkin__badge checkin__badge--ok">入場OK</div>
@@ -222,16 +230,24 @@
         } else if (state === 'used') {
           html = `<div class="checkin__badge checkin__badge--used">入場済みです</div>
             <p class="checkin__ticket">${esc(data.ticketName)}</p>
-            ${qty > 1 ? `<p class="checkin__count">${qty} 人分すべて入場済み</p>` : ''}
+            <p class="mypage__note">このコードは1回入場済みです（${new Date(data.checkedInAt).toLocaleString('ja-JP')}）。コードはお一人1つ・1回のみ有効です。</p>
+            ${countLine}
+            ${remain > 0 ? '<p class="mypage__note">同じ購入に未入場のコードが残っています。ご本人のグループの分なら、下の「コードが分からない方を探す」からお名前で検索して入場させられます。</p>' : ''}
             <p class="checkin__buyer">${buyerLine}</p>
-            <p class="mypage__note">最初の入場: ${new Date(data.checkedInAt).toLocaleString('ja-JP')}</p>
             <p class="checkin__code">${esc(code)}</p>`;
           feedback('ng');
         } else if (state === 'network') {
           // 通信の問題を「無効なコード」と同じ赤で出すと、正規のお客様を追い返してしまう。
           // 「このお客様が悪いのではない／もう一度試す」と分かる別の色・文言にする。
           html = `<div class="checkin__badge checkin__badge--pending">通信できませんでした</div>
-            <p class="mypage__note">お客様のコードの問題ではありません。もう一度お試しください。</p>
+            <p class="mypage__note">お客様のコードの問題ではありません。同じQRをもう一度かざしてください（同じ読み取りとして扱われるため、二重入場にはなりません）。</p>
+            <p class="checkin__code">${esc(code)}</p>`;
+          feedback('ng');
+        } else if (state === 'blocked') {
+          // 開催日以外に読み取ったときなど、コードの真偽とは無関係の受付停止。
+          // 赤い「無効なコード」で出すと現場が誤解するので、別の見た目にする。
+          html = `<div class="checkin__badge checkin__badge--pending">受付できません</div>
+            <p class="mypage__note">${esc(data && data.error ? data.error : '現在は入場受付を行っていません')}</p>
             <p class="checkin__code">${esc(code)}</p>`;
           feedback('ng');
         } else {
@@ -261,20 +277,26 @@
               <h3>${esc(c.ticketName)}</h3>
               <span class="mypage__notification-date">${new Date(c.checkedInAt).toLocaleString('ja-JP')}</span>
             </div>
-            <p>${c.buyerName ? esc(c.buyerName) + '　' : ''}${esc(c.buyerEmail)}　${esc(c.entryCode)}${Number(c.quantity) > 1 ? `　<strong>${Number(c.checkedInCount) || 0}/${Number(c.quantity)}人</strong>` : ''}</p>
+            <p>${c.buyerName ? esc(c.buyerName) + '　' : ''}${esc(c.buyerEmail)}　${esc(c.entryCode)}</p>
             <button type="button" class="btn-link" data-undo-id="${esc(c.id)}">取り消す</button>
           </div>`).join('');
         historyEl.querySelectorAll('[data-undo-id]').forEach(btn => {
           btn.addEventListener('click', () => {
-            if (!confirm('このチェックインを1人分取り消しますか？')) return;
+            if (!confirm('この入場（このコード1枚分）を取り消しますか？')) return;
             fetch('/api/admin-checkin', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ undo: true, id: btn.getAttribute('data-undo-id'), token: getToken() }),
             })
               .then(r => r.json().then(data => ({ ok: r.ok, status: r.status, data })))
-              .then(({ ok, status }) => { if (status === 401) { showLocked(); return; } if (ok) loadHistory(); })
-              .catch(() => {});
+              .then(({ ok, status, data }) => {
+                if (status === 401) { showLocked(EXPIRED_MSG); return; }
+                // 失敗を黙って握りつぶさない。ダイアログが閉じただけで一覧が変わらないと、
+                // スタッフは「取り消せた」と思い込んだまま次の対応に進んでしまう。
+                if (!ok) { alert((data && data.error) || '取り消しに失敗しました。もう一度お試しください。'); return; }
+                loadHistory();
+              })
+              .catch(() => { alert('通信エラーで取り消せませんでした。もう一度お試しください。'); });
           });
         });
       }
@@ -299,20 +321,18 @@
           lookupListEl.innerHTML = '<p class="cards-empty">該当する方が見つかりませんでした。</p>';
           return;
         }
+        // 1行＝コード1枚（まとめ買いした人は、その人の行が枚数分並ぶ）
         lookupListEl.innerHTML = results.map(r => {
-          const qty = Number(r.quantity) || 1;
-          const done = Number(r.checkedInCount) || 0;
-          const full = done >= qty;
-          const countText = qty > 1 ? `${done}/${qty}人 入場済み` : (full ? '入場済み' : '未入場');
+          const used = !!r.checkedInAt;
           return `
           <div class="mypage__notification">
             <div class="mypage__notification-head">
               <h3>${r.buyerName ? esc(r.buyerName) : esc(r.buyerEmail)}</h3>
-              <span class="mypage__notification-date">${esc(countText)}</span>
+              <span class="mypage__notification-date">${used ? '入場済み' : '未入場'}</span>
             </div>
             <p>${r.buyerName ? esc(r.buyerEmail) + '　' : ''}${esc(r.ticketName)}</p>
             <p class="checkin__code">${esc(r.entryCode)}</p>
-            <button type="button" class="btn btn--solid" data-lookup-code="${esc(r.entryCode)}"${full ? ' disabled' : ''}>${full ? '全員入場済み' : '入場させる'}</button>
+            <button type="button" class="btn btn--solid" data-lookup-code="${esc(r.entryCode)}"${used ? ' disabled' : ''}>${used ? '入場済み' : '入場させる'}</button>
           </div>`;
         }).join('');
         lookupListEl.querySelectorAll('[data-lookup-code]').forEach(btn => {
@@ -341,7 +361,7 @@
           .then(r => r.json().then(data => ({ ok: r.ok, status: r.status, data })))
           .then(({ ok, status, data }) => {
             if (seq !== lookupSeq) return; // 入力が変わった後に届いた古い結果は捨てる
-            if (status === 401) { showLocked(); return; }
+            if (status === 401) { showLocked(EXPIRED_MSG); return; }
             if (!ok) { lookupListEl.innerHTML = '<p class="cards-empty">検索に失敗しました。</p>'; return; }
             renderLookup(data.results || []);
           })
@@ -357,7 +377,7 @@
         fetch('/api/admin-checkin', { headers: { 'x-admin-token': getToken() } })
           .then(r => r.json().then(data => ({ ok: r.ok, status: r.status, data })))
           .then(({ ok, status, data }) => {
-            if (status === 401) { showLocked(); return; }
+            if (status === 401) { showLocked(EXPIRED_MSG); return; }
             if (!ok) { historyEl.innerHTML = '<p class="cards-empty">読み込みに失敗しました。</p>'; return; }
             allCheckins = data.checkins || [];
             filterHistory();
@@ -366,6 +386,9 @@
       }
 
       let inFlight = false;
+      // カメラ側の「同じコードは読み直さない」記憶をリセットする関数。
+      // スキャナー起動中だけ実体が入る（submitCodeの通信失敗時に使う）。
+      let resetScanMemory = null;
       // 通信に失敗した読み取りを覚えておく。同じコードをもう一度送るときは
       // 同じIDを使い回す。これが無いと、1回目が実はサーバーに届いていた場合に
       // やり直しが「新しい読み取り」として二重に数えられてしまう
@@ -401,12 +424,18 @@
           .then(r => r.json().then(data => ({ ok: r.ok, status: r.status, data })))
           .then(({ ok, status, data }) => {
             failedRequest = null; // サーバーの返事が届いた＝この読み取りは決着した
-            if (status === 401) { showLocked(); return; }
+            if (status === 401) { showLocked('ログインの有効期限が切れました。直前の読み取りは記録されていません。ログイン後、もう一度読み取ってください。'); return; }
+            if (status === 403) { renderResult('blocked', code, data); return; }
             if (!ok) { renderResult('error', code, data); return; }
             renderResult(data.alreadyCheckedIn ? 'used' : 'ok', code, data);
           })
           .catch(() => {
             failedRequest = { code, requestId };
+            // カメラが「同じコードは一度フレームから外すまで再送しない」状態のままだと、
+            // お客様がQRを掲げ続けている限り再試行できない。通信失敗時はその記憶を
+            // リセットして、かざしたままでも読み直せるようにする（同じrequestIdを
+            // 使い回すので、1回目が実は届いていても二重入場にはならない）。
+            if (typeof resetScanMemory === 'function') resetScanMemory();
             renderResult('network', code, {});
           })
           .finally(() => { clearTimeout(timer); inFlight = false; });
@@ -471,6 +500,7 @@
         let lastSeenAt = 0;
         let needsGap = false; // true の間は、同じコードを読んでも送信しない
         const GAP_MS = 1200;
+        resetScanMemory = () => { lastValue = ''; needsGap = false; };
 
         const tick = async () => {
           if (!scanning) return;
@@ -480,14 +510,21 @@
             if (codes.length) {
               const value = codes[0].rawValue;
               if (value !== lastValue) {
-                lastValue = value;
-                needsGap = true;
-                lastSeenAt = now;
-                submitCode(value);
+                // 別のコード。送信できたときだけ「読んだ」ことにする。
+                // 前の読み取りの通信がまだ終わっていない間（inFlight）は submitCode が
+                // null を返すので、記憶を更新せず次のフレームで自動的に再挑戦する。
+                // これが無いと、3人組のQRを続けて読んだとき2枚目が無言で捨てられ、
+                // 画面には1人目の「入場OK」が残ったままになる（未入場に誰も気づけない）。
+                if (submitCode(value)) {
+                  lastValue = value;
+                  needsGap = true;
+                  lastSeenAt = now;
+                }
               } else if (!needsGap) {
-                needsGap = true;
-                lastSeenAt = now;
-                submitCode(value);
+                if (submitCode(value)) {
+                  needsGap = true;
+                  lastSeenAt = now;
+                }
               } else {
                 lastSeenAt = now; // まだ映りっぱなし。送信はしない
               }
