@@ -250,6 +250,23 @@
             <p class="mypage__note">${esc(data && data.error ? data.error : '現在は入場受付を行っていません')}</p>
             <p class="checkin__code">${esc(code)}</p>`;
           feedback('ng');
+        } else if (state === 'refunded' || state === 'unpaid') {
+          // 返金済み・支払い未完了は「読み間違い」ではなく、購入そのものの状態の問題。
+          // ただの赤い「無効なコード」だと受付はお客様に理由を説明できないので、
+          // 何が起きているのか・誰の購入なのかまで出す（本人確認して案内できるように）。
+          const who = data && (data.buyerName || data.buyerEmail)
+            ? `<p class="checkin__buyer">${data.buyerName ? esc(data.buyerName) + '　' : ''}${esc(data.buyerEmail || '')}</p>`
+            : '';
+          const badgeLabel = state === 'refunded' ? '返金済み・入場できません'
+            : (data && data.reason === 'canceled') ? 'お支払いキャンセル・入場できません'
+            : 'お支払い未完了・入場できません';
+          html = `<div class="checkin__badge checkin__badge--error">${badgeLabel}</div>
+            ${data && data.ticketName ? `<p class="checkin__ticket">${esc(data.ticketName)}</p>` : ''}
+            <p class="mypage__note">${esc(data && data.error ? data.error : 'この購入では入場できません')}</p>
+            ${who}
+            <p class="mypage__note">この場でのご案内が難しい場合は、運営（${esc('info@dress-code-tokyo.com')}）へご連絡いただくようお伝えください。</p>
+            <p class="checkin__code">${esc(code)}</p>`;
+          feedback('ng');
         } else {
           html = `<div class="checkin__badge checkin__badge--error">無効なコード</div>
             <p class="mypage__note">${esc(data && data.error ? data.error : 'そのコードは確認できませんでした')}</p>
@@ -324,15 +341,20 @@
         // 1行＝コード1枚（まとめ買いした人は、その人の行が枚数分並ぶ）
         lookupListEl.innerHTML = results.map(r => {
           const used = !!r.checkedInAt;
+          // 返金済みの行も検索には出す（「該当なし」だと受付が状況を判断できないため）。
+          // ただし入場はさせられないので、状態を明示してボタンを押せなくする。
+          const revoked = !!r.revoked;
+          const state = revoked ? '返金済み' : used ? '入場済み' : '未入場';
           return `
           <div class="mypage__notification">
             <div class="mypage__notification-head">
               <h3>${r.buyerName ? esc(r.buyerName) : esc(r.buyerEmail)}</h3>
-              <span class="mypage__notification-date">${used ? '入場済み' : '未入場'}</span>
+              <span class="mypage__notification-date">${state}</span>
             </div>
             <p>${r.buyerName ? esc(r.buyerEmail) + '　' : ''}${esc(r.ticketName)}</p>
             <p class="checkin__code">${esc(r.entryCode)}</p>
-            <button type="button" class="btn btn--solid" data-lookup-code="${esc(r.entryCode)}"${used ? ' disabled' : ''}>${used ? '入場済み' : '入場させる'}</button>
+            ${revoked ? '<p class="mypage__note">この購入は返金済みのため、ご入場いただけません。</p>' : ''}
+            <button type="button" class="btn btn--solid" data-lookup-code="${esc(r.entryCode)}"${(used || revoked) ? ' disabled' : ''}>${revoked ? '入場不可' : used ? '入場済み' : '入場させる'}</button>
           </div>`;
         }).join('');
         lookupListEl.querySelectorAll('[data-lookup-code]').forEach(btn => {
@@ -426,7 +448,14 @@
             failedRequest = null; // サーバーの返事が届いた＝この読み取りは決着した
             if (status === 401) { showLocked('ログインの有効期限が切れました。直前の読み取りは記録されていません。ログイン後、もう一度読み取ってください。'); return; }
             if (status === 403) { renderResult('blocked', code, data); return; }
-            if (!ok) { renderResult('error', code, data); return; }
+            if (!ok) {
+              // サーバーが理由まで返してきたときは、それに応じた表示にする
+              const reason = data && data.reason;
+              renderResult(reason === 'refunded' ? 'refunded'
+                : (reason === 'unpaid' || reason === 'canceled') ? 'unpaid'
+                : 'error', code, data);
+              return;
+            }
             renderResult(data.alreadyCheckedIn ? 'used' : 'ok', code, data);
           })
           .catch(() => {

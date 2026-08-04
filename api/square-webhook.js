@@ -476,11 +476,26 @@ async function handler(req, res) {
             // 購入時の「ご購入ありがとうございます」通知にはコードとQRが残っている。
             // そのままだと、返金後もマイページの通知欄に有効そうなQRが表示され続けて
             // 混乱のもとになる（コード自体はDB側で無効化済みなので入場はできない）。
-            const { error: scrubErr } = await serviceClient
+            //
+            // QR（body_html）を消すだけでは本文のコード文字列が残るため、本文にも
+            // 無効である旨を追記する。これが無いと、通知を読んだ本人は有効なコードを
+            // 持っているつもりで当日来場し、受付で初めて断られることになる。
+            const REFUND_NOTE = '\n\n※この購入は返金済みです。上記の受付コードは無効となり、当日はご入場いただけません。';
+            const { data: oldNotifs, error: oldNotifsErr } = await serviceClient
               .from('notifications')
-              .update({ body_html: null })
+              .select('id, body')
               .eq('purchase_id', purchase.id);
-            if (scrubErr) console.error('notification scrub failed:', scrubErr.message);
+            if (oldNotifsErr) console.error('notification scrub lookup failed:', oldNotifsErr.message);
+            for (const n of (oldNotifs || [])) {
+              const oldBody = String(n.body || '');
+              // Squareの再送で同じ処理が2回走っても、注意書きが二重に付かないようにする
+              if (oldBody.includes('※この購入は返金済みです')) continue;
+              const { error: scrubErr } = await serviceClient
+                .from('notifications')
+                .update({ body_html: null, body: oldBody + REFUND_NOTE })
+                .eq('id', n.id);
+              if (scrubErr) console.error('notification scrub failed:', scrubErr.message);
+            }
 
             // 購入者本人にも知らせる（黙ってコードだけ消すと、当日無効なコードを
             // 持って来場してしまう。運営宛てだけでなく本人にも必ず伝える）。

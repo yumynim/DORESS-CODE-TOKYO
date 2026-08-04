@@ -52,6 +52,7 @@
         <a href="#section-new">新しいお知らせ</a>
         <a href="#section-inquiries">お問い合わせ</a>
         <a href="#section-purchasers">購入者一覧</a>
+        <a href="#section-members">会員名簿</a>
         <a href="#section-list">投稿済み一覧</a>
         <a href="#section-personal">個人宛て履歴</a>
       </nav>
@@ -116,6 +117,17 @@
           <p class="mypage__note">「支払い済み」（受付コード付き）と「手続き未完了」（決済ページまでは進んだがまだ支払っていない人）を分けて表示します。チケットごとに開閉できます。</p>
           <input type="search" class="admin-search" id="admin-purchasers-search" placeholder="メールアドレス・お名前・受付コードで検索…">
           <div id="admin-purchasers"><p class="cards-empty">読み込み中…</p></div>
+        </details>
+      </section>
+
+      <section class="mypage__section" id="section-members">
+        <details class="admin-toggle" id="details-members">
+          <summary><h2>会員名簿 <span class="admin-toggle__count" id="admin-members-count"></span></h2></summary>
+          <p class="mypage__note">登録している会員を1人ずつ開いて、購入・受付コード・これまでに配信したお知らせ・お問い合わせをまとめて確認できます。全員向けのお知らせは全員に届いているため、ここには載せていません（「投稿済みのお知らせ」を参照）。</p>
+          <input type="search" class="admin-search" id="admin-members-search" placeholder="お名前・メールアドレス・受付コードで検索…">
+          <div id="admin-members" class="mypage__notifications">
+            <p class="cards-empty">読み込み中…</p>
+          </div>
         </details>
       </section>
 
@@ -192,11 +204,16 @@
       const purchasersEl = document.getElementById('admin-purchasers');
       const purchasersCountEl = document.getElementById('admin-purchasers-count');
       const purchasersSearchEl = document.getElementById('admin-purchasers-search');
+      const membersEl = document.getElementById('admin-members');
+      const membersCountEl = document.getElementById('admin-members-count');
+      const membersSearchEl = document.getElementById('admin-members-search');
       let allInquiries = [];
       let allAnnouncements = [];
       let allPersonal = [];
       let allSegments = [];
       let allPendingSegments = [];
+      let allMembers = [];
+      let broadcastCount = 0;
       const logoutBtns = [document.getElementById('admin-logout-btn'), document.getElementById('admin-logout-btn-mobile')];
       const targetTabs = document.querySelectorAll('[data-target-mode]');
       const targetEmailField = document.getElementById('admin-target-email-field');
@@ -244,7 +261,133 @@
         logoutBtns.forEach(b => { b.hidden = false; });
         loadList();
         loadInquiries();
+        loadMembers();
         fetchPreview();
+      }
+
+      /* ---------- 会員名簿（人単位で全部まとめて見る） ----------
+         「購入者一覧」「個人宛て履歴」「お問い合わせ」を横断して突き合わせなくても、
+         1人開けばその人に関する情報が全部そろうようにするためのセクション。 */
+      const PURCHASE_STATUS_LABEL = { initiated: '手続き中', paid: '購入完了', canceled: 'キャンセル', refunded: '返金済み' };
+      const fmtDate = (v) => (v ? new Date(v).toLocaleString('ja-JP') : '—');
+      const fmtDay = (v) => (v ? new Date(v).toLocaleDateString('ja-JP') : '—');
+
+      function memberPurchaseHtml(p) {
+        const codes = (p.codes || []).map(c => {
+          const state = c.revoked ? '無効（返金）' : c.checkedInAt ? `入場済み ${fmtDate(c.checkedInAt)}` : '未入場';
+          return `<li><code>${esc(c.code)}</code> — ${esc(state)}</li>`;
+        }).join('');
+        return `
+          <div class="admin-member__row">
+            <div class="mypage__notification-head">
+              <h4>${esc(p.ticketName || '（チケット名不明）')}</h4>
+              <span class="mypage__notification-date">${fmtDay(p.createdAt)}</span>
+            </div>
+            <p class="mypage__note">${esc(PURCHASE_STATUS_LABEL[p.status] || p.status)}${p.price != null ? `　${Number(p.price).toLocaleString('ja-JP')}円` : ''}</p>
+            ${codes ? `<ul class="admin-member__codes">${codes}</ul>` : '<p class="mypage__note">受付コードは発行されていません。</p>'}
+          </div>`;
+      }
+
+      function memberDetailHtml(m) {
+        const purchases = (m.purchases || []).length
+          ? (m.purchases || []).map(memberPurchaseHtml).join('')
+          : '<p class="cards-empty">購入はありません。</p>';
+
+        const notifications = (m.notifications || []).length
+          ? (m.notifications || []).map(n => `
+              <div class="admin-member__row">
+                <div class="mypage__notification-head">
+                  <h4>${esc(n.title)}</h4>
+                  <span class="mypage__notification-date">${fmtDate(n.createdAt)}</span>
+                </div>
+                <p class="mypage__note">${n.kind === 'auto' ? '決済に連動して自動送信' : '運営から手動で送信'}　${n.read ? '既読' : '未読'}</p>
+                <p>${esc(n.body || '')}</p>
+              </div>`).join('')
+          : '<p class="cards-empty">この方あてに個別に配信したお知らせはありません。</p>';
+
+        const inquiries = (m.inquiries || []).length
+          ? (m.inquiries || []).map(q => `
+              <div class="admin-member__row">
+                <div class="mypage__notification-head">
+                  <h4>${esc(q.reason || 'お問い合わせ')}</h4>
+                  <span class="mypage__notification-date">${fmtDate(q.createdAt)}</span>
+                </div>
+                <p class="mypage__note">${q.status === 'replied' ? `返信済み（${fmtDate(q.repliedAt)}）` : '未対応'}</p>
+                <p>${esc(q.message || '')}</p>
+              </div>`).join('')
+          : '<p class="cards-empty">この方からのお問い合わせはありません。</p>';
+
+        return `
+          <div class="admin-member__body">
+            <dl class="admin-member__meta">
+              <div><dt>メールアドレス</dt><dd>${esc(m.email)}</dd></div>
+              <div><dt>お名前</dt><dd>${m.name ? esc(m.name) : '（未登録）'}</dd></div>
+              <div><dt>登録日</dt><dd>${fmtDate(m.createdAt)}</dd></div>
+              <div><dt>メール確認</dt><dd>${m.emailConfirmed ? '確認済み' : '未確認'}</dd></div>
+              <div><dt>最終ログイン</dt><dd>${fmtDate(m.lastSignInAt)}</dd></div>
+            </dl>
+            <h4 class="admin-member__section-title">購入履歴・受付コード</h4>
+            ${purchases}
+            <h4 class="admin-member__section-title">この方あてに配信したお知らせ（${(m.notifications || []).length}件）</h4>
+            <p class="mypage__note">このほかに、全員向けのお知らせ ${broadcastCount} 件が会員全員に配信されています。</p>
+            ${notifications}
+            <h4 class="admin-member__section-title">お問い合わせ（${(m.inquiries || []).length}件）</h4>
+            ${inquiries}
+          </div>`;
+      }
+
+      function renderMembers(list) {
+        if (!list.length) {
+          membersEl.innerHTML = `<p class="cards-empty">${allMembers.length ? '検索条件に一致する会員がいません。' : 'まだ会員登録はありません。'}</p>`;
+          return;
+        }
+        membersEl.innerHTML = list.map(m => {
+          // 開かなくても状況が分かる要約を見出しに出す
+          const summary = [
+            m.paidCount ? `購入${m.paidCount}件` : '',
+            m.codeCount ? `コード${m.codeCount}枚（入場${m.checkedInCount}）` : '',
+            m.notificationCount ? `配信${m.notificationCount}件` : '',
+            m.inquiryCount ? `問い合わせ${m.inquiryCount}件` : '',
+          ].filter(Boolean).join('　') || '購入・配信なし';
+          return `
+          <details class="mypage__notification toggle-item admin-member" data-id="${esc(m.id)}">
+            <summary>
+              <span class="toggle-item__arrow" aria-hidden="true">▸</span>
+              <span class="mypage__notification-head">
+                <h3>${m.name ? esc(m.name) + '　' : ''}${esc(m.email)}</h3>
+                <span class="mypage__notification-date">${fmtDay(m.createdAt)}</span>
+              </span>
+              <span class="mypage__note admin-member__summary">${esc(summary)}</span>
+            </summary>
+            ${memberDetailHtml(m)}
+          </details>`;
+        }).join('');
+      }
+
+      function filterMembers() {
+        const q = (membersSearchEl.value || '').trim().toLowerCase();
+        const filtered = !q ? allMembers : allMembers.filter(m =>
+          (m.email || '').toLowerCase().includes(q) ||
+          (m.name || '').toLowerCase().includes(q) ||
+          (m.purchases || []).some(p =>
+            (p.ticketName || '').toLowerCase().includes(q) ||
+            (p.codes || []).some(c => (c.code || '').toLowerCase().includes(q))));
+        renderMembers(filtered);
+      }
+      membersSearchEl.addEventListener('input', filterMembers);
+
+      function loadMembers() {
+        fetch('/api/admin-members', { headers: { 'x-admin-token': getToken() } })
+          .then(r => r.json().then(data => ({ ok: r.ok, status: r.status, data })))
+          .then(({ ok, status, data }) => {
+            if (status === 401) { showLocked(); return; }
+            if (!ok) { membersEl.innerHTML = '<p class="cards-empty">読み込みに失敗しました。</p>'; return; }
+            allMembers = data.members || [];
+            broadcastCount = data.broadcastCount || 0;
+            membersCountEl.textContent = allMembers.length ? `(${allMembers.length})` : '';
+            filterMembers();
+          })
+          .catch(() => { membersEl.innerHTML = '<p class="cards-empty">通信エラーが発生しました。</p>'; });
       }
 
       /* ---------- お問い合わせ一覧・返信 ---------- */

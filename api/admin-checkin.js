@@ -102,16 +102,20 @@ module.exports = async function handler(req, res) {
 
         // 1人1コード方式：コード（entry_passes）1枚ずつが検索結果の1行になる。
         // 購入者情報は purchases → auth ユーザーから引く。
+        //
+        // 返金済み（revoked）の行もあえて含める。除外すると、返金された方が受付に来て
+        // お名前で検索したときに「該当なし」としか出ず、受付は「入力ミスなのか、
+        // そもそも買っていないのか、返金されたのか」を判断できない。
+        // 行としては出したうえで「返金済み」と明示し、入場ボタンは押せなくする。
         const { data: rows, error: lookupErr } = await serviceClient
           .from('entry_passes')
           .select('id, code, status, checked_in_at, user_id, purchases ( ticket_name, status )')
-          .eq('status', 'valid')
           .like('code', eventCodePrefix() + '%')
           .order('created_at', { ascending: false })
           .limit(1000);
         if (lookupErr) { console.error('admin-checkin lookup failed:', lookupErr.message); res.status(500).json({ error: '検索に失敗しました' }); return; }
 
-        const paidRows = (rows || []).filter((p) => p.purchases && p.purchases.status === 'paid');
+        const paidRows = (rows || []).filter((p) => p.purchases && (p.purchases.status === 'paid' || p.purchases.status === 'refunded'));
         const users = await resolveUsers(serviceClient, paidRows.map((p) => p.user_id));
         const q = lookup.toLowerCase();
         const results = paidRows
@@ -124,6 +128,7 @@ module.exports = async function handler(req, res) {
               buyerEmail: (u && u.email) || '（不明）',
               buyerName: (u && u.name) || '',
               checkedInAt: p.checked_in_at,
+              revoked: p.status !== 'valid' || (p.purchases && p.purchases.status === 'refunded'),
             };
           })
           .filter((r) =>
@@ -257,8 +262,49 @@ module.exports = async function handler(req, res) {
 
     const row = Array.isArray(result) ? result[0] : result;
     if (!row) {
-      // コード自体は存在しても、返金で無効化済み・支払い未完了の場合はここに来る
-      res.status(404).json({ error: 'そのコードは無効です（返金済み、または支払いが完了していません）' });
+      // コードは entry_passes に存在するのに入場処理が通らなかった
+      // ＝ 返金で無効化済み／支払いがキャンセル・失敗／支払い未完了、のいずれか。
+      //
+      // ここで「そのコードは無効です」とだけ返すと、受付は目の前のお客様に何が
+      // 起きているのか説明できず、お客様も納得できないまま列が止まる。
+      // 誰の・どのチケットが・なぜ通らないのかまで調べて返す。
+      const { data: diag } = await serviceClient
+        .from('entry_passes')
+        .select('code, status, user_id, purchases ( ticket_name, status )')
+        .eq('code', matchedCode)
+        .maybeSingle();
+
+      const purchaseStatus = (diag && diag.purchases && diag.purchases.status) || null;
+      let reason = 'invalid';
+      let message = 'そのコードは確認できませんでした。購入内容をご確認ください。';
+      if (diag && (diag.status !== 'valid' || purchaseStatus === 'refunded')) {
+        reason = 'refunded';
+        message = 'この購入は返金済みです。受付コードは無効になっているため、ご入場いただけません。';
+      } else if (purchaseStatus === 'canceled') {
+        reason = 'canceled';
+        message = 'この購入はお支払いがキャンセル、または失敗しています。ご入場いただけません。';
+      } else if (purchaseStatus === 'initiated') {
+        reason = 'unpaid';
+        message = 'この購入はお支払いが完了していません。ご入場いただけません。';
+      }
+
+      let buyerEmail = '';
+      let buyerName = '';
+      if (diag && diag.user_id) {
+        const { data: diagUser } = await serviceClient.auth.admin.getUserById(diag.user_id);
+        const u = diagUser && diagUser.user;
+        buyerEmail = (u && u.email) || '';
+        buyerName = (u && u.user_metadata && u.user_metadata.display_name) || '';
+      }
+
+      res.status(404).json({
+        error: message,
+        reason,
+        code: matchedCode,
+        ticketName: (diag && diag.purchases && diag.purchases.ticket_name) || '',
+        buyerEmail,
+        buyerName,
+      });
       return;
     }
 
