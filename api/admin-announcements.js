@@ -98,9 +98,31 @@ function segmentKeyOf(item) {
 async function collectSegments(serviceClient, status) {
   const { data, error } = await serviceClient
     .from('purchases')
-    .select('user_id, items, created_at, entry_code')
+    .select('id, user_id, items, created_at, entry_code')
     .eq('status', status);
   if (error) { console.error('segments query failed:', error.message); return new Map(); }
+
+  // 受付コードは1人1コード方式（entry_passes）に移行済みなので、purchases.entry_code
+  // ではなく entry_passes から引く。ここを旧方式のままにすると、新しい購入は
+  // 購入者一覧に受付コードが一切表示されず、当日コンソールでコード検索しても
+  // 見つからない（旧方式で発行済みの購入のためのフォールバックだけ残す）。
+  const purchaseIds = (data || []).map((r) => r.id).filter(Boolean);
+  const codesByPurchase = new Map();
+  if (status === 'paid' && purchaseIds.length) {
+    const { data: passes, error: passErr } = await serviceClient
+      .from('entry_passes')
+      .select('purchase_id, code, status')
+      .in('purchase_id', purchaseIds)
+      .limit(5000);
+    if (passErr) console.error('segments passes query failed（コード無しで続行）:', passErr.message);
+    for (const pass of passes || []) {
+      if (pass.status !== 'valid') continue;
+      if (!codesByPurchase.has(pass.purchase_id)) codesByPurchase.set(pass.purchase_id, []);
+      codesByPurchase.get(pass.purchase_id).push(pass.code);
+    }
+    // 連番の数字順（N2 が N10 より前）に揃える
+    for (const list of codesByPurchase.values()) list.sort((a, b) => a.length - b.length || (a < b ? -1 : 1));
+  }
 
   const segments = new Map();
   for (const row of data || []) {
@@ -116,7 +138,12 @@ async function collectSegments(serviceClient, status) {
         const existing = seg.purchasedAt.get(row.user_id);
         if (!existing || row.created_at < existing) {
           seg.purchasedAt.set(row.user_id, row.created_at);
-          if (row.entry_code) seg.entryCode.set(row.user_id, row.entry_code);
+        }
+        // コードは購入日に関係なく、その人のこのチケットの全購入分をまとめて表示する
+        const codes = codesByPurchase.get(row.id) || (row.entry_code ? [row.entry_code] : []);
+        if (codes.length) {
+          const prev = seg.entryCode.get(row.user_id);
+          seg.entryCode.set(row.user_id, prev ? `${prev} / ${codes.join(' / ')}` : codes.join(' / '));
         }
       }
     }
@@ -184,8 +211,10 @@ module.exports = async function handler(req, res) {
     return;
   }
 
-  // GETはクエリ文字列、POST/DELETEはJSONボディでトークンを受け取る
-  const token = req.method === 'GET' ? req.query.token : (req.body || {}).token;
+  // GETはヘッダー、POST/DELETEはJSONボディでトークンを受け取る。
+  // URLのクエリ（?token=）は受け付けない：URLはVercelのアクセスログや
+  // ブラウザ履歴に残るため、そこにトークンが写ると24時間は誰でも使えてしまう。
+  const token = req.method === 'GET' ? req.headers['x-admin-token'] : (req.body || {}).token;
   if (!verifyAdminToken(token, 'admin')) {
     res.status(401).json({ error: '認証が切れました。もう一度パスワードを入力してください' });
     return;

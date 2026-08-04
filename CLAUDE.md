@@ -12,7 +12,7 @@ DRESS CODE TOKYO のウェブサイト。静的サイト（素の HTML/CSS/JS）
 - フロントエンド: 素の HTML/CSS/JS（フレームワークなし、ビルドステップなし）。`js/data.js` にコンテンツデータ、`js/render.js` が描画。
 - 認証: Supabase Auth（`js/auth.js`, `js/auth-config.js`）。Google サインイン対応。
 - 決済: Square（Payment Link）。`js/cart.js` → `api/checkout.js` → Square API → `api/square-webhook.js` が決済完了を検知して DB を更新。
-- DB: Supabase Postgres（`supabase/schema.sql` 〜 `schema_v11_notifications_update_guard.sql`。最新の一覧は`docs/PROJECT_STATE.md`の「現在の構成」参照）。RLS 前提。
+- DB: Supabase Postgres（`supabase/schema.sql` 〜 `schema_v16_entry_passes.sql`。最新の一覧は`docs/PROJECT_STATE.md`の「現在の構成」参照）。RLS 前提。受付コードは**1人1コード方式**（`entry_passes` テーブル。1行＝1人＝1回入場。v16で移行済み、旧方式の`checkin_entry`/`undo_checkin`/人数カウントは廃止）。
 - ホスティング: Vercel（`vercel.json` にセキュリティヘッダー設定）。
 
 ## 必ず守る開発ルール
@@ -66,4 +66,6 @@ DRESS CODE TOKYO のウェブサイト。静的サイト（素の HTML/CSS/JS）
 - Sandbox 用と Production 用の Square 認証情報（ACCESS_TOKEN / LOCATION_ID / WEBHOOK_SIGNATURE_KEY）を混在させない。
 - Square は Sandbox と Production で **APIホストが異なる**（`connect.squareupsandbox.com` / `connect.squareup.com`）。`api/checkout.js`は`SQUARE_ENVIRONMENT`で切り替えている（過去に本番ホスト固定でSandboxトークンが401になるバグがあったため、`SQUARE_ENVIRONMENT`を見ずにホストを決め打ちする実装に戻さない）。
 - ブラウザ側コード（`js/*.js`）には anon key 以外の秘密情報を絶対に置かない。
-- お知らせ投稿ページ（`/console` = `admin-announcements.html`）は共通パスワード方式（`ADMIN_CONSOLE_PASSWORD`）。パスワード比較も `crypto.timingSafeEqual` を使う（`api/admin-login.js`）。トークン検証（`lib/adminAuth.js`）を弱めたり、`announcements`/`notifications`/`inquiries` テーブルへの読み書きを service role 以外に開放したりしない（`inquiries` は問い合わせ者の氏名・メールアドレス・本文を含むため特に注意）。
+- 管理者画面（`/console` = `admin-announcements.html`）と入場確認（`/checkin` = `checkin.html`）は共通パスワード方式。パスワード比較も `crypto.timingSafeEqual` を使う（`api/admin-login.js`）。**権限は2段階**（`lib/adminAuth.js`）: `ADMIN_CONSOLE_PASSWORD` → `admin` 権限（全部）、`CHECKIN_PASSWORD` → `checkin` 権限（入場確認のみ。当日ボランティア用）。トークンは「有効期限.権限.署名」形式で、署名鍵は `ADMIN_TOKEN_SECRET`（未設定なら合言葉のscrypt伸長値）。この権限分離・トークン検証を弱めない。`admin-members` など個人情報をまとめて返すAPIは `admin` 権限必須のまま維持する。
+- 管理者トークンをURLのクエリ（`?token=`）で受け渡ししない（Vercelのアクセスログ・ブラウザ履歴に残るため）。全APIは `x-admin-token` ヘッダー（POSTはJSONボディ）で受け取る方針。クエリ方式に戻さない。
+- `announcements`/`notifications`/`inquiries`/`entry_passes` テーブルへの書き込み、および入場系DB関数（`issue_entry_passes`/`checkin_pass`/`undo_pass`）の実行権限を service role 以外に開放しない（`inquiries` は問い合わせ者の氏名・メールアドレス・本文を含むため特に注意。`entry_passes` は入場の正当性そのもの）。

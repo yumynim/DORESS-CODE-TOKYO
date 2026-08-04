@@ -411,7 +411,14 @@
             }
             allMembers = data.members || [];
             broadcastCount = data.broadcastCount || 0;
-            membersCountEl.textContent = allMembers.length ? `(${allMembers.length})` : '';
+            // サーバー側の取得上限を超えて名簿が切れている場合は、黙って一部だけ
+            // 表示しない（検索で見つからない＝未登録、と誤読される）。
+            membersCountEl.textContent = allMembers.length
+              ? `(${allMembers.length}${data.truncated ? '+ ※一部のみ' : ''})`
+              : '';
+            if (data.truncated) {
+              alert('会員数が名簿の取得上限を超えています。この一覧・宛先選択・コード未発行アラートには表示されていない会員がいます。');
+            }
             filterMembers();
             renderTargetUsers(allMembers);
             renderMembersAlert(data.paidWithoutCodes || []);
@@ -492,7 +499,8 @@
       }
 
       function loadInquiries() {
-        fetch('/api/admin-inquiries?token=' + encodeURIComponent(getToken()))
+        // トークンはURLではなくヘッダーで送る（URLだとサーバーのアクセスログに残るため）
+        fetch('/api/admin-inquiries', { headers: { 'x-admin-token': getToken() } })
           .then(r => r.json().then(data => ({ ok: r.ok, status: r.status, data })))
           .then(({ ok, status, data }) => {
             if (status === 401) { showLocked(); return; }
@@ -539,7 +547,7 @@
       }
 
       function loadList() {
-        fetch('/api/admin-announcements?token=' + encodeURIComponent(getToken()))
+        fetch('/api/admin-announcements', { headers: { 'x-admin-token': getToken() } })
           .then(r => r.json().then(data => ({ ok: r.ok, status: r.status, data })))
           .then(({ ok, status, data }) => {
             if (status === 401) { showLocked(); return; }
@@ -1010,8 +1018,12 @@
             if (data.broadcast) {
               alert(`会員全員（${data.broadcast.recipients} 名）に投稿しました（メール送信 ${data.broadcast.sent} 件）。${failWarn(data.broadcast.failed)}`);
             }
-            if (data.personal && data.mailed === false) {
-              alert('サイト内のお知らせには届きましたが、メールは送信できませんでした（Resendの1日の送信上限に達したか、送信エラーの可能性があります）。');
+            if (data.personal) {
+              // 成功時も必ず知らせる。無反応でフォームが空になるだけだと、
+              // 送れたのかどうか分からず二重送信しがちになる。
+              alert(data.mailed === false
+                ? 'サイト内のお知らせには届きましたが、メールは送信できませんでした（Resendの1日の送信上限に達したか、送信エラーの可能性があります）。'
+                : 'この会員宛てに送信しました（サイト内のお知らせ＋メール）。');
             }
             form.reset();
             resetBlocks();

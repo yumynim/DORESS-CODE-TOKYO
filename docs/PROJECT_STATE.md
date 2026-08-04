@@ -5,13 +5,13 @@
 ## 残タスク（何のためにやるか付き）
 
 やる順に並べてある。1と2は「やらないと本番が壊れる／お客様に迷惑がかかる」もの。
-※v15は実行済み（2026-08-03、権限確認済み）。その後**1人1コード方式（v16）に設計変更した**ため、次はv16の実行が必須。**v16実行後にv15を再実行しないこと**（旧関数が復活する）。
 
-### 1.（最優先・必須）`supabase/schema_v16_entry_passes.sql` を Supabase の SQL Editor で実行する
+**DBの状態（重要）**: v15・v16とも**実行済み**（2026-08-04、ユーザーがSupabaseで実行し、権限確認SELECTが期待どおり＝3関数とも service_role のみ実行可、であることを確認済み）。受付コードは**1人1コード方式（`entry_passes`）が本番稼働中**。**v16実行後にv15を再実行しないこと**（v16が消した旧関数`checkin_entry`/`undo_checkin`が復活してしまう）。
 
-**何のため**: 受付コードを「1回の購入に1つ」から「**1人に1つ**」に変えた（数量2で買うと別々のコードが2つ発行され、1コード1回しか入場できない）。コード側（Webhook・受付API・マイページ）はすべて新方式（`entry_passes`テーブルと`issue_entry_passes`/`checkin_pass`/`undo_pass`関数）を呼ぶ作りに変わっているため、**このSQLを実行するまで、新しい購入にコードが発行されず、入場確認も動かない**。
+### 1.（必須・返金テストの前に）Square の Webhook に返金イベントを追加
 
-実行後、末尾のSELECTで3関数とも `service_role = true` / `anon`・`authenticated` = `false` なら成功。
+**何のため**: `refund.created` / `refund.updated` の通知が来ないと、**返金してもコードが有効なまま残る**（＝お金を返した相手が当日入場できてしまう）。コード側は対応済みで、Squareの設定だけが残っている。
+Square Developer Dashboard → Webhooks → 登録済みSubscriptionを編集 → 2つにチェック。
 
 ### 2.（必須）本番での通しテスト
 
@@ -174,16 +174,15 @@ Square Developer Dashboard → Webhooks → 登録済みのSubscriptionを編集
 
 - **コミット・pushは、キリの良い変更が1つ完了するたびに自動で行う**（ユーザー指示: 「プッシュは毎回自動でしちゃって」）。破壊的なgit操作（force push等）のみ明示的指示が必要。CLAUDE.mdにも反映済み。
 
-## 残タスク一覧（優先順）
+## 残タスク一覧（旧・2026-08-03時点のもの → 廃止）
 
-1. **`supabase/schema_v13_checkin_count.sql`をSQL Editorで実行 ＋ SquareのWebhookに`refund.created`/`refund.updated`を追加**（上記0-A。最優先）
-2. 実際の少額決済で一連の流れを通しテスト（決済→ありがとう画面→確認メール→通知→マイページ、受付コード/QRの表示確認）— ユーザーが「このあとテストする」と発言、実施待ち
-3. `/checkin`の動作を通しテスト（QRスキャン/手入力→入場OK（名前+メール表示）→再スキャンで入場済み→検索→取り消し）
-4. `js/data.js`のTSUBASAの紹介文（`desc`/`role`/`dept`）を入れる。プレースホルダーがそのまま公開されていたため2026-08-03に空にした。今は写真＋名前だけのカードになっている
-5. （未実装・以前の要望）`/checkin`のチェックイン履歴をイベントごとにトグルで分けて見られるようにする。今は全イベント分が1つの一覧に混ざる
-6. （保留中）Google OAuth再開
-7. （後片付け・急ぎではない）Sandboxテスト時代の「手続き中」テストデータを`purchases`から削除
-8. （任意）`tokutei-shotorihiki.html`の新しい条項を、可能であれば一度専門家（弁護士等）にレビューしてもらう
+※この一覧は古い（v13＝旧・人数カウント方式を前提にしていた）。**現在の残タスクはこのファイル冒頭の「残タスク（何のためにやるか付き）」が正**。冒頭に無いものでまだ生きているのは以下だけ:
+
+- `js/data.js`のTSUBASAの紹介文（`desc`/`role`/`dept`）を入れる（プレースホルダー公開を避けるため一時的に空にしてあり、今は写真＋名前だけのカード）
+- （未実装・以前の要望）`/checkin`のチェックイン履歴をイベントごとにトグルで分けて見られるようにする（現状は`CURRENT_EVENT_ID`のイベント分だけを表示する仕様に変更済みなので、実害は小さい）
+- （保留中）Google OAuth再開（`js/auth.js`の`GOOGLE_LOGIN_ENABLED = false`）
+- （後片付け）Sandboxテスト時代の「手続き中」テストデータを`purchases`から削除
+- （任意）`tokutei-shotorihiki.html`の条項を専門家（弁護士等）にレビューしてもらう
 
 ## 2026-08-03 サイト全体の棚卸しで見つかったもの（未対応・急ぎではない）
 
@@ -237,13 +236,15 @@ DORESS CODE TOKYO/
 │   ├── admin-inquiries.js         GET/POST /api/admin-inquiries: /console のお問い合わせ一覧・返信（返信はinfo@から送信しinquiries.statusを更新）
 │   ├── admin-preview-email.js     POST /api/admin-preview-email: /console のブロックエディタのライブプレビュー用（送信は行わない）
 │   ├── admin-upload-image.js      POST /api/admin-upload-image: /console の画像ブロック用、Supabase Storageへアップロード
-│   ├── admin-checkin.js           GET/POST /api/admin-checkin: /checkin から呼ぶ。受付コードを照合し未チェックインならchecked_in_atを記録（GETは一覧、POST undo で取り消し）
+│   ├── admin-checkin.js           GET/POST /api/admin-checkin: /checkin から呼ぶ。entry_passes（1人1コード）をDB関数checkin_pass/undo_passで入場・取り消し。開催日以外は受け付けない日付ゲート付き（GETは履歴一覧と?lookup=名前検索）
 │   ├── admin-members.js           GET /api/admin-members: /console の「会員名簿」用。会員1人ずつの登録情報・購入・受付コード・配信したお知らせ・問い合わせをまとめて返す（admin権限必須）
 │   ├── check-email.js             POST /api/check-email: 新規登録フォームで、そのメールアドレスが既に会員登録済みかだけを返す
 │   └── env-check.js               GET /api/env-check: 環境変数が設定されているか（値は返さず真偽値のみ）を確認する診断用
 ├── lib/
-│   ├── mailer.js                 Resend経由のメール送信の共通処理（購入通知・お知らせ配信・お問い合わせ対応で共用）。ブロック配列→HTML/テキスト変換、送信元アドレスの差し替えにも対応
-│   └── adminAuth.js              /console・/checkin 共通の管理者トークン発行・検証（timingSafeEqual使用）
+│   ├── mailer.js                 Resend経由のメール送信の共通処理（購入通知・お知らせ配信・お問い合わせ対応で共用）。ブロック配列→HTML/テキスト変換、送信元アドレスの差し替えにも対応。送信成否をbooleanで返す
+│   ├── adminAuth.js              /console・/checkin 共通の管理者トークン発行・検証（timingSafeEqual使用）。権限2段階: admin（ADMIN_CONSOLE_PASSWORD）/ checkin（CHECKIN_PASSWORD・入場確認のみ）
+│   ├── catalog.js                商品カタログのサーバー側の正本（catalogObjectId→名前・価格・カテゴリS/N）。ブラウザから送られた名前・価格は信用しない
+│   └── rateLimit.js              APIの簡易レート制限（インスタンス単位のベストエフォート）
 ├── supabase/
 │   ├── schema.sql                 profiles / purchases テーブルの初期スキーマ
 │   ├── schema_v2_cart.sql         purchases にカート対応カラム（square_order_id 等）を追加
@@ -255,7 +256,12 @@ DORESS CODE TOKYO/
 │   ├── schema_v8_entry_code.sql   purchases に entry_code カラムを追加（当日の入場確認用コード。実行済み）
 │   ├── schema_v9_checkin.sql      purchases に checked_in_at カラムを追加（当日のQR/手入力チェックイン記録。実行済み）
 │   ├── schema_v10_event_sequence.sql  entry_code_counters テーブル＋next_entry_seq()関数を追加（イベント識別番号×カテゴリごとの連番発行。実行済み）
-│   └── schema_v11_notifications_update_guard.sql  notificationsの更新をread列だけに制限（with check＋トリガー。★未実行★Supabaseで実行が必要）
+│   ├── schema_v11_notifications_update_guard.sql  notificationsの更新をread列だけに制限（with check＋トリガー。実行済み）
+│   ├── schema_v12_drop_client_purchase_insert.sql  会員が purchases に直接insertできるポリシーを削除（実行済み）
+│   ├── schema_v13_checkin_count.sql   旧・人数カウント方式（quantity/checked_in_count）。v16で廃止（部分適用のまま歴史として残置）
+│   ├── schema_v14_grant_service_role.sql  旧関数への権限付与（v16で廃止）
+│   ├── schema_v15_checkin_idempotency.sql  旧方式の修復＋列追加（実行済み。※v16実行後に再実行しないこと）
+│   └── schema_v16_entry_passes.sql  ★現行★ 1人1コード方式。entry_passesテーブル＋issue_entry_passes/checkin_pass/undo_pass関数（実行済み 2026-08-04）
 ├── scripts/
 │   └── simulate-payment-webhook.js  実決済せずに決済完了後の一連の流れを試すローカル用スクリプト（署名鍵を使って正規の署名を作り、本番のWebhookを叩く）
 ├── assets/images/                 画像
@@ -568,7 +574,7 @@ Supabase接続・ヘッダーのマイページ/通知UI刷新・お知らせ投
 - [lib/mailer.js](../lib/mailer.js) — Resend送信の共通処理
 - [js/cart.js](../js/cart.js) / [api/checkout.js](../api/checkout.js) / [api/square-webhook.js](../api/square-webhook.js) — 決済フロー＋購入通知（メール／サイト内通知）。SandboxとProductionでAPIホストが違う点に注意（`api/checkout.js`のコメント参照）
 - [tokutei-shotorihiki.html](../tokutei-shotorihiki.html) — 特定商取引法に基づく表記（必須項目記入済み、公開判断待ち）
-- [supabase/schema.sql](../supabase/schema.sql) 〜 [schema_v11_notifications_update_guard.sql](../supabase/schema_v11_notifications_update_guard.sql) — DBスキーマ（v1〜v4・v6〜v10は使用中、v5(`profiles.is_admin`)は合言葉方式に移行したため現在未使用、v11は未実行）
+- [supabase/schema.sql](../supabase/schema.sql) 〜 [schema_v16_entry_passes.sql](../supabase/schema_v16_entry_passes.sql) — DBスキーマ（v16まで実行済み。v5は合言葉方式移行で未使用、v13/v14はv16で廃止。現行の入場系はv16の`entry_passes`）
 - [vercel.json](../vercel.json) — セキュリティヘッダー＋ `/console` のrewrite
 - [.env.example](../.env.example) — 必要な環境変数一覧（実値はVercel側）
 - `方針/` `事業/` `案件/` `素材/` — 運営資料（gitignore対象、ローカルのみ）

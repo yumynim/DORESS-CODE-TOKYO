@@ -23,7 +23,10 @@ module.exports = async function handler(req, res) {
     return;
   }
 
-  const token = req.method === 'GET' ? req.query.token : (req.body || {}).token;
+  // GETはヘッダー、POSTはJSONボディでトークンを受け取る。
+  // URLのクエリ（?token=）は受け付けない：URLはVercelのアクセスログや
+  // ブラウザ履歴に残るため、そこにトークンが写ると24時間は誰でも使えてしまう。
+  const token = req.method === 'GET' ? req.headers['x-admin-token'] : (req.body || {}).token;
   if (!verifyAdminToken(token, 'admin')) {
     res.status(401).json({ error: '認証が切れました。もう一度パスワードを入力してください' });
     return;

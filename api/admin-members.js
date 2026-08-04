@@ -51,9 +51,9 @@ module.exports = async function handler(req, res) {
     return;
   }
 
-  // トークンはヘッダーで受け取る（URLのクエリに入れるとVercelのアクセスログに残るため）。
+  // トークンはヘッダーのみで受け取る（URLの ?token= はアクセスログに残るため受け付けない）。
   // 個人情報をまとめて返すエンドポイントなので 'admin' 権限を必須にする。
-  const token = req.headers['x-admin-token'] || req.query.token;
+  const token = req.headers['x-admin-token'];
   if (!verifyAdminToken(token, 'admin')) {
     res.status(401).json({ error: '認証が切れました。もう一度パスワードを入力してください' });
     return;

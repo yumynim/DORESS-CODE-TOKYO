@@ -17,8 +17,13 @@ module.exports = async function handler(req, res) {
 
   // 以前は誰でも開けたが、どの外部サービスと繋がっているか・どのコミットが動いているかが
   // 分かってしまい、攻撃の下調べに使えるため管理者トークンを必須にした。
-  // 使い方: /api/env-check?token=（/console にログインしたときに発行されるトークン）
-  if (!verifyAdminToken(req.query.token)) {
+  // トークンはヘッダーのみで受け取る。URLの ?token= はVercelのアクセスログや
+  // ブラウザ履歴に残るため受け付けない（他の admin-*.js と同じ方針）。
+  // 使い方（ターミナルから）:
+  //   curl -H "x-admin-token: <トークン>" https://<サイト>/api/env-check
+  //   トークンは /console にログインした状態で、ブラウザの開発者ツールのコンソールに
+  //   sessionStorage.getItem('dct_admin_token') と打つと表示される。
+  if (!verifyAdminToken(req.headers['x-admin-token'])) {
     res.status(404).end();
     return;
   }

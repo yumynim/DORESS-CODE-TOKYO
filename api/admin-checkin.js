@@ -102,9 +102,8 @@ module.exports = async function handler(req, res) {
   const serviceClient = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
 
   if (req.method === 'GET') {
-    // トークンはヘッダーで受け取る（URLのクエリに入れるとVercelのアクセスログに残るため）。
-    // 旧バージョンのページを開いたままのスタッフのために ?token= も当面受け付ける。
-    const token = req.headers['x-admin-token'] || req.query.token;
+    // トークンはヘッダーのみで受け取る（URLの ?token= はアクセスログに残るため受け付けない）。
+    const token = req.headers['x-admin-token'];
     if (!verifyAdminToken(token, 'checkin')) { res.status(401).json({ error: '認証が切れました。もう一度パスワードを入力してください' }); return; }
 
     // ?lookup=... のときは「お名前・メールアドレスから購入を探す」モード。

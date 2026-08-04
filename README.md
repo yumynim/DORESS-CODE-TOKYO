@@ -27,7 +27,7 @@ DORESS CODE TOKYO/
 │   └── cart.js                 カート
 ├── api/                        Vercel Functions（決済・Webhook・メール・管理画面のAPI）
 ├── lib/                        api/ から使う共通処理（メール送信・管理者トークン）
-├── supabase/                   DBスキーマのSQL（新しい順にv1〜v11）
+├── supabase/                   DBスキーマのSQL（v1〜v16。番号順に実行してきた履歴）
 ├── scripts/                    ローカル用の補助スクリプト
 ├── docs/PROJECT_STATE.md       ★開発の現在地（作業前に必ず読む）
 ├── assets/images/              画像置き場
@@ -99,8 +99,8 @@ DORESS CODE TOKYO/
 
 | URL | 用途 | 入り方 |
 |---|---|---|
-| `/console` | お知らせ配信・購入者一覧・問い合わせ返信 | 管理者パスワード |
-| `/checkin` | 当日の入場確認（QR読み取り／手入力） | 管理者パスワード（`/console`と同じ） |
+| `/console` | お知らせ配信・会員名簿・購入者一覧・問い合わせ返信 | 管理者パスワード（`ADMIN_CONSOLE_PASSWORD`） |
+| `/checkin` | 当日の入場確認（QR読み取り／手入力） | 受付用パスワード（`CHECKIN_PASSWORD`。管理者パスワードでも入れる）。ボランティアには受付用だけを渡すこと（顧客情報や一斉配信には触れなくなる） |
 
 ## フォントについて
 
