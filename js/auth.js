@@ -499,6 +499,14 @@
         if (x.status !== 'valid') return;
         (passesByPurchase[x.purchase_id] = passesByPurchase[x.purchase_id] || []).push({ code: x.code, used: !!x.checked_in_at });
       });
+      // 「1人目・2人目…」の順に並べ直す。単純な文字列順だと DCT-0927-N10-… が
+      // DCT-0927-N2-… より前に来て、画面の「◯人目」とコードの連番がずれる
+      // （10枚以上まとめ買いしたときに起きる）。DB側の発行処理と同じ規則で揃える。
+      Object.keys(passesByPurchase).forEach(function (pid) {
+        passesByPurchase[pid].sort(function (a, b) {
+          return a.code.length - b.code.length || a.code.localeCompare(b.code);
+        });
+      });
       accountPurchasesEl.innerHTML = list.map(function (p) {
         var codes = passesByPurchase[p.id] || [];
         if (!codes.length && p.entry_code) codes = [{ code: p.entry_code, used: false }];

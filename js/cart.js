@@ -11,6 +11,16 @@
    ========================================================= */
 (function () {
   const STORAGE_KEY = 'dct_cart_v1';
+  // api/checkout.js の MAX_QUANTITY_PER_ITEM と同じ値にすること。
+  // ここで止めないと、＋ を押し続けて21個以上にできてしまい、レジに進んだ最後の最後で
+  // 「数量が正しくありません」とだけ言われて先に進めなくなる（何が悪いのか分からない）。
+  const MAX_QUANTITY_PER_ITEM = 20;
+
+  // カートの中身は localStorage にあり、利用者が自分で書き換えられる。
+  // 書き換えられた値をそのまま innerHTML に入れないよう、表示時にエスケープする。
+  function esc(s) {
+    return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  }
 
   function readCart() {
     try {
@@ -28,7 +38,7 @@
   function addToCart(item) {
     const list = readCart();
     const existing = list.find(i => i.catalogObjectId === item.catalogObjectId);
-    if (existing) { existing.quantity += 1; }
+    if (existing) { existing.quantity = Math.min(existing.quantity + 1, MAX_QUANTITY_PER_ITEM); }
     else { list.push({ catalogObjectId: item.catalogObjectId, name: item.name, price: item.price, quantity: 1 }); }
     writeCart(list);
     openCart();
@@ -38,7 +48,7 @@
     if (qty <= 0) { list = list.filter(i => i.catalogObjectId !== catalogObjectId); }
     else {
       const item = list.find(i => i.catalogObjectId === catalogObjectId);
-      if (item) item.quantity = qty;
+      if (item) item.quantity = Math.min(qty, MAX_QUANTITY_PER_ITEM);
     }
     writeCart(list);
   }
@@ -91,15 +101,15 @@
     ensurePanel();
     const list = readCart();
     listEl.innerHTML = list.length ? list.map(i => `
-      <div class="cart-item" data-id="${i.catalogObjectId}">
+      <div class="cart-item" data-id="${esc(i.catalogObjectId)}">
         <div class="cart-item__body">
-          <span class="cart-item__name">${i.name}</span>
+          <span class="cart-item__name">${esc(i.name)}</span>
           <span class="cart-item__price">${yen(i.price)}</span>
         </div>
         <div class="cart-item__qty">
           <button type="button" class="cart-item__step" data-step="-1" aria-label="減らす">−</button>
-          <span class="cart-item__n">${i.quantity}</span>
-          <button type="button" class="cart-item__step" data-step="1" aria-label="増やす">＋</button>
+          <span class="cart-item__n">${Number(i.quantity) || 0}</span>
+          <button type="button" class="cart-item__step" data-step="1" aria-label="増やす"${i.quantity >= MAX_QUANTITY_PER_ITEM ? ' disabled' : ''}>＋</button>
         </div>
       </div>`).join('') : '<p class="cards-empty">カートは空です</p>';
 

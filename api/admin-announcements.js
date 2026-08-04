@@ -23,21 +23,56 @@ const { createClient } = require('@supabase/supabase-js');
 const { sendEmail, renderBlocks } = require('../lib/mailer');
 const { verifyAdminToken } = require('../lib/adminAuth');
 
+/* メールを1人ずつ送り、実際に送れた数・送れなかった数を数える。
+   sendEmail は例外を投げず true/false を返す（送信元未設定・Resendのエラー・
+   1日の送信上限超過などは全部 false）。以前はこの戻り値を見ずに
+   「試した回数」を送信数として画面に出していたため、Resendが1通も
+   受け付けていなくても「メール送信 40件」と表示され、運営は届いたつもりで
+   次の作業に進んでしまう状態だった。ここで必ず戻り値を数えること。 */
+async function sendToEmails(emails, { subject, blocks }) {
+  let sent = 0;
+  const failedTo = [];
+  for (const email of emails) {
+    if (!email) continue;
+    const ok = await sendEmail({ to: email, subject, blocks });
+    if (ok) sent += 1;
+    else failedTo.push(email);
+  }
+  return { sent, failed: failedTo.length, failedTo };
+}
+
 async function sendBroadcastEmail(serviceClient, { subject, blocks }) {
   // 会員数が多くなってきたら、ここは一括送信APIやキュー経由に切り替えたほうがよい
   // （今は一人ずつ順番に送っている）。
   let page = 1;
   const perPage = 200;
+  let sent = 0;
+  let failed = 0;
+  let recipients = 0;
   for (;;) {
     const { data, error } = await serviceClient.auth.admin.listUsers({ page, perPage });
-    if (error) { console.error('listUsers failed:', error.message); return; }
+    if (error) { console.error('listUsers failed:', error.message); break; }
     const users = (data && data.users) || [];
-    for (const u of users) {
-      if (u.email) await sendEmail({ to: u.email, subject, blocks });
-    }
-    if (users.length < perPage) return;
+    const emails = users.map((u) => u.email).filter(Boolean);
+    recipients += emails.length;
+    const result = await sendToEmails(emails, { subject, blocks });
+    sent += result.sent;
+    failed += result.failed;
+    if (users.length < perPage) break;
     page += 1;
   }
+  return { recipients, sent, failed };
+}
+
+// user_id の配列からメールアドレスを引く（1人ずつ getUserById を呼ぶ）
+async function emailsForUserIds(serviceClient, userIds) {
+  const emails = [];
+  for (const userId of userIds) {
+    const { data: userRes } = await serviceClient.auth.admin.getUserById(userId);
+    const email = userRes && userRes.user && userRes.user.email;
+    if (email) emails.push(email);
+  }
+  return emails;
 }
 
 /* ---------- チケット単位のセグメント（＝購入者タグ） ----------
@@ -240,16 +275,10 @@ module.exports = async function handler(req, res) {
           .insert(userIds.map((userId) => ({ user_id: userId, title: cleanTitle, body: cleanBody, body_html: rendered.html })));
         if (error) { console.error('pending notifications insert failed:', error.message); res.status(500).json({ error: '送信に失敗しました' }); return; }
 
-        let sent = 0;
-        for (const userId of userIds) {
-          const { data: userRes } = await serviceClient.auth.admin.getUserById(userId);
-          const email = userRes && userRes.user && userRes.user.email;
-          if (!email) continue;
-          try { await sendEmail({ to: email, subject: cleanTitle, blocks }); sent += 1; }
-          catch (e) { console.error('pending email failed:', e); }
-        }
+        const emails = await emailsForUserIds(serviceClient, userIds);
+        const result = await sendToEmails(emails, { subject: cleanTitle, blocks });
 
-        res.status(200).json({ pending: { recipients: userIds.length, mailed: sent } });
+        res.status(200).json({ pending: { recipients: userIds.length, mailed: result.sent, failed: result.failed } });
         return;
       }
 
@@ -271,16 +300,10 @@ module.exports = async function handler(req, res) {
         if (error) { console.error('segment notifications insert failed:', error.message); res.status(500).json({ error: '送信に失敗しました' }); return; }
 
         // メールは1人ずつ順番に送る（会員数が増えたら一括送信APIやキューへの切り替えを検討）
-        let sent = 0;
-        for (const userId of userIds) {
-          const { data: userRes } = await serviceClient.auth.admin.getUserById(userId);
-          const email = userRes && userRes.user && userRes.user.email;
-          if (!email) continue;
-          try { await sendEmail({ to: email, subject: cleanTitle, blocks }); sent += 1; }
-          catch (e) { console.error('segment email failed:', e); }
-        }
+        const emails = await emailsForUserIds(serviceClient, userIds);
+        const result = await sendToEmails(emails, { subject: cleanTitle, blocks });
 
-        res.status(200).json({ segment: { key: segment.key, name: segment.name, recipients: userIds.length, mailed: sent } });
+        res.status(200).json({ segment: { key: segment.key, name: segment.name, recipients: userIds.length, mailed: result.sent, failed: result.failed } });
         return;
       }
 
@@ -296,13 +319,9 @@ module.exports = async function handler(req, res) {
           .single();
         if (error) { res.status(500).json({ error: '送信に失敗しました' }); return; }
 
-        try {
-          await sendEmail({ to: user.email, subject: cleanTitle, blocks });
-        } catch (e) {
-          console.error('personal email failed:', e);
-        }
+        const mailed = await sendEmail({ to: user.email, subject: cleanTitle, blocks });
 
-        res.status(200).json({ personal: { ...data, email: user.email } });
+        res.status(200).json({ personal: { ...data, email: user.email }, mailed });
         return;
       }
 
@@ -314,13 +333,17 @@ module.exports = async function handler(req, res) {
         .single();
       if (error) { res.status(500).json({ error: '投稿に失敗しました' }); return; }
 
+      let broadcast = null;
       try {
-        await sendBroadcastEmail(serviceClient, { subject: cleanTitle, blocks });
+        broadcast = await sendBroadcastEmail(serviceClient, { subject: cleanTitle, blocks });
       } catch (e) {
         console.error('broadcast email failed:', e); // メール送信に失敗しても投稿自体は成功扱いにする
       }
 
-      res.status(200).json({ announcement: data });
+      // 何通送れて何通落ちたかを返す。以前は結果を捨てていたため、Resendの
+      // 1日の上限（無料枠は100通/日）に達して1通も届いていなくても、画面上は
+      // ただ「投稿しました」と出るだけで誰も気づけなかった。
+      res.status(200).json({ announcement: data, broadcast });
       return;
     }
 

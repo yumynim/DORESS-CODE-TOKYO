@@ -28,7 +28,14 @@ const { sendEmail, SITE_URL, INQUIRY_FROM_EMAIL } = require('../lib/mailer');
 const MAX_NAME = 80;
 const MAX_EMAIL = 160;
 const MAX_MESSAGE = 4000;
-const MAX_REASON = 40;
+
+/* 「ご用件」として受け付ける値。js/data.js の contactReasons の jp と揃えること。
+   ここを自由入力のまま通すと、自動返信メールの件名と本文に攻撃者の書いた文字列が入り、
+   宛先も攻撃者が自由に指定できるため、「認証済みドメインから第三者へ、攻撃者の文章を送る」
+   ことができてしまう（お問い合わせ本文を自動返信に載せていないのと同じ理由）。
+   一覧に無い値が来たら黙って「その他お問い合わせ」として扱う。 */
+const ALLOWED_REASONS = ['掲載依頼', '出店依頼', 'その他お問い合わせ'];
+const DEFAULT_REASON = 'その他お問い合わせ';
 
 // 簡易レート制限。Vercel Functionsはインスタンスが使い回されている間だけ有効な
 // ベストエフォート（完全な防御ではなく、明らかな連投を減らすためのもの）。
@@ -76,8 +83,9 @@ module.exports = async function handler(req, res) {
   const cleanName = String(name || '').trim().slice(0, MAX_NAME);
   const cleanEmail = String(email || '').trim().slice(0, MAX_EMAIL);
   const cleanMessage = String(message || '').trim().slice(0, MAX_MESSAGE);
-  // 改行が残ったままメールの件名に使うと、ヘッダーを分断される恐れがあるので潰しておく
-  const cleanReason = String(reason || 'お問い合わせ').replace(/[\r\n]+/g, ' ').trim().slice(0, MAX_REASON) || 'お問い合わせ';
+  // 決められた選択肢以外は受け付けない（自由入力をメールに載せないため。上の定義を参照）
+  const rawReason = String(reason || '').trim();
+  const cleanReason = ALLOWED_REASONS.includes(rawReason) ? rawReason : DEFAULT_REASON;
 
   if (!cleanName || !cleanMessage) {
     res.status(400).json({ error: 'お名前とお問い合わせ内容をご記入ください' });

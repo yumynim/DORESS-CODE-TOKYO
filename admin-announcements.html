@@ -926,11 +926,21 @@
             btn.textContent = '投稿する';
             if (status === 401) { showLocked(); return; }
             if (!ok) { formError.textContent = data.error || '送信に失敗しました'; formError.hidden = false; return; }
+            // メールが届かなかった分は必ず知らせる。サイト内通知は入っていても、
+            // メールはResendの1日の上限（無料枠は100通/日）や送信エラーで落ちることがあり、
+            // 黙っていると「送ったつもり」で当日を迎えてしまう。
+            const failWarn = (n) => n ? `\n\n⚠ うち ${n} 件はメールを送信できませんでした（Resendの1日の送信上限に達したか、送信エラーの可能性があります）。サイト内のお知らせには届いています。` : '';
             if (data.segment) {
-              alert(`「${data.segment.name}」の購入者 ${data.segment.recipients} 名に送信しました（メール送信 ${data.segment.mailed} 件）。`);
+              alert(`「${data.segment.name}」の購入者 ${data.segment.recipients} 名に送信しました（メール送信 ${data.segment.mailed} 件）。${failWarn(data.segment.failed)}`);
             }
             if (data.pending) {
-              alert(`決済未完了の会員 ${data.pending.recipients} 名に送信しました（メール送信 ${data.pending.mailed} 件）。`);
+              alert(`決済未完了の会員 ${data.pending.recipients} 名に送信しました（メール送信 ${data.pending.mailed} 件）。${failWarn(data.pending.failed)}`);
+            }
+            if (data.broadcast) {
+              alert(`会員全員（${data.broadcast.recipients} 名）に投稿しました（メール送信 ${data.broadcast.sent} 件）。${failWarn(data.broadcast.failed)}`);
+            }
+            if (data.personal && data.mailed === false) {
+              alert('サイト内のお知らせには届きましたが、メールは送信できませんでした（Resendの1日の送信上限に達したか、送信エラーの可能性があります）。');
             }
             form.reset();
             resetBlocks();

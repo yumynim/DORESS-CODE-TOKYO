@@ -126,8 +126,11 @@ module.exports = async function handler(req, res) {
 
     const squareJson = await squareRes.json();
     if (!squareRes.ok) {
-      console.error('Square API error:', squareJson);
-      res.status(502).json({ error: 'Square側でエラーが発生しました', detail: squareJson.errors || squareJson });
+      // Squareのエラー本文には、こちらのlocation設定やカタログの状態など、
+      // 購入者に見せる必要のない情報が入ることがある。ログにだけ残し、
+      // ブラウザには一般的な文言だけ返す。
+      console.error('Square API error:', JSON.stringify(squareJson));
+      res.status(502).json({ error: '決済ページを作成できませんでした。時間をおいて再度お試しください。' });
       return;
     }
 

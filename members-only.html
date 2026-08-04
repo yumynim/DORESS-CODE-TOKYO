@@ -141,6 +141,16 @@
       // 当日の入場確認用QR画像（外部の無料サービスで生成。受付コード自体は個人情報を含まないランダムな文字列）
       const entryCodeQrUrl = (code, size) => 'https://api.qrserver.com/v1/create-qr-code/?size=' + (size || 160) + 'x' + (size || 160) + '&data=' + encodeURIComponent(code);
 
+      // 受付コードを「1人目・2人目…」の順に並べる。単純な文字列順だと
+      // DCT-0927-N10-… が DCT-0927-N2-… より前に来てしまい、画面の「◯人目」の
+      // 番号と、コード自体の連番がずれる（10枚以上まとめ買いしたときに起きる）。
+      // 先に文字数で比べれば連番の数字順になる（DB側の issue_entry_passes も同じ規則）。
+      const byCodeOrder = (a, b) => {
+        const ca = String(a && a.code != null ? a.code : a);
+        const cb = String(b && b.code != null ? b.code : b);
+        return ca.length - cb.length || ca.localeCompare(cb);
+      };
+
       function renderPurchases(list, passesByPurchase) {
         const el = document.getElementById('mypage-purchases');
         if (!list.length) { el.innerHTML = '<p class="cards-empty">まだチケットの購入履歴はありません。</p>'; return; }
@@ -188,6 +198,7 @@
             if (!passesByPurchase.has(x.purchase_id)) passesByPurchase.set(x.purchase_id, []);
             passesByPurchase.get(x.purchase_id).push(x);
           });
+          passesByPurchase.forEach(codes => codes.sort(byCodeOrder));
           renderPurchases(purchasesRes.data || [], passesByPurchase);
         });
       }
@@ -286,7 +297,7 @@
               .eq('purchase_id', p.id)
               .order('code')
               .then(res => {
-                const codes = ((res && res.data) || []).filter(x => x.status === 'valid').map(x => x.code);
+                const codes = ((res && res.data) || []).filter(x => x.status === 'valid').sort(byCodeOrder).map(x => x.code);
                 // 旧方式で発行された購入（entry_passes に行が無い）へのフォールバック
                 if (!codes.length && p.entry_code) codes.push(p.entry_code);
                 if (!codes.length && codeTries < 10) {
