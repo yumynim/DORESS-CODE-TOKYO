@@ -8,6 +8,19 @@
 (function () {
   var LAST_SEEN_KEY = 'dct_announcements_last_seen';
   var drawer = null, listPersonalEl = null, listBroadcastEl = null, tabBtns = null;
+  // いちばん新しい全員向けお知らせの日時。「実際にそのタブを開いたとき」に
+  // 既読として記録するために覚えておく（下の markBroadcastSeen 参照）。
+  var latestBroadcastAt = null;
+
+  // 全員向けお知らせを既読にする。ドロワーを開いただけでは呼ばない。
+  // 以前は読み込みと同時に既読にしていたため、既定で開く「あなたへのお知らせ」だけ見て
+  // 閉じた人も全員向けお知らせを読んだ扱いになり、赤いバッジが消えて二度と気づけなかった
+  // （運営が全員に出した重要な連絡が、サイト内では見られないまま終わる）。
+  function markBroadcastSeen() {
+    if (!latestBroadcastAt) return;
+    localStorage.setItem(LAST_SEEN_KEY, latestBroadcastAt);
+    refreshBadge();
+  }
 
   function esc(s) { return String(s == null ? '' : s).replace(/[&<>]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]; }); }
 
@@ -43,6 +56,7 @@
     tabBtns.forEach(function (b) { b.classList.toggle('is-active', b.getAttribute('data-notif-tab') === name); });
     listPersonalEl.hidden = name !== 'personal';
     listBroadcastEl.hidden = name !== 'broadcast';
+    if (name === 'broadcast') markBroadcastSeen();
   }
 
   // 1件ずつタップして開閉できるトグル形式（増えても一覧がかさばらないように）。
@@ -92,7 +106,10 @@
         renderList(listBroadcastEl, list.map(function (n) {
           return { title: n.title, body: n.body, body_html: n.body_html, created_at: n.created_at, unread: !lastSeen || new Date(n.created_at) > new Date(lastSeen) };
         }), 'お知らせはありません。');
-        if (list.length) { localStorage.setItem(LAST_SEEN_KEY, list[0].created_at); }
+        if (list.length) { latestBroadcastAt = list[0].created_at; }
+        // 読み込みが終わった時点で既にそのタブを開いている場合だけ既読にする
+        // （タブを切り替えてから読み込みが終わった、という順序への対応）
+        if (!listBroadcastEl.hidden) markBroadcastSeen();
         refreshBadge();
       });
   }

@@ -3,8 +3,8 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>お知らせ投稿 — DRESS CODE TOKYO</title>
-  <meta name="description" content="DRESS CODE TOKYO 管理者向け：会員全員へのお知らせ投稿ページ。">
+  <title>管理者画面 — DRESS CODE TOKYO</title>
+  <meta name="description" content="DRESS CODE TOKYO 管理者向け：お知らせ配信・お問い合わせ対応・会員名簿。">
   <link rel="icon" href="assets/images/logo-square.jpg">
   <link rel="apple-touch-icon" href="assets/images/logo-square.jpg">
   <meta name="theme-color" content="#ffffff">
@@ -33,7 +33,7 @@
     <!-- パスワード未入力／不一致のとき -->
     <div id="admin-locked" class="mypage__state">
       <span class="kicker">Admin</span>
-      <h1 class="mypage__title">お知らせ投稿</h1>
+      <h1 class="mypage__title">管理者画面</h1>
       <p class="mypage__note">このページは管理者専用です。管理者パスワードを入力してください。</p>
       <form id="admin-login-form" class="auth-form admin-form">
         <label>管理者パスワード<input type="password" name="password" required autocomplete="current-password"></label>
@@ -45,8 +45,8 @@
     <!-- パスワードが正しいとき -->
     <div id="admin-content" class="mypage__state" hidden>
       <span class="kicker">Admin</span>
-      <h1 class="mypage__title">お知らせ投稿</h1>
-      <p class="mypage__note">ここで投稿すると、会員全員のヘッダー通知アイコン「ドレスコードからのお知らせ」に届き、メールでも送信されます。</p>
+      <h1 class="mypage__title">管理者画面</h1>
+      <p class="mypage__note">お知らせの配信、お問い合わせへの返信、購入者・会員の確認ができます。当日の入場確認は <a href="checkin.html">/checkin</a> です。</p>
 
       <nav class="admin-jumpnav" aria-label="セクション">
         <a href="#section-new">新しいお知らせ</a>
@@ -67,7 +67,11 @@
         </div>
         <div class="admin-editor">
           <form id="admin-form" class="auth-form admin-form">
-            <label id="admin-target-email-field" hidden>宛先のメールアドレス<input type="email" name="targetEmail" placeholder="member@example.com"></label>
+            <label id="admin-target-email-field" hidden>宛先の会員
+              <select name="targetUser" id="admin-target-user-select"><option value="">読み込み中…</option></select>
+              <span class="mypage__note">登録している会員から選びます。打ち間違いで「会員が見つかりません」になるのを防ぐためです。一覧に無い方へ送る場合は、いちばん下の「メールアドレスを直接入力」を選んでください。</span>
+            </label>
+            <label id="admin-target-email-manual" hidden>宛先のメールアドレス<input type="email" name="targetEmail" placeholder="member@example.com"></label>
             <label id="admin-target-segment-field" hidden>対象のチケット
               <select name="segmentKey" id="admin-segment-select"><option value="">読み込み中…</option></select>
               <span class="mypage__note">支払いが完了した購入だけが対象です。チケットを追加すると、売れた時点で自動的にここに表示されます。</span>
@@ -124,6 +128,8 @@
         <details class="admin-toggle" id="details-members">
           <summary><h2>会員名簿 <span class="admin-toggle__count" id="admin-members-count"></span></h2></summary>
           <p class="mypage__note">登録している会員を1人ずつ開いて、購入・受付コード・これまでに配信したお知らせ・お問い合わせをまとめて確認できます。全員向けのお知らせは全員に届いているため、ここには載せていません（「投稿済みのお知らせ」を参照）。</p>
+          <!-- 支払い済みなのに受付コードが無い人がいたら、当日困る前にここで気づけるようにする -->
+          <div id="admin-members-alert" class="admin-alert" hidden></div>
           <input type="search" class="admin-search" id="admin-members-search" placeholder="お名前・メールアドレス・受付コードで検索…">
           <div id="admin-members" class="mypage__notifications">
             <p class="cards-empty">読み込み中…</p>
@@ -207,6 +213,7 @@
       const membersEl = document.getElementById('admin-members');
       const membersCountEl = document.getElementById('admin-members-count');
       const membersSearchEl = document.getElementById('admin-members-search');
+      const membersAlertEl = document.getElementById('admin-members-alert');
       let allInquiries = [];
       let allAnnouncements = [];
       let allPersonal = [];
@@ -217,6 +224,9 @@
       const logoutBtns = [document.getElementById('admin-logout-btn'), document.getElementById('admin-logout-btn-mobile')];
       const targetTabs = document.querySelectorAll('[data-target-mode]');
       const targetEmailField = document.getElementById('admin-target-email-field');
+      const targetUserSelect = document.getElementById('admin-target-user-select');
+      const targetEmailManual = document.getElementById('admin-target-email-manual');
+      const MANUAL_TARGET = '__manual__';
       const targetSegmentField = document.getElementById('admin-target-segment-field');
       const segmentSelect = document.getElementById('admin-segment-select');
       const targetPendingField = document.getElementById('admin-target-pending-field');
@@ -336,6 +346,17 @@
           </div>`;
       }
 
+      // 支払いは完了しているのに受付コードが1枚も無い購入の警告。
+      // Webhookが届かなかった等の事故は、こちらからは本人の連絡が来るまで気づけないため。
+      function renderMembersAlert(rows) {
+        if (!rows.length) { membersAlertEl.hidden = true; membersAlertEl.innerHTML = ''; return; }
+        membersAlertEl.innerHTML =
+          `<strong>⚠ お支払い済みなのに受付コードが発行されていない購入が ${rows.length} 件あります</strong>` +
+          '<p>このままだと当日ご入場いただけません。Squareの決済とWebhookの状態を確認し、必要なら手動で対応してください。</p>' +
+          '<ul>' + rows.map(r => `<li>${r.name ? esc(r.name) + '　' : ''}${esc(r.email)}　${esc(r.ticketName || '')}　${fmtDay(r.createdAt)}</li>`).join('') + '</ul>';
+        membersAlertEl.hidden = false;
+      }
+
       function renderMembers(list) {
         if (!list.length) {
           membersEl.innerHTML = `<p class="cards-empty">${allMembers.length ? '検索条件に一致する会員がいません。' : 'まだ会員登録はありません。'}</p>`;
@@ -381,13 +402,25 @@
           .then(r => r.json().then(data => ({ ok: r.ok, status: r.status, data })))
           .then(({ ok, status, data }) => {
             if (status === 401) { showLocked(); return; }
-            if (!ok) { membersEl.innerHTML = '<p class="cards-empty">読み込みに失敗しました。</p>'; return; }
+            if (!ok) {
+              membersEl.innerHTML = '<p class="cards-empty">読み込みに失敗しました。</p>';
+              // 名簿が取れないと宛先の選択肢も作れないので、手入力に切り替えられるようにしておく
+              targetUserSelect.innerHTML = `<option value="${MANUAL_TARGET}">（会員一覧を取得できません：メールアドレスを直接入力）</option>`;
+              syncManualTargetField();
+              return;
+            }
             allMembers = data.members || [];
             broadcastCount = data.broadcastCount || 0;
             membersCountEl.textContent = allMembers.length ? `(${allMembers.length})` : '';
             filterMembers();
+            renderTargetUsers(allMembers);
+            renderMembersAlert(data.paidWithoutCodes || []);
           })
-          .catch(() => { membersEl.innerHTML = '<p class="cards-empty">通信エラーが発生しました。</p>'; });
+          .catch(() => {
+            membersEl.innerHTML = '<p class="cards-empty">通信エラーが発生しました。</p>';
+            targetUserSelect.innerHTML = `<option value="${MANUAL_TARGET}">（会員一覧を取得できません：メールアドレスを直接入力）</option>`;
+            syncManualTargetField();
+          });
       }
 
       /* ---------- お問い合わせ一覧・返信 ---------- */
@@ -783,12 +816,45 @@
         targetMode = mode;
         targetTabs.forEach(b => b.classList.toggle('is-active', b.getAttribute('data-target-mode') === mode));
         targetEmailField.hidden = mode !== 'one';
-        form.targetEmail.required = mode === 'one';
-        if (mode !== 'one') form.targetEmail.value = '';
+        if (mode !== 'one') { targetUserSelect.value = ''; form.targetEmail.value = ''; }
+        syncManualTargetField();
         targetSegmentField.hidden = mode !== 'segment';
         form.segmentKey.required = mode === 'segment';
         if (mode !== 'segment') form.segmentKey.value = '';
         targetPendingField.hidden = mode !== 'pending';
+      }
+
+      // 「メールアドレスを直接入力」を選んだときだけ入力欄を出す。
+      // 会員一覧の取得に失敗しても個人宛て送信が完全に不能にならないよう、
+      // 逃げ道として残してある。
+      function syncManualTargetField() {
+        const manual = targetMode === 'one' && targetUserSelect.value === MANUAL_TARGET;
+        targetEmailManual.hidden = !manual;
+        form.targetEmail.required = manual;
+        if (!manual) form.targetEmail.value = '';
+      }
+      targetUserSelect.addEventListener('change', syncManualTargetField);
+
+      // 宛先の選択肢を会員名簿から作る。手入力だと打ち間違いで
+      // 「そのメールアドレスの会員が見つかりませんでした」になりがちなため。
+      function renderTargetUsers(members) {
+        const options = (members || [])
+          .slice()
+          .sort((a, b) => (a.name || a.email || '').localeCompare(b.name || b.email || '', 'ja'))
+          .map(m => `<option value="${esc(m.email)}">${m.name ? esc(m.name) + '（' + esc(m.email) + '）' : esc(m.email)}</option>`)
+          .join('');
+        const keep = targetUserSelect.value;
+        targetUserSelect.innerHTML =
+          `<option value="">選択してください</option>${options}` +
+          `<option value="${MANUAL_TARGET}">（一覧に無い方：メールアドレスを直接入力）</option>`;
+        // 再読み込み前に選んでいた宛先は、その人がまだ一覧にいる場合だけ選び直す。
+        // MANUAL_TARGET は引き継がない。取得に失敗している間は選択肢が
+        // MANUAL_TARGET 1つだけになるため、そのまま引き継ぐと、あとで取得に
+        // 成功しても「メールアドレスを直接入力」に貼り付いたまま一覧に戻らない。
+        if (keep && keep !== MANUAL_TARGET && Array.prototype.some.call(targetUserSelect.options, o => o.value === keep)) {
+          targetUserSelect.value = keep;
+        }
+        syncManualTargetField();
       }
 
       // チケットごとの購入者セグメント（＝購入者タグ）の選択肢を作る。
@@ -889,7 +955,10 @@
         e.preventDefault();
         formError.hidden = true;
         const title = form.title.value.trim();
-        const targetEmail = targetMode === 'one' ? form.targetEmail.value.trim() : '';
+        // 個人宛ては会員一覧から選ぶのが基本。「直接入力」を選んだときだけ入力欄の値を使う。
+        const targetEmail = targetMode !== 'one'
+          ? ''
+          : (targetUserSelect.value === MANUAL_TARGET ? form.targetEmail.value.trim() : targetUserSelect.value.trim());
         const segmentKey = targetMode === 'segment' ? form.segmentKey.value : '';
         if (!title) {
           formError.textContent = 'タイトルを入力してください';
@@ -902,7 +971,9 @@
           return;
         }
         if (targetMode === 'one' && !targetEmail) {
-          formError.textContent = '宛先のメールアドレスを入力してください';
+          formError.textContent = targetUserSelect.value === MANUAL_TARGET
+            ? '宛先のメールアドレスを入力してください'
+            : '宛先の会員を選んでください';
           formError.hidden = false;
           return;
         }
@@ -946,6 +1017,7 @@
             resetBlocks();
             setTargetMode('all');
             loadList();
+            loadMembers(); // 会員名簿の「配信したお知らせ」に今送った分を反映する
             fetchPreview();
           })
           .catch(() => {

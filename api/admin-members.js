@@ -173,8 +173,29 @@ module.exports = async function handler(req, res) {
     // 新しく登録した人が上に来るように
     members.sort((a, b) => String(b.createdAt || '').localeCompare(String(a.createdAt || '')));
 
+    /* 支払い済みなのに有効な受付コードが1枚も無い購入を拾う。
+       Webhookが届かなかった・コード発行に失敗した、といった事故が起きると、
+       お客様は「払ったのに入場できない」状態のまま当日を迎えることになるが、
+       こちらは本人から連絡が来るまで気づけない。ここで見えるようにしておく。
+       （返金済みはコードが無くて正常なので対象外） */
+    const paidWithoutCodes = [];
+    for (const m of members) {
+      for (const p of m.purchases) {
+        if (p.status !== 'paid') continue;
+        if (p.codes.some((c) => !c.revoked)) continue;
+        paidWithoutCodes.push({
+          purchaseId: p.id,
+          email: m.email,
+          name: m.name,
+          ticketName: p.ticketName,
+          createdAt: p.createdAt,
+        });
+      }
+    }
+
     res.status(200).json({
       members,
+      paidWithoutCodes,
       // 全員向けのお知らせは会員全員に配信されるので、人ごとには持たず件数だけ返す
       broadcastCount: announcementsRes.count || 0,
       truncated: users.length >= MAX_USERS,

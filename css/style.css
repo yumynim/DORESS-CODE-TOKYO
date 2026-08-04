@@ -1179,6 +1179,27 @@ a.mcard__sns:hover { transform: translateY(-3px); }
 .toggle-item[open] .toggle-item__arrow { transform: rotate(90deg); }
 .toggle-item__body { margin-top: 10px; }
 
+/* /console: 見落とすと当日困ることの警告（支払い済みなのにコードが無い等） */
+.admin-alert {
+  margin: 0 0 18px; padding: 14px 16px; border-radius: 4px;
+  background: #fdf1ef; border-left: 3px solid #a1402c;
+  font-size: 13px; line-height: 1.8; color: #7d2f1f;
+}
+.admin-alert strong { display: block; margin-bottom: 6px; color: #a1402c; }
+.admin-alert p { margin: 0 0 8px; }
+.admin-alert ul { margin: 0; padding-left: 18px; }
+
+/* /checkin: 受付可能日のお知らせ。通常は控えめに、設定がおかしいときは赤く目立たせる。 */
+.checkin__gate {
+  margin: 0 0 22px; padding: 12px 14px; border-radius: 4px;
+  background: #f4f3f0; border-left: 3px solid var(--line);
+  font-size: 13px; line-height: 1.8; color: var(--muted);
+}
+.checkin__gate--error {
+  background: #fdf1ef; border-left-color: #a1402c; color: #7d2f1f;
+}
+.checkin__gate--error strong { color: #a1402c; }
+
 /* 会員名簿カード（/console）。1人開くと、その人の購入・受付コード・配信履歴・
    お問い合わせが縦に並ぶ。要約行は見出しの下に回り込ませたいので wrap する。 */
 .admin-member > summary { flex-wrap: wrap; }

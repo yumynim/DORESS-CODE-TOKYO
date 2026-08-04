@@ -48,6 +48,11 @@
       <h1 class="mypage__title">入場確認</h1>
       <p class="mypage__note">受付コードをカメラで読み取るか、下の欄に手入力して確認してください。</p>
 
+      <!-- 受付を開始する前に「今日この端末で入場を通せるか」を知らせる。
+           テスト用に設定した EVENT_DATE を消し忘れていると当日いっさい入場できないため、
+           最初のお客様をスキャンして初めて気づく、という事態を避ける。 -->
+      <p id="checkin-gate" class="checkin__gate" hidden></p>
+
       <section class="checkin__scanner">
         <video id="checkin-video" playsinline muted hidden></video>
         <p id="checkin-camera-off" class="mypage__note">読み取りを開始するには下のボタンを押してください。</p>
@@ -281,6 +286,33 @@
         if (state === 'ok' || state === 'used') loadHistory(); // チェックインが増えたので一覧を最新化する
       }
 
+      /* ---------- 受付可能日の表示 ----------
+         入場を受け付けられる日かどうかを、スキャンを始める前に出しておく。 */
+      function renderGate(gate) {
+        const el = document.getElementById('checkin-gate');
+        if (!gate) { el.hidden = true; return; }
+        const jp = (d) => {
+          const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(d || ''));
+          return m ? `${Number(m[2])}月${Number(m[3])}日` : String(d || '');
+        };
+        el.classList.toggle('checkin__gate--error', !gate.ok);
+        if (!gate.ok) {
+          el.innerHTML = `<strong>⚠ 今日は入場を受け付けられません</strong><br>` +
+            `受付可能日が <strong>${esc(jp(gate.target))}</strong> に設定されています（本日は ${esc(jp(gate.today))}）。` +
+            (gate.source === 'EVENT_DATE'
+              ? ' テスト用の設定（環境変数 EVENT_DATE）が残っています。Vercel で EVENT_DATE を削除して再デプロイしてください。'
+              : ' 環境変数 CURRENT_EVENT_ID の値をご確認ください。');
+        } else if (gate.target === 'any') {
+          el.classList.add('checkin__gate--error');
+          el.innerHTML = '<strong>⚠ 日付チェックが無効になっています</strong><br>環境変数 EVENT_DATE が「any」のため、開催日以外でも入場を受け付けます。テストが終わったら削除してください。';
+        } else if (!gate.target) {
+          el.innerHTML = '受付可能日の設定がありません（いつでも入場を受け付けます）。';
+        } else {
+          el.innerHTML = `本日 ${esc(jp(gate.today))} は受付可能日です。入場を受け付けられます。`;
+        }
+        el.hidden = false;
+      }
+
       /* ---------- 本日のチェックイン一覧（実データ・検索・取り消し可能） ---------- */
       function renderHistory(list) {
         historyCountEl.textContent = list.length ? `(${list.length})` : '';
@@ -403,6 +435,7 @@
             if (!ok) { historyEl.innerHTML = '<p class="cards-empty">読み込みに失敗しました。</p>'; return; }
             allCheckins = data.checkins || [];
             filterHistory();
+            renderGate(data.gate);
           })
           .catch(() => { historyEl.innerHTML = '<p class="cards-empty">通信エラーが発生しました。</p>'; });
       }

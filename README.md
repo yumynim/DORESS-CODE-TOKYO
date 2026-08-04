@@ -12,7 +12,7 @@ DORESS CODE TOKYO/
 ├── article.html                記事詳細ページ
 ├── member.html                 メンバー個人ページ
 ├── members-only.html           マイページ（購入したチケット・お知らせ）
-├── admin-announcements.html    お知らせ投稿ページ（/console、合言葉方式）
+├── admin-announcements.html    管理者画面（/console、合言葉方式。お知らせ配信・問い合わせ対応・購入者/会員名簿）
 ├── checkin.html                当日の入場確認ページ（/checkin、合言葉方式）
 ├── tokutei-shotorihiki.html    特定商取引法に基づく表記
 ├── community-creator.html      コミュニティ（クリエイター向け・現在どこからもリンクしていない）

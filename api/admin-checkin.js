@@ -64,22 +64,38 @@ function jstToday() {
 //   2. 未設定なら CURRENT_EVENT_ID（例: 0927 = 9月27日）から今年の日付を組み立てる。
 //   3. どちらも無ければゲート無し。
 // 入場できない日は null ではなくエラーメッセージを返す。
-function eventDateGateError() {
+function eventGateInfo() {
   // 「2026/09/27」のように書かれても黙って無視しないよう、区切りを揃えてから判定する
   const raw = String(process.env.EVENT_DATE || '').trim().toLowerCase().replace(/\//g, '-');
-  if (raw === 'any') return null;
-
-  let target = raw;
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(target)) {
-    const m = /^(\d{2})(\d{2})$/.exec(String(process.env.CURRENT_EVENT_ID || '').trim());
-    if (!m) return null; // 開催日を決められない → ゲート無し（従来どおり）
-    target = `${jstToday().slice(0, 4)}-${m[1]}-${m[2]}`;
+  const today = jstToday();
+  if (raw === 'any') {
+    return { ok: true, today, target: 'any', source: 'EVENT_DATE', message: null };
   }
 
-  const today = jstToday();
-  if (today === target) return null;
+  let target = raw;
+  let source = 'EVENT_DATE';
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(target)) {
+    const m = /^(\d{2})(\d{2})$/.exec(String(process.env.CURRENT_EVENT_ID || '').trim());
+    // 開催日を決められない → ゲート無し（従来どおり）
+    if (!m) return { ok: true, today, target: null, source: null, message: null };
+    target = `${today.slice(0, 4)}-${m[1]}-${m[2]}`;
+    source = 'CURRENT_EVENT_ID';
+  }
+
+  if (today === target) return { ok: true, today, target, source, message: null };
   const [, mm, dd] = target.split('-');
-  return `本日は開催日（${Number(mm)}月${Number(dd)}日）ではないため入場受付できません。テストの場合は Vercel の環境変数 EVENT_DATE を今日の日付（${today}）にして再デプロイしてください。`;
+  return {
+    ok: false,
+    today,
+    target,
+    source,
+    message: `本日は開催日（${Number(mm)}月${Number(dd)}日）ではないため入場受付できません。テストの場合は Vercel の環境変数 EVENT_DATE を今日の日付（${today}）にして再デプロイしてください。`,
+  };
+}
+
+function eventDateGateError() {
+  const info = eventGateInfo();
+  return info.ok ? null : info.message;
 }
 
 module.exports = async function handler(req, res) {
@@ -169,7 +185,10 @@ module.exports = async function handler(req, res) {
           checkedInAt: p.checked_in_at,
         };
       });
-      res.status(200).json({ checkins });
+      // 受付が「今日この端末で入場を通せるのか」を、列ができる前に確認できるようにする。
+      // テストのために設定した EVENT_DATE を消し忘れたまま当日を迎えると、
+      // 最初のお客様をスキャンした瞬間に初めて気づくことになるため。
+      res.status(200).json({ checkins, gate: eventGateInfo() });
     } catch (err) {
       console.error('admin-checkin GET handler error:', err);
       res.status(500).json({ error: 'サーバー内部でエラーが発生しました' });
