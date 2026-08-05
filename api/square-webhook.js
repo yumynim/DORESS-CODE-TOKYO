@@ -17,6 +17,7 @@
 const crypto = require('crypto');
 const { createClient } = require('@supabase/supabase-js');
 const { sendEmail, SITE_URL } = require('../lib/mailer');
+const { qrDataUri } = require('../lib/qr');
 const { categoryFromItems, getCatalogItem } = require('../lib/catalog');
 
 // 当日の入場確認用コード。「DCT-イベント識別番号-カテゴリ+連番-ランダム4文字」の形式
@@ -92,13 +93,6 @@ function escapeHtml(s) {
   return String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 }
 
-// 受付コードのQR画像URL。外部の無料サービス（api.qrserver.com）に生成を任せる。
-// 追加のライブラリ・課金無しで済ませるためで、渡すのは受付コードだけ（氏名・メール等の個人情報は含まない）。
-// 受付コードの末尾4文字はランダムなので、他人のコードから次の人のコードを推測することはできない。
-function entryCodeQrUrl(code, size) {
-  return `https://api.qrserver.com/v1/create-qr-code/?size=${size || 240}x${size || 240}&data=${encodeURIComponent(code)}`;
-}
-
 
 async function notifyPurchaser(serviceClient, purchase, newStatus) {
   const isPaid = newStatus === 'paid';
@@ -130,10 +124,12 @@ async function notifyPurchaser(serviceClient, purchase, newStatus) {
 
   // 通知ベルのドロワーは body_html があればそれを表示する（無ければ body のプレーンテキスト）。
   // 受付コードがある場合はQR画像もその場で見られるようにする（メール・マイページと同じ扱い）。
+  // QRはその場で生成してHTMLに直接埋め込む（外部サービスへの通信が発生しないため、
+  // 何人分あっても確実に表示される。理由は下のメール送信部分のコメント参照）。
   const bodyHtml = (isPaid && codes.length)
     ? `<p>${escapeHtml(body)}</p>` + codes.map((c, i) =>
         `<p style="margin-top:10px; font-weight:700;">${codes.length > 1 ? `${i + 1}人目：` : ''}${escapeHtml(c)}</p>` +
-        `<img src="${entryCodeQrUrl(c, 140)}" alt="受付QRコード ${escapeHtml(c)}" width="140" height="140" style="margin-top:4px;">`
+        `<img src="${qrDataUri(c, 12)}" alt="受付QRコード ${escapeHtml(c)}" width="140" height="140" style="margin-top:4px;">`
       ).join('')
     : null;
 
@@ -154,12 +150,18 @@ async function notifyPurchaser(serviceClient, purchase, newStatus) {
   if (isPaid && codes.length) {
     // 受付コードをQR画像付きで送る（当日スタッフがカメラで読み取れるように）。
     // まとめ買いのときは1人分ずつ「◯人目」のラベルを付けて全コードを載せる。
+    //
+    // QRは api.qrserver.com（外部の無料サービス）からURLで読み込む方式をやめ、
+    // その場で生成してメールに直接埋め込む（data URI）方式にした。
+    // 2人分以上のコードを1通のメールに載せたとき、メールソフトが複数の外部画像を
+    // ほぼ同時に取得しようとして2人目以降の画像が表示されない事故が実際に起きたため
+    // （受付コードは当日の入場そのものに関わるので、外部サービスの調子に
+    // 左右されてはいけない）。埋め込み後は表示に一切の通信が発生しないので、
+    // 何人分あっても確実に表示される。
     const blocks = [{ type: 'paragraph', text: body }];
     codes.forEach((c, i) => {
       if (codes.length > 1) blocks.push({ type: 'paragraph', text: `── ${i + 1}人目 ──　${c}` });
-      // width を指定しないとメール側で幅いっぱい（536px）に引き伸ばされ、
-      // QRがぼやけて読み取りにくくなるため、実寸で表示させる
-      blocks.push({ type: 'image', url: entryCodeQrUrl(c, 480), alt: '受付QRコード ' + c, width: 240 });
+      blocks.push({ type: 'image', url: qrDataUri(c, 12), alt: '受付QRコード ' + c, width: 240 });
     });
     blocks.push({ type: 'button', label: 'マイページで確認する', url: SITE_URL + '/members-only.html' });
     sent = await sendEmail({ to, subject: title, blocks });
